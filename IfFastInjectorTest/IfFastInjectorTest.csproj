@@ -34,15 +34,15 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <ProjectReference Include="..\FastInjectorMx\FastInjectorMx.csproj">
-      <Project>{E223D620-7563-4C59-8361-B10A7C398723}</Project>
-      <Name>FastInjectorMx</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="InjectorTest.cs" />
     <Compile Include="ResolverLoopTest.cs" />
     <Compile Include="UnitTest1.cs" />
     <Compile Include="UnitTest2.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">
+      <Project>{E223D620-7563-4C59-8361-B10A7C398723}</Project>
+      <Name>IfFastInjector</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>

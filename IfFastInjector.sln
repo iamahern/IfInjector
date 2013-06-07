@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastInjectorMx", "FastInjectorMx\FastInjectorMx.csproj", "{E223D620-7563-4C59-8361-B10A7C398723}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IfFastInjector", "IfFastInjector\IfFastInjector.csproj", "{E223D620-7563-4C59-8361-B10A7C398723}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastInjectorMxTest", "FastInjectorMxTest\FastInjectorMxTest.csproj", "{083C5427-83BA-4579-A000-AC49EE2F4105}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IfFastInjectorTest", "IfFastInjectorTest\IfFastInjectorTest.csproj", "{083C5427-83BA-4579-A000-AC49EE2F4105}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +21,6 @@ Global
 		{E223D620-7563-4C59-8361-B10A7C398723}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
-		StartupItem = FastInjectorMx\FastInjectorMx.csproj
+		StartupItem = IfFastInjector\IfFastInjector.csproj
 	EndGlobalSection
 EndGlobal
