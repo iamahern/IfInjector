@@ -4,7 +4,13 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
-namespace FastInjectorMx
+/// <summary>
+/// NOTE: no actual implementation
+/// I was was coding these interfaces before rebasing on top of 'fFastInjector' to use as a starting point.
+/// 
+/// I intend to merge the good parts of this with IFFastInjector
+/// </summary>
+namespace FastInjectorFuture
 {
 	/// <summary>
 	/// Attribute for interfaces to allow implicit binding.

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 
 namespace IfFastInjector
 {
@@ -65,6 +66,7 @@ namespace IfFastInjector
 
 		protected internal readonly Dictionary<Type, object> internalResolvers = new Dictionary<Type, object>();
 		protected internal readonly Dictionary<Type, Func<object>> resolvers = new Dictionary<Type, Func<object>>();
+		protected internal readonly Dictionary<Type, bool> isRecursionTestPending = new Dictionary<Type, bool> ();
 		protected internal readonly MethodInfo GenericResolve;
 
 		/// <summary>
@@ -174,6 +176,10 @@ namespace IfFastInjector
 			}
 		}
 
+		protected internal void CheckCircularDependencies(Type type) {
+
+		}
+
 		/// <summary>
 		/// Creates the instance helper. This method will unpack TargetInvocationException exceptions.
 		/// </summary>
@@ -196,19 +202,9 @@ namespace IfFastInjector
         protected internal class InternalResolver<T>
           where T : class
         {
-			/**
-			 * Because of the way that resolvers are initialized, we need a 
-			 * loopcatcher external to InternalResolvers to keep track if we
-			 * are in a loop.
-			 */
-			private static class LoopCatcher<TP> {
-				[ThreadStatic]
-				internal static bool IsRecursionTestPending;
-			}
-
 			protected internal Injector MyInjector;
 
-			private bool IsVerifiedNotRecursive;
+			private bool isVerifiedNotRecursive;
 
             private readonly Type typeofT = typeof(T);
 			private readonly List<SetterExpression> setterExpressions = new List<SetterExpression>();
@@ -376,7 +372,7 @@ namespace IfFastInjector
                     ResolverExpression = ResolverFactoryExpression;
                 }
 
-				this.IsVerifiedNotRecursive = false;
+				this.isVerifiedNotRecursive = false;
 
                 resolverFactoryCompiled = ResolverExpression.Compile();
                 Resolve = ResolveWithRecursionCheck;
@@ -396,21 +392,34 @@ namespace IfFastInjector
                 return (Expression<Func<object>>)Expression.Lambda(Expression.Convert(func.Body, typeof(object)), func.Parameters);
             }
 
+			private bool isRecursionTestPending {
+				get {
+					bool ret;
+					if (!MyInjector.isRecursionTestPending.TryGetValue(typeofT, out ret)) {
+						MyInjector.isRecursionTestPending[typeofT] = ret = false;
+					}
+					return ret;
+				}
+				set {
+					MyInjector.isRecursionTestPending [typeofT] = value;
+				}
+			}
+
             private T ResolveWithRecursionCheck()
             {
-				if (!IsVerifiedNotRecursive)
+				if (!isVerifiedNotRecursive)
                 {
-					if (LoopCatcher<T>.IsRecursionTestPending)
+					if (isRecursionTestPending) //LoopCatcher<T>.IsRecursionTestPending)
                     {
 						throw MyInjector.CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
                     }
-					LoopCatcher<T>.IsRecursionTestPending = true;
+					isRecursionTestPending = true;
                 }
 
                 var retval = resolverFactoryCompiled();
 
-				IsVerifiedNotRecursive = true;
-				LoopCatcher<T>.IsRecursionTestPending = false;
+				isVerifiedNotRecursive = true;
+				isRecursionTestPending = false;
                 Resolve = resolverFactoryCompiled;
                 this.MyInjector.resolvers[typeofT] = ConvertFunc(ResolverExpression).Compile();
                 return retval;
