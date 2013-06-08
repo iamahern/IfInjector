@@ -86,7 +86,7 @@ namespace IfFastInjector
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TConcreteType">The 2nd type parameter.</typeparam>
 		public abstract IfFastInjectorFluent<T> SetResolver<T, TConcreteType> ()
-            where T : class
+			where T : class
 			where TConcreteType : class, T;
 
 		/// <summary>
@@ -115,7 +115,7 @@ namespace IfFastInjector
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TPropertyType">The 2nd type parameter.</typeparam>
 		public abstract IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression)
-            where T : class
+			where T : class
 			where TPropertyType : class;
 
 		/// <summary>
@@ -127,7 +127,7 @@ namespace IfFastInjector
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TPropertyType">The 2nd type parameter.</typeparam>
 		public abstract IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-            where T : class
+			where T : class
 			where TPropertyType : class;
 	}
 }
