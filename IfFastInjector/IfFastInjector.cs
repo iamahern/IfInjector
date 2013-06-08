@@ -62,11 +62,38 @@ namespace IfFastInjector
 			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
 		}
 
+		/// <summary>
+		/// Thread safe dictionary wrapper. 
+		/// </summary>
+		protected internal class SafeDictionary<TKey,TValue> {
+			private readonly object syncLock = new object();
+			private readonly Dictionary<TKey, TValue> dict = new Dictionary<TKey, TValue>();
+
+			public TValue this [TKey key] {
+				get {
+					lock (syncLock) {
+						return dict [key];
+					}
+				}
+				set {
+					lock (syncLock) {
+						dict [key] = value;
+					}
+				}
+			}
+
+			public bool TryGetValue (TKey key, out TValue value) {
+				lock (syncLock) {
+					return dict.TryGetValue (key, out value);
+				}
+			}
+		}
+
 		private static object LoopCheckerConst = new object();
 
-		protected internal readonly Dictionary<Type, object> internalResolvers = new Dictionary<Type, object>();
-		protected internal readonly Dictionary<Type, Func<object>> resolvers = new Dictionary<Type, Func<object>>();
-		protected internal readonly Dictionary<Type, bool> isRecursionTestPending = new Dictionary<Type, bool> ();
+		private readonly SafeDictionary<Type, object> internalResolvers = new SafeDictionary<Type, object>();
+		protected internal readonly SafeDictionary<Type, Func<object>> resolvers = new SafeDictionary<Type, Func<object>>();
+		protected internal readonly SafeDictionary<Type, bool> isRecursionTestPending = new SafeDictionary<Type, bool> ();
 		protected internal readonly MethodInfo GenericResolve;
 
 		/// <summary>
@@ -90,12 +117,11 @@ namespace IfFastInjector
         public object Resolve(Type type)
         {
             Func<object> resolver;
+
             if (resolvers.TryGetValue(type, out resolver))
             {
                 return resolver();
             }
-
-			//return GetInternalResolver
 
             // Not in dictionary, call Resolve<T> which will, in turn, set up and call the default Resolver
             return GenericResolve.MakeGenericMethod(type).Invoke(this, new object[0]);
@@ -160,7 +186,7 @@ namespace IfFastInjector
 
 		// TODO - make thread safe
 		protected internal object GetInternalResolver(Type type) {
-			object resolver = null;
+			object resolver;
 			if (internalResolvers.TryGetValue (type, out resolver)) {
 				if (Object.ReferenceEquals(LoopCheckerConst, resolver)) {
 					throw CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, type.Name));
@@ -170,14 +196,10 @@ namespace IfFastInjector
 				Type iResolverType = typeof(InternalResolver<>);
 				Type genericType = iResolverType.MakeGenericType(new Type[] { type });
 
-				internalResolvers[type] = LoopCheckerConst;
+				internalResolvers[type] = LoopCheckerConst; // TODO I belive this can be eliminated somehow..
 				internalResolvers[type] = resolver = CreateInstance (genericType, this);
 				return resolver;
 			}
-		}
-
-		protected internal void CheckCircularDependencies(Type type) {
-
 		}
 
 		/// <summary>
@@ -409,7 +431,7 @@ namespace IfFastInjector
             {
 				if (!isVerifiedNotRecursive)
                 {
-					if (isRecursionTestPending) //LoopCatcher<T>.IsRecursionTestPending)
+					if (isRecursionTestPending)
                     {
 						throw MyInjector.CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
                     }
