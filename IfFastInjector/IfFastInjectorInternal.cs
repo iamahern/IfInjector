@@ -47,7 +47,6 @@ namespace IfFastInjector
 			{
 				Expression<Func<Exception>> TmpResolveExpression = () => this.Resolve<Exception>();
 				this.GenericResolve = ((MethodCallExpression)TmpResolveExpression.Body).Method.GetGenericMethodDefinition();
-				this.ExceptionType = typeof(IfFastInjectorException);
 			}
 
 			public override T Resolve<T>()
@@ -108,7 +107,7 @@ namespace IfFastInjector
 				lock (typeConstruct) {
 					if (typeConstruct.InternalResolver == null) {
 						if (typeConstruct.IsInternalResolverPending) {
-							throw CreateException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, type.Name));
+							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, type.Name));
 						}
 
 						Type iResolverType = typeof(InternalResolver<>);
@@ -120,11 +119,6 @@ namespace IfFastInjector
 
 					return typeConstruct.InternalResolver;
 				}
-			}
-
-			protected internal Exception CreateException(string message, Exception innerException = null)
-			{
-				return (Exception) Activator.CreateInstance(ExceptionType, message, innerException);
 			}
 
 			private IInternalResolver CreateInstance(Type type, params object[] args) {
@@ -209,7 +203,7 @@ namespace IfFastInjector
 
 			private T ThrowInterfaceException()
 			{
-				throw MyInjector.CreateException(string.Format(IfFastInjectorErrors.ErrorUnableToResultInterface, typeof(T).FullName));
+				throw new IfFastInjectorException(string.Format(IfInjector.IfFastInjectorErrors.ErrorUnableToResultInterface, typeof(T).FullName));
 			}
 
 			private class SetterExpression
@@ -290,7 +284,7 @@ namespace IfFastInjector
 			{
 				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
 				if (propertyMemberExpression == null) {
-					throw new ArgumentException(IfFastInjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
+					throw new ArgumentException(IfInjector.IfFastInjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
 				}
 
 				setterExpressions.Add(new SetterExpression { PropertyMemberExpression = propertyMemberExpression, Setter = setter });
@@ -370,7 +364,7 @@ namespace IfFastInjector
 				{
 					if (IsRecursionTestPending)
 					{
-						throw MyInjector.CreateException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+						throw new IfFastInjectorException(string.Format(IfInjector.IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
 					}
 					IsRecursionTestPending = true;
 				}
@@ -452,7 +446,7 @@ namespace IfFastInjector
 		/// The fluent class is really only important to give the extension methods the type for T
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		protected internal class InjectorFluent<T> : IfFastInjectorFluent<T>
+		protected internal class InjectorFluent<T> : IfInjector.IfFastInjectorFluent<T>
 			where T : class 
 		{ 
 			private readonly InjectorInternal injector;
@@ -461,14 +455,14 @@ namespace IfFastInjector
 				this.injector = injector;
 			}
 
-			public IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
+			public IfInjector.IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
 				where TPropertyType : class
 			{
 				injector.GetInternalResolver<T>().AddPropertySetter(propertyExpression);
 				return this;
 			}
 
-			public IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+			public IfInjector.IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
 				where TPropertyType : class 
 			{
 				injector.GetInternalResolver<T>().AddPropertySetter(propertyExpression, setter);
