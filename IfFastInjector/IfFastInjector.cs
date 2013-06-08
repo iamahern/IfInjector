@@ -6,6 +6,10 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
+
+//
+// TODO - Needs further review for thread safety.
+//
 namespace IfFastInjector
 {
 	/// <summary>
@@ -70,15 +74,16 @@ namespace IfFastInjector
 			private readonly Dictionary<TKey, TValue> dict = new Dictionary<TKey, TValue>();
 
 			public TValue this [TKey key] {
-				get {
-					lock (syncLock) {
-						return dict [key];
-					}
-				}
 				set {
 					lock (syncLock) {
 						dict [key] = value;
 					}
+				}
+			}
+
+			public bool TryGetValueOnly(TKey key, out TValue value) {
+				lock (syncLock) {
+					return dict.TryGetValue(key, out value);
 				}
 			}
 
@@ -96,9 +101,11 @@ namespace IfFastInjector
 
 		private static object LoopCheckerConst = new object();
 
+		// Thread safety via lock (internalResolvers) 
 		private readonly Dictionary<Type, object> internalResolvers = new Dictionary<Type, object>();
 		protected internal readonly SafeDictionary<Type, bool> isRecursionTestPending = new SafeDictionary<Type, bool> ();
-		protected internal readonly Dictionary<Type, Func<object>> resolvers = new Dictionary<Type, Func<object>>();
+
+		private readonly SafeDictionary<Type, Func<object>> resolvers = new SafeDictionary<Type, Func<object>>();
 		protected internal readonly MethodInfo GenericResolve;
 
 		/// <summary>
@@ -121,9 +128,9 @@ namespace IfFastInjector
 
         public object Resolve(Type type)
         {
-            Func<object> resolver;
+			Func<object> resolver;
 
-            if (resolvers.TryGetValue(type, out resolver))
+            if (resolvers.TryGetValueOnly(type, out resolver))
             {
                 return resolver();
             }
@@ -189,8 +196,7 @@ namespace IfFastInjector
 			return (InternalResolver<T>) GetInternalResolver (typeof(T));
 		}
 
-		// TODO - make thread safe
-		//  Currently this does not protect against 
+		// TODO - review
 		protected internal object GetInternalResolver(Type type) {
 			lock (internalResolvers) {
 				object resolver;
