@@ -33,7 +33,7 @@ namespace IfFastInjector
 		/// <summary>
 		/// The actual injector implementation.
 		/// </summary>
-		internal class InjectorInternal : Injector
+		internal class InjectorInternal : IfInjector
 		{		
 			// Thread safety via lock (internalResolvers) 
 			private readonly SafeDictionary<Type, InjectorTypeConstructs> MyTypeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>();
@@ -389,7 +389,7 @@ namespace IfFastInjector
 			private Func<T> SetDefaultConstructor()
 			{
 				// get first available constructor ordered by parameter count ascending
-				var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(InjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
+				var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IfIgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(IfInjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
 
 				if (constructor != null)
 				{

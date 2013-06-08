@@ -25,13 +25,13 @@ namespace IfFastInjector
 	/// Inject attribute. Used to flag constructors for preferred injection. 
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Constructor)]
-	public class InjectAttribute : Attribute { }
+	public class IfInjectAttribute : Attribute { }
 
 	/// <summary>
 	/// Ignore constructor attribute. Used to flage constructors to be ignored.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Constructor)]
-	public class IgnoreConstructorAttribute : Attribute { }
+	public class IfIgnoreConstructorAttribute : Attribute { }
 
 	/// <summary>
 	/// The fluent class is really only important to give the extension methods the type for T. 
@@ -59,13 +59,13 @@ namespace IfFastInjector
 	/// <summary>
 	/// Injector.
 	/// </summary>
-    public abstract class Injector
+    public abstract class IfInjector
     {
 		/// <summary>
 		/// News the instance.
 		/// </summary>
 		/// <returns>The instance.</returns>
-		public static Injector NewInstance() {
+		public static IfInjector NewInstance() {
 			return new IfFastInjectorInternal.InjectorInternal ();
 		}
 

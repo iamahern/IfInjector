@@ -7,7 +7,7 @@ namespace IfFastInjector
     [TestFixture]
     public class InjectorTest
     {
-		Injector injector = Injector.NewInstance();
+		IfInjector injector = IfInjector.NewInstance();
 
         [Test]
         public void ResolveInterface()
@@ -74,7 +74,7 @@ namespace IfFastInjector
                 CorrectConstructorWasUsed = false;
             }
 
-            [Inject]
+            [IfInject]
             public TestSelectConstructorByAttributeTestClass(IMyOtherInterface dep)
             {
                 CorrectConstructorWasUsed = true;
@@ -99,7 +99,7 @@ namespace IfFastInjector
 
         class TestIgnoreConstructorByAttributeTestClass
         {
-            [IgnoreConstructor]
+            [IfIgnoreConstructor]
             public TestIgnoreConstructorByAttributeTestClass()
             {
                 CorrectConstructorWasUsed = false;
