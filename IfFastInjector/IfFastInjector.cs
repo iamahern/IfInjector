@@ -99,13 +99,19 @@ namespace IfFastInjector
 			}
 		}
 
-		private static object LoopCheckerConst = new object();
+		protected internal interface IInternalResolver {
+			Func<object> GetResolver();
+		}
+
+		private class LoopCheckerConstType : IInternalResolver { 
+			public Func<object> GetResolver() { return null; }
+		}
+
+		private static IInternalResolver LoopCheckerConst = new LoopCheckerConstType();
 
 		// Thread safety via lock (internalResolvers) 
-		private readonly Dictionary<Type, object> internalResolvers = new Dictionary<Type, object>();
+		private readonly Dictionary<Type, IInternalResolver> internalResolvers = new Dictionary<Type, IInternalResolver>();
 		protected internal readonly SafeDictionary<Type, bool> isRecursionTestPending = new SafeDictionary<Type, bool> ();
-
-		private readonly SafeDictionary<Type, Func<object>> resolvers = new SafeDictionary<Type, Func<object>>();
 		protected internal readonly MethodInfo GenericResolve;
 
 		/// <summary>
@@ -128,11 +134,11 @@ namespace IfFastInjector
 
         public object Resolve(Type type)
         {
-			Func<object> resolver;
+			IInternalResolver internalResolver;
 
-            if (resolvers.TryGetValueOnly(type, out resolver))
+			if (internalResolvers.TryGetValue(type, out internalResolver))
             {
-                return resolver();
+				return (internalResolver.GetResolver())();
             }
 
             // Not in dictionary, call Resolve<T> which will, in turn, set up and call the default Resolver
@@ -199,7 +205,7 @@ namespace IfFastInjector
 		// TODO - review
 		protected internal object GetInternalResolver(Type type) {
 			lock (internalResolvers) {
-				object resolver;
+				IInternalResolver resolver;
 				if (internalResolvers.TryGetValue (type, out resolver)) {
 					if (Object.ReferenceEquals(LoopCheckerConst, resolver)) {
 						throw CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, type.Name));
@@ -222,9 +228,9 @@ namespace IfFastInjector
 		/// <returns>The instance.</returns>
 		/// <param name="type">Type.</param>
 		/// <param name="args">Arguments.</param>
-		private object CreateInstance(Type type, params object[] args) {
+		private IInternalResolver CreateInstance(Type type, params object[] args) {
 			try {
-				return Activator.CreateInstance(type, args);
+				return (IInternalResolver) Activator.CreateInstance(type, args);
 			} catch (TargetInvocationException ex) {
 				throw ex.InnerException;
 			}
@@ -235,7 +241,7 @@ namespace IfFastInjector
 			return (Exception) Activator.CreateInstance(ExceptionType, message, innerException);
 		}
 
-        protected internal class InternalResolver<T>
+		protected internal class InternalResolver<T> : IInternalResolver
           where T : class
         {
 			protected internal Injector MyInjector;
@@ -251,6 +257,12 @@ namespace IfFastInjector
 			public InternalResolver(Injector injector) {
 				this.MyInjector = injector;
 				this.Resolve = InitInitialResolver();
+			}
+
+			public Func<object> GetResolver() {
+				return () => {
+					return Resolve();
+				};
 			}
 
             private Func<T> InitInitialResolver()
@@ -413,8 +425,6 @@ namespace IfFastInjector
                 resolverFactoryCompiled = ResolverExpression.Compile();
                 Resolve = ResolveWithRecursionCheck;
 
-                MyInjector.resolvers[typeofT] = ResolveWithRecursionCheck;
-
                 return ResolveWithRecursionCheck;
             }
 
@@ -453,7 +463,6 @@ namespace IfFastInjector
 				isVerifiedNotRecursive = true;
 				isRecursionTestPending = false;
                 Resolve = resolverFactoryCompiled;
-                this.MyInjector.resolvers[typeofT] = ConvertFunc(ResolverExpression).Compile();
                 return retval;
             }
 
