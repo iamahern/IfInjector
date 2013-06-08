@@ -7,7 +7,7 @@ namespace IfFastInjector
     [TestFixture]
     public class ResolverLoopTest
     {
-		protected internal static Injector injector = new Injector();
+		protected internal static Injector injector = Injector.NewInstance();
 		
        	[Test, Timeout(400)]
         public void TestResolverWithLoopingTypes1()

@@ -7,7 +7,7 @@ namespace IfFastInjector
     [TestFixture]
     public class UnitTest2
     {
-		private Injector injector = new Injector();
+		private Injector injector = Injector.NewInstance();
 
         [Test]
         public void SetResolverByConstructorInfoTest()

@@ -7,7 +7,7 @@ namespace IfFastInjector
     [TestFixture]
     public class InjectorTest
     {
-		IfFastInjector.Injector injector = new Injector();
+		Injector injector = Injector.NewInstance();
 
         [Test]
         public void ResolveInterface()
