@@ -6,66 +6,64 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
-
-//
-// TODO - Needs further review for thread safety.
-//
 namespace IfFastInjector
 {
 	/// <summary>
 	/// Inject attribute. Used to flag constructors for preferred injection. 
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Constructor)]
-	public class IfInjectAttribute : Attribute { }
+	public class IfInjectAttribute : Attribute {}
 
 	/// <summary>
 	/// Ignore constructor attribute. Used to flage constructors to be ignored.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Constructor)]
-	public class IfIgnoreConstructorAttribute : Attribute { }
+	public class IfIgnoreConstructorAttribute : Attribute {}
 
 	/// <summary>
 	/// F fast injector exception.
 	/// </summary>
 	public class IfFastInjectorException : Exception
 	{
-		public IfFastInjectorException() : base() { }
-		public IfFastInjectorException(string message) : base(message) { }
-		public IfFastInjectorException(string message, Exception innerException) : base(message, innerException) { }
+		public IfFastInjectorException () : base() {}
+		public IfFastInjectorException (string message) : base(message) {}
+		public IfFastInjectorException (string message, Exception innerException) : base(message, innerException) {}
 	}
-
 	/// <summary>
 	/// Injector.
 	/// </summary>
-    public abstract class IfInjector
-    {
+	public abstract class IfInjector
+	{
 		/// <summary>
 		/// If fast injector errors.
 		/// </summary>
-		public static class IfFastInjectorErrors {
+		public static class IfFastInjectorErrors
+		{
 			public const string ErrorResolutionRecursionDetected = "Resolution recursion detected.  Resolve<{0}> is called by a dependency of Resolve<{0}> leading to an infinite loop.";
 			public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
 			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
 		}
-
 		/// <summary>
 		/// The fluent class is really only important to give the extension methods the type for T. 
-		/// This interface prevents Injector internals from leaking into the 'internal' type space.
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		public interface IfFastInjectorFluent<T> where T : class { 
+		public interface IfFastInjectorFluent<T> where T : class
+		{ 
 			IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression) 
 				where TPropertyType : class;
 
 			IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
 				where TPropertyType : class;
+
+			void AsSingleton ();
 		}
 
 		/// <summary>
 		/// News the instance.
 		/// </summary>
 		/// <returns>The instance.</returns>
-		public static IfInjector NewInstance() {
+		public static IfInjector NewInstance ()
+		{
 			return new IfFastInjectorInternal.InjectorInternal ();
 		}
 
@@ -131,5 +129,5 @@ namespace IfFastInjector
 		public abstract IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
             where T : class
 			where TPropertyType : class;
-    }
+	}
 }

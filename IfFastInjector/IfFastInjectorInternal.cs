@@ -20,7 +20,7 @@ namespace IfFastInjector
 	{
 		/// <summary>Internal resolver type.</summary>
 		protected internal interface IInternalResolver {
-			Func<object> GetResolver();
+			object DoResolve();
 		}
 
 		/// <summary>Utility to allow for locking granularity at the type construct level. Also simplifies map management.</summary>
@@ -51,7 +51,7 @@ namespace IfFastInjector
 
 			public override T Resolve<T>()
 			{
-				return GetInternalResolver<T>().Resolve();
+				return GetInternalResolver<T>().DoResolveTyped();
 			}
 
 			public override object Resolve(Type type)
@@ -59,7 +59,7 @@ namespace IfFastInjector
 				InjectorTypeConstructs constructs = GetTypeConstruct(type);
 
 				if (constructs.InternalResolver != null) {
-					return (constructs.InternalResolver.GetResolver())();
+					return (constructs.InternalResolver.DoResolve());
 				}
 
 				// Not in dictionary, call Resolve<T> which will, in turn, set up and call the default Resolver
@@ -68,7 +68,7 @@ namespace IfFastInjector
 
 			public override IfFastInjectorFluent<T> SetResolver<T, TConcreteType>()
 			{
-				GetInternalResolver<T>().SetResolver(() => GetInternalResolver<TConcreteType>().Resolve());
+				GetInternalResolver<T>().SetResolver(() => GetInternalResolver<TConcreteType>().DoResolveTyped());
 				return new InjectorFluent<T>(this);
 			}
 
@@ -145,19 +145,23 @@ namespace IfFastInjector
 			private readonly Type typeofT = typeof(T);
 			private readonly List<SetterExpression> setterExpressions = new List<SetterExpression>();
 			private Func<T> resolverFactoryCompiled;
+			private Func<T> resolve; // TODO - Ok as not locked?
+
+			private bool singleton = false;
 
 			protected readonly internal InjectorInternal MyInjector;
-			protected internal Func<T> Resolve { get; private set; } // TODO - Ok as not locked?
 
 			public InternalResolver(InjectorInternal injector) {
 				this.MyInjector = injector;
-				this.Resolve = InitInitialResolver();
+				this.resolve = InitInitialResolver();
 			}
 
-			public Func<object> GetResolver() {
-				return () => {
-					return Resolve();
-				};
+			public T DoResolveTyped() {
+				return resolve ();
+			}
+
+			public object DoResolve() {
+				return DoResolveTyped ();
 			}
 
 			private Func<T> InitInitialResolver()
@@ -181,7 +185,7 @@ namespace IfFastInjector
 			/// <returns></returns>
 			private InvocationExpression GetResolverInvocationExpression()
 			{
-				Expression<Func<T>> expressionForResolverLambda = () => Resolve();
+				Expression<Func<T>> expressionForResolverLambda = () => resolve();
 				return (InvocationExpression)expressionForResolverLambda.Body;
 			}
 
@@ -261,7 +265,7 @@ namespace IfFastInjector
 				where TPropertyType : class
 			{
 				lock (this) {
-					Expression<Func<TPropertyType>> setter = () => MyInjector.GetInternalResolver<TPropertyType>().Resolve();
+					Expression<Func<TPropertyType>> setter = () => MyInjector.GetInternalResolver<TPropertyType>().resolve();
 					AddPropertySetterInner<TPropertyType>(propertyExpression, setter);
 				}
 			}
@@ -290,6 +294,13 @@ namespace IfFastInjector
 				setterExpressions.Add(new SetterExpression { PropertyMemberExpression = propertyMemberExpression, Setter = setter });
 
 				CompileResolver();
+			}
+
+			public void AsSingleton() {
+				lock (this) {
+					singleton = true;
+					CompileResolver ();
+				}
 			}
 
 			/// <summary>
@@ -333,8 +344,15 @@ namespace IfFastInjector
 
 				this.isVerifiedNotRecursive = false;
 
-				resolverFactoryCompiled = ResolverExpression.Compile();
-				Resolve = ResolveWithRecursionCheck;
+				// Handle singleton
+				if (singleton) {
+					var lazySingle = new Lazy<T> (ResolverExpression.Compile ());
+					resolverFactoryCompiled = () => lazySingle.Value;
+				} else {
+					resolverFactoryCompiled = ResolverExpression.Compile ();
+				}
+
+				resolve = ResolveWithRecursionCheck;
 
 				return ResolveWithRecursionCheck;
 			}
@@ -344,7 +362,7 @@ namespace IfFastInjector
 			/// </summary>
 			/// <param name="func"></param>
 			/// <returns></returns>
-			private static Expression<Func<object>> ConvertFunc(Expression<Func<T>> func)
+			private Expression<Func<object>> ConvertFunc(Expression<Func<T>> func)
 			{
 				return (Expression<Func<object>>)Expression.Lambda(Expression.Convert(func.Body, typeof(object)), func.Parameters);
 			}
@@ -360,21 +378,24 @@ namespace IfFastInjector
 
 			private T ResolveWithRecursionCheck()
 			{
-				if (!isVerifiedNotRecursive)
-				{
-					if (IsRecursionTestPending)
+				// Lock until executed once; we will compile this away once verified
+				lock (this) {
+					if (!isVerifiedNotRecursive)
 					{
-						throw new IfFastInjectorException(string.Format(IfInjector.IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+						if (IsRecursionTestPending)
+						{
+							throw new IfFastInjectorException(string.Format(IfInjector.IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+						}
+						IsRecursionTestPending = true;
 					}
-					IsRecursionTestPending = true;
+
+					var retval = resolverFactoryCompiled();
+
+					isVerifiedNotRecursive = true;
+					IsRecursionTestPending = false;
+					resolve = resolverFactoryCompiled;
+					return retval;
 				}
-
-				var retval = resolverFactoryCompiled();
-
-				isVerifiedNotRecursive = true;
-				IsRecursionTestPending = false;
-				Resolve = resolverFactoryCompiled;
-				return retval;
 			}
 
 			/// <summary>
@@ -467,6 +488,10 @@ namespace IfFastInjector
 			{
 				injector.GetInternalResolver<T>().AddPropertySetter(propertyExpression, setter);
 				return this;
+			}
+
+			public void AsSingleton () {
+				injector.GetInternalResolver<T> ().AsSingleton ();
 			}
 		}
 
