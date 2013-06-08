@@ -31,7 +31,7 @@ namespace IfFastInjector
         {
 			injector
                 .SetResolver<MyInterface, MyTestClass>()
-                .AddPropertyInjector(v => v.MyProperty)
+             	.AddPropertyInjector(v => v.MyProperty)
                 .AddPropertyInjector(v => v.MyOtherProperty, () => new MyPropertyClass());
 
 			var result = injector.Resolve<MyTestClass>();

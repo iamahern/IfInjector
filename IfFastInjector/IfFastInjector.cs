@@ -13,26 +13,6 @@ using System.Threading;
 namespace IfFastInjector
 {
 	/// <summary>
-	/// Injector ext methods.
-	/// </summary>
-	public static class InjectorMethodUtils {
-		public static Injector.InjectorFluent<T> AddPropertyInjector<T, TPropertyType>(this Injector.InjectorFluent<T> fluent, Expression<Func<T, TPropertyType>> propertyExpression)
-			where T : class
-			where TPropertyType : class
-		{
-			fluent.GetInternalResolver().AddPropertySetter(propertyExpression);
-			return fluent;
-		}
-
-		public static Injector.InjectorFluent<T> AddPropertyInjector<T, TPropertyType>(this Injector.InjectorFluent<T> fluent, Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-			where T : class
-		{
-			fluent.GetInternalResolver().AddPropertySetter(propertyExpression, setter);
-			return fluent;
-		}
-	}
-
-	/// <summary>
 	/// Inject attribute. Used to flag constructors for preferred injection. 
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Constructor)]
@@ -44,6 +24,18 @@ namespace IfFastInjector
 	[AttributeUsage(AttributeTargets.Constructor)]
 	public class IgnoreConstructorAttribute : Attribute { }
 
+	/// <summary>
+	/// The fluent class is really only important to give the extension methods the type for T. 
+	/// This interface prevents Injector internals from leaking into the 'internal' type space.
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	public interface IfFastInjectorFluent<T> where T : class { 
+		IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression) 
+			where TPropertyType : class;
+
+		IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+			where TPropertyType : class;
+	}
 
 	/// <summary>
 	/// F fast injector exception.
@@ -145,7 +137,7 @@ namespace IfFastInjector
             return GenericResolve.MakeGenericMethod(type).Invoke(this, new object[0]);
         }
 
-        public InjectorFluent<T> SetResolver<T, TConcreteType>()
+		public IfFastInjectorFluent<T> SetResolver<T, TConcreteType>()
             where T : class
             where TConcreteType : class,T
         {
@@ -153,21 +145,21 @@ namespace IfFastInjector
             return new InjectorFluent<T>(this);
         }
 
-        public InjectorFluent<T> SetResolver<T>(ConstructorInfo constructor)
+		public IfFastInjectorFluent<T> SetResolver<T>(ConstructorInfo constructor)
             where T : class
         {
 			GetInternalResolver<T>().SetResolver(constructor);
             return new InjectorFluent<T>(this);
         }
 
-        public InjectorFluent<T> SetResolver<T>(Expression<Func<T>> factoryExpression)
+		public IfFastInjectorFluent<T> SetResolver<T>(Expression<Func<T>> factoryExpression)
             where T : class
         {
 			GetInternalResolver<T>().SetResolver(factoryExpression);
             return new InjectorFluent<T>(this);
         }
 
-        public InjectorFluent<T> AddPropertyInjector<T, TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
+		public IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
             where T : class
             where TPropertyType : class
         {
@@ -175,8 +167,9 @@ namespace IfFastInjector
             return new InjectorFluent<T>(this);
         }
 
-        public InjectorFluent<T> AddPropertyInjector<T, TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+		public IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
             where T : class
+			where TPropertyType : class
         {
 			GetInternalResolver<T>().AddPropertySetter(propertyExpression, setter);
             return new InjectorFluent<T>(this);
@@ -186,15 +179,27 @@ namespace IfFastInjector
         /// The fluent class is really only important to give the extension methods the type for T
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public class InjectorFluent<T> where T : class { 
+        private class InjectorFluent<T> : IfFastInjectorFluent<T>
+			where T : class 
+		{ 
 			private readonly Injector injector;
 
 			protected internal InjectorFluent(Injector injector) {
 				this.injector = injector;
 			}
 
-			internal InternalResolver<T> GetInternalResolver() {
-				return injector.GetInternalResolver<T> ();
+			public IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
+				where TPropertyType : class
+			{
+				injector.GetInternalResolver<T>().AddPropertySetter(propertyExpression);
+				return this;
+			}
+
+			public IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+				where TPropertyType : class 
+			{
+				injector.GetInternalResolver<T>().AddPropertySetter(propertyExpression, setter);
+				return this;
 			}
 		}
 
@@ -364,6 +369,7 @@ namespace IfFastInjector
             /// <param name="propertyExpression"></param>
             /// <param name="setter"></param>
             public void AddPropertySetter<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+				where TPropertyType : class
             {
                 AddPropertySetterInner<TPropertyType>(propertyExpression, setter);
             }
