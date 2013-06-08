@@ -13,7 +13,7 @@ namespace IfFastInjector
         public void TestResolverWithLoopingTypes1()
         {
             IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(Injector.InjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSomething).Name);
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSomething).Name);
 
             try
             {
@@ -32,7 +32,7 @@ namespace IfFastInjector
         public void TestResolverWithLoopingTypes2()
         {
 			IfFastInjectorException exception = null;
-            var expectedErrorMessage = string.Format(Injector.InjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSecretLoop).Name);
+            var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSecretLoop).Name);
 
             try
             {
@@ -55,7 +55,7 @@ namespace IfFastInjector
 			//fFastInjector.Injector.InternalResolver<ConcretePropertyLoop>.AddPropertySetter(v => v.MyTestProperty);//, () => Injector.Resolve<ConcretePropertyLoop>());
 
 			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(Injector.InjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcretePropertyLoop).Name);
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcretePropertyLoop).Name);
 
             try
             {

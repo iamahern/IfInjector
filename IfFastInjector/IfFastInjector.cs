@@ -13,6 +13,15 @@ using System.Threading;
 namespace IfFastInjector
 {
 	/// <summary>
+	/// If fast injector errors.
+	/// </summary>
+	public static class IfFastInjectorErrors {
+		public const string ErrorResolutionRecursionDetected = "Resolution recursion detected.  Resolve<{0}> is called by a dependency of Resolve<{0}> leading to an infinite loop.";
+		public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
+		public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
+	}
+
+	/// <summary>
 	/// Inject attribute. Used to flag constructors for preferred injection. 
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Constructor)]
@@ -52,12 +61,6 @@ namespace IfFastInjector
 	/// </summary>
     public class Injector
     {
-		public static class InjectorErrors {
-			public const string ErrorResolutionRecursionDetected = "Resolution recursion detected.  Resolve<{0}> is called by a dependency of Resolve<{0}> leading to an infinite loop.";
-			public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
-			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
-		}
-
 		/// <summary>
 		/// Thread safe dictionary wrapper. 
 		/// </summary>
@@ -213,7 +216,7 @@ namespace IfFastInjector
 				IInternalResolver resolver;
 				if (internalResolvers.TryGetValue (type, out resolver)) {
 					if (Object.ReferenceEquals(LoopCheckerConst, resolver)) {
-						throw CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, type.Name));
+						throw CreateException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, type.Name));
 					}
 					return resolver;
 				} else {
@@ -313,7 +316,7 @@ namespace IfFastInjector
 
             private T ThrowInterfaceException()
             {
-				throw MyInjector.CreateException(string.Format(InjectorErrors.ErrorUnableToResultInterface, typeof(T).FullName));
+				throw MyInjector.CreateException(string.Format(IfFastInjectorErrors.ErrorUnableToResultInterface, typeof(T).FullName));
             }
 
             private class SetterExpression
@@ -379,7 +382,7 @@ namespace IfFastInjector
                 var propertyMemberExpression = propertyExpression.Body as MemberExpression;
                 if (propertyMemberExpression == null)
                 {
-					throw new ArgumentException(InjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
+					throw new ArgumentException(IfFastInjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
                 }
 
                 setterExpressions.Add(new SetterExpression { PropertyMemberExpression = propertyMemberExpression, Setter = setter });
@@ -459,7 +462,7 @@ namespace IfFastInjector
                 {
 					if (isRecursionTestPending)
                     {
-						throw MyInjector.CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+						throw MyInjector.CreateException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
                     }
 					isRecursionTestPending = true;
                 }
