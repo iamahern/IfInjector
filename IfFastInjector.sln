@@ -7,7 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IfFastInjectorTest", "IfFas
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{92960D9E-5BDF-4B3D-880F-5DF3049B94B9}"
 	ProjectSection(SolutionItems) = preProject
-		readme.md = readme.md
+		LICENSE.txt = LICENSE.txt
+		README.md = README.md
 	EndProjectSection
 EndProject
 Global
