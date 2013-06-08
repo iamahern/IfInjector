@@ -82,18 +82,23 @@ namespace IfFastInjector
 				}
 			}
 
-			public bool TryGetValue (TKey key, out TValue value) {
+			public TValue GetWithInitial(TKey key, Func<TValue> initializer) {
 				lock (syncLock) {
-					return dict.TryGetValue (key, out value);
+					TValue value;
+					if (!dict.TryGetValue (key, out value)) {
+						dict [key] = value = initializer.Invoke ();
+					}
+
+					return value;
 				}
 			}
 		}
 
 		private static object LoopCheckerConst = new object();
 
-		private readonly SafeDictionary<Type, object> internalResolvers = new SafeDictionary<Type, object>();
-		protected internal readonly SafeDictionary<Type, Func<object>> resolvers = new SafeDictionary<Type, Func<object>>();
+		private readonly Dictionary<Type, object> internalResolvers = new Dictionary<Type, object>();
 		protected internal readonly SafeDictionary<Type, bool> isRecursionTestPending = new SafeDictionary<Type, bool> ();
+		protected internal readonly Dictionary<Type, Func<object>> resolvers = new Dictionary<Type, Func<object>>();
 		protected internal readonly MethodInfo GenericResolve;
 
 		/// <summary>
@@ -185,20 +190,23 @@ namespace IfFastInjector
 		}
 
 		// TODO - make thread safe
+		//  Currently this does not protect against 
 		protected internal object GetInternalResolver(Type type) {
-			object resolver;
-			if (internalResolvers.TryGetValue (type, out resolver)) {
-				if (Object.ReferenceEquals(LoopCheckerConst, resolver)) {
-					throw CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, type.Name));
-				}
-				return resolver;
-			} else {
-				Type iResolverType = typeof(InternalResolver<>);
-				Type genericType = iResolverType.MakeGenericType(new Type[] { type });
+			lock (internalResolvers) {
+				object resolver;
+				if (internalResolvers.TryGetValue (type, out resolver)) {
+					if (Object.ReferenceEquals(LoopCheckerConst, resolver)) {
+						throw CreateException(string.Format(InjectorErrors.ErrorResolutionRecursionDetected, type.Name));
+					}
+					return resolver;
+				} else {
+					Type iResolverType = typeof(InternalResolver<>);
+					Type genericType = iResolverType.MakeGenericType(new Type[] { type });
 
-				internalResolvers[type] = LoopCheckerConst; // TODO I belive this can be eliminated somehow..
-				internalResolvers[type] = resolver = CreateInstance (genericType, this);
-				return resolver;
+					internalResolvers[type] = LoopCheckerConst; // TODO I belive this can be eliminated somehow..
+					internalResolvers[type] = resolver = CreateInstance (genericType, this);
+					return resolver;
+				}
 			}
 		}
 
@@ -416,11 +424,7 @@ namespace IfFastInjector
 
 			private bool isRecursionTestPending {
 				get {
-					bool ret;
-					if (!MyInjector.isRecursionTestPending.TryGetValue(typeofT, out ret)) {
-						MyInjector.isRecursionTestPending[typeofT] = ret = false;
-					}
-					return ret;
+					return MyInjector.isRecursionTestPending.GetWithInitial (typeofT, () => false);
 				}
 				set {
 					MyInjector.isRecursionTestPending [typeofT] = value;
