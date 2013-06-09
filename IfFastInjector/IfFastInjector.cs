@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
-using System.Threading;
 
 namespace IfFastInjector
 {
@@ -29,6 +27,7 @@ namespace IfFastInjector
 		public IfFastInjectorException (string message) : base(message) {}
 		public IfFastInjectorException (string message, Exception innerException) : base(message, innerException) {}
 	}
+
 	/// <summary>
 	/// Injector.
 	/// </summary>
@@ -43,6 +42,7 @@ namespace IfFastInjector
 			public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
 			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
 		}
+
 		/// <summary>
 		/// The fluent class is really only important to give the extension methods the type for T. 
 		/// </summary>
@@ -85,9 +85,16 @@ namespace IfFastInjector
 		/// <returns>The resolver.</returns>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TConcreteType">The 2nd type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> SetResolver<T, TConcreteType> ()
+		public abstract IfFastInjectorFluent<T> Bind<T, TConcreteType> ()
 			where T : class
 			where TConcreteType : class, T;
+
+		/// <summary>
+		/// Bind this instance.
+		/// </summary>
+		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
+		public abstract IfFastInjectorFluent<TConcreteType> Bind<TConcreteType> ()
+			where TConcreteType : class;
 
 		/// <summary>
 		/// Sets the resolver.
@@ -95,7 +102,7 @@ namespace IfFastInjector
 		/// <returns>The resolver.</returns>
 		/// <param name="constructor">Constructor.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> SetResolver<T> (ConstructorInfo constructor)
+		public abstract IfFastInjectorFluent<T> Bind<T> (ConstructorInfo constructor)
 			where T : class;
 
 		/// <summary>
@@ -104,7 +111,7 @@ namespace IfFastInjector
 		/// <returns>The resolver.</returns>
 		/// <param name="factoryExpression">Factory expression.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> SetResolver<T> (Expression<Func<T>> factoryExpression)
+		public abstract IfFastInjectorFluent<T> Bind<T> (Expression<Func<T>> factoryExpression)
 			where T : class;
 
 		/// <summary>
