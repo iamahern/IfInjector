@@ -12,7 +12,7 @@ namespace IfFastInjector
         [Test]
         public void ResolveInterface()
         {
-			injector.SetResolver<MyInterface, MyTestClass>();
+			injector.Bind<MyInterface, MyTestClass>();
 
 			var result = injector.Resolve<MyInterface>();
 
@@ -26,11 +26,27 @@ namespace IfFastInjector
             Assert.IsInstanceOf<MyTestClass>(result);
         }
 
+		[Test]
+		public void ResolveConcreteTypeSame() {
+			IfInjector injector = IfInjector.NewInstance();
+			injector.Bind<MyTestClass, MyTestClass>();
+			var result = injector.Resolve<MyTestClass>();
+			Assert.IsInstanceOf<MyTestClass>(result);
+		}
+
+		[Test]
+		public void BindConcreteType() {
+			IfInjector injector = IfInjector.NewInstance();
+			injector.Bind<MyTestClass>();
+			var result = injector.Resolve<MyTestClass>();
+			Assert.IsInstanceOf<MyTestClass>(result);
+		}
+
         [Test]
         public void InjectProperty()
         {
 			injector
-                .SetResolver<MyInterface, MyTestClass>()
+                .Bind<MyInterface, MyTestClass>()
              	.AddPropertyInjector(v => v.MyProperty)
                 .AddPropertyInjector(v => v.MyOtherProperty, () => new MyPropertyClass());
 
@@ -59,7 +75,7 @@ namespace IfFastInjector
         [Test]
         public void TestSelectConstructorByAttribute()
         {
-			injector.SetResolver<TestSelectConstructorByAttributeTestClass.IMyOtherInterface, TestSelectConstructorByAttributeTestClass.MyOtherInterfaceClass>();
+			injector.Bind<TestSelectConstructorByAttributeTestClass.IMyOtherInterface, TestSelectConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
 			var result = injector.Resolve<TestSelectConstructorByAttributeTestClass>();
 
@@ -89,7 +105,7 @@ namespace IfFastInjector
         [Test]
         public void TestSelectConstructorByIgnoreAttribute()
         {
-			injector.SetResolver<TestIgnoreConstructorByAttributeTestClass.IMyOtherInterface, TestIgnoreConstructorByAttributeTestClass.MyOtherInterfaceClass>();
+			injector.Bind<TestIgnoreConstructorByAttributeTestClass.IMyOtherInterface, TestIgnoreConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
 			var result = injector.Resolve<TestIgnoreConstructorByAttributeTestClass>();
 

@@ -15,7 +15,7 @@ namespace IfFastInjector
         {
             var x = new myClass();
 
-			injector.SetResolver<myInterface>(() => GetNew());
+			injector.Bind<myInterface>(() => GetNew());
 
 			var z1 = injector.Resolve<myInterface>();
 			var z2 = injector.Resolve<myInterface>();
@@ -39,7 +39,7 @@ namespace IfFastInjector
 		{
 			MyTestResolverReplaceDependency dep = new MyTestResolverReplaceDependency ();
 
-			injector.SetResolver<MyTestResolverReplace> (() => new MyTestResolverReplace(dep));
+			injector.Bind<MyTestResolverReplace> (() => new MyTestResolverReplace(dep));
 
 			// TODO - Fix test; is this OK?
             //var resolverExpression = Injector.InternalResolver<MyTestResolverReplace>.ResolverExpression;

@@ -14,7 +14,7 @@ namespace IfFastInjector
         {
             var constructor = typeof(TestClassSetResolverByConstructorInfoTest).GetConstructor(new Type[] { typeof(TestClassSetResolverByConstructorInfoTest.OtherClassSetResolverByConstructorInfoTest) });
 
-            injector.SetResolver<TestClassSetResolverByConstructorInfoTest>(constructor);
+            injector.Bind<TestClassSetResolverByConstructorInfoTest>(constructor);
 
 			var myTest = injector.Resolve<TestClassSetResolverByConstructorInfoTest>();
 

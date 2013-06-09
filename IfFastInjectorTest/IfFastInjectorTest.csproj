@@ -40,6 +40,7 @@
     <Compile Include="UnitTest2.cs" />
     <Compile Include="MultipleInjectorsTest.cs" />
     <Compile Include="SingletonsTest.cs" />
+    <Compile Include="ImplicitTypeTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">

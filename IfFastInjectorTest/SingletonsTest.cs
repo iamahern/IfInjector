@@ -13,10 +13,23 @@ namespace FastInjectorMxTest
 		{
 			IfInjector injector = IfInjector.NewInstance ();
 
-			injector.SetResolver<MyIFace, MyClass> ().AsSingleton ();
+			injector.Bind<MyIFace, MyClass> ().AsSingleton ();
 
 			MyIFace inst1 = injector.Resolve<MyIFace> ();
 			MyIFace inst2 = injector.Resolve<MyIFace> ();
+
+			Assert.IsTrue(object.ReferenceEquals(inst1, inst2));
+		}
+
+		[Test()]
+		public void TestSingletonWithForConcreteType ()
+		{
+			IfInjector injector = IfInjector.NewInstance ();
+
+			injector.Bind<MyClass> ().AsSingleton ();
+
+			MyClass inst1 = injector.Resolve<MyClass> ();
+			MyClass inst2 = injector.Resolve<MyClass> ();
 
 			Assert.IsTrue(object.ReferenceEquals(inst1, inst2));
 		}

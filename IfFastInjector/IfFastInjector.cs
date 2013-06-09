@@ -41,6 +41,7 @@ namespace IfFastInjector
 			public const string ErrorResolutionRecursionDetected = "Resolution recursion detected.  Resolve<{0}> is called by a dependency of Resolve<{0}> leading to an infinite loop.";
 			public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
 			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
+			public const string ErrorAmbiguousBinding = "Multiple implicit bindings exist for type: {0}. Please disambiguate by adding an explicit binding for this type.";
 		}
 
 		/// <summary>

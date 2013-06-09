@@ -29,6 +29,7 @@ namespace IfFastInjector
 			public bool IsRecursionTestPending { get; set; }
 			public bool IsInternalResolverPending { get; set; }
 		}
+		
 
 		/// <summary>
 		/// The actual injector implementation.
@@ -36,7 +37,8 @@ namespace IfFastInjector
 		internal class InjectorInternal : IfInjector
 		{		
 			// Thread safety via lock (internalResolvers) 
-			private readonly SafeDictionary<Type, InjectorTypeConstructs> MyTypeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>();
+			private readonly SafeDictionary<Type, InjectorTypeConstructs> typeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>();
+			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> ();
 
 			protected internal readonly MethodInfo GenericResolve;
 
@@ -51,15 +53,28 @@ namespace IfFastInjector
 
 			public override T Resolve<T>()
 			{
-				return GetInternalResolver<T>().DoResolveTyped();
+				var typeT = typeof(T);
+				ISet<Type> lookup;
+
+				if (typeConstructs.ContainsKey (typeT) || !((implicitTypeLookup.TryGetValue (typeT, out lookup) && lookup.Count > 0))) {
+					return GetInternalResolver<T> ().DoResolveTyped ();
+				} else {
+					if (lookup.Count == 1) {
+						return (T) Resolve (lookup.First());
+					} else {
+						throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, typeT.Name));
+					}
+				} 
+
+				// TODO - change implicit resolution strategy
 			}
 
 			public override object Resolve(Type type)
 			{
-				InjectorTypeConstructs constructs = GetTypeConstruct(type);
+				InjectorTypeConstructs constructs;
 
-				if (constructs.InternalResolver != null) {
-					return (constructs.InternalResolver.DoResolve());
+				if (typeConstructs.TryGetValue(type, out constructs) && constructs.InternalResolver != null) {
+					return constructs.InternalResolver.DoResolve();
 				}
 
 				// Not in dictionary, call Resolve<T> which will, in turn, set up and call the default Resolver
@@ -129,7 +144,7 @@ namespace IfFastInjector
 						Type genericType = iResolverType.MakeGenericType(new Type[] { type });
 
 						typeConstruct.IsInternalResolverPending = true;
-						typeConstruct.InternalResolver = CreateInstance (genericType, this);
+						typeConstruct.InternalResolver = CreateInstance (genericType, this, typeConstruct);
 					} 
 
 					return typeConstruct.InternalResolver;
@@ -144,8 +159,26 @@ namespace IfFastInjector
 				}
 			}
 
-			protected internal InjectorTypeConstructs GetTypeConstruct(Type type) {
-				return MyTypeConstructs.GetWithInitial(type, () => new InjectorTypeConstructs());
+			private InjectorTypeConstructs GetTypeConstruct(Type type) {
+				return typeConstructs.GetWithInitial(type, () => {
+					foreach (Type iFace in type.GetInterfaces()) {
+						AddImplicitType(iFace, type);
+					}
+
+					Type wTypeChain = type;
+					while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
+						AddImplicitType(wTypeChain, type);
+					}
+
+					return new InjectorTypeConstructs();
+				});
+			}
+
+			private void AddImplicitType(Type bType, Type cType) {
+				ISet<Type> mSet = implicitTypeLookup.GetWithInitial(bType, () => new HashSet<Type>());
+				lock (mSet) {
+					mSet.Add (cType);
+				}
 			}
 		}
 
@@ -164,10 +197,12 @@ namespace IfFastInjector
 
 			private bool singleton = false;
 
-			protected readonly internal InjectorInternal MyInjector;
+			private readonly InjectorInternal MyInjector;
+			private readonly InjectorTypeConstructs myTypeConstructs;
 
-			public InternalResolver(InjectorInternal injector) {
+			public InternalResolver(InjectorInternal injector, InjectorTypeConstructs typeConstructs) {
 				this.MyInjector = injector;
+				this.myTypeConstructs = typeConstructs;
 				this.resolve = InitInitialResolver();
 			}
 
@@ -384,10 +419,10 @@ namespace IfFastInjector
 
 			private bool IsRecursionTestPending {
 				get {
-					return MyInjector.GetTypeConstruct (typeofT).IsRecursionTestPending;
+					return myTypeConstructs.IsRecursionTestPending;
 				}
 				set {
-					MyInjector.GetTypeConstruct (typeofT).IsRecursionTestPending = value;
+					myTypeConstructs.IsRecursionTestPending = value;
 				}
 			}
 
@@ -517,14 +552,33 @@ namespace IfFastInjector
 			private readonly object syncLock = new object();
 			private readonly Dictionary<TKey, TValue> dict = new Dictionary<TKey, TValue>();
 
-			public TValue GetWithInitial(TKey key, Func<TValue> initializer) {
-				lock (syncLock) {
+			public TValue GetWithInitial(TKey key, Func<TValue> initializer) 
+			{
+				lock (syncLock) 
+				{
 					TValue value;
-					if (!dict.TryGetValue (key, out value)) {
+					if (!dict.TryGetValue (key, out value)) 
+					{
 						dict [key] = value = initializer.Invoke ();
 					}
 
 					return value;
+				}
+			}
+
+			public bool TryGetValue(TKey key, out TValue value) 
+			{
+				lock (syncLock) 
+				{
+					return dict.TryGetValue (key, out value);
+				}
+			}
+
+			public Boolean ContainsKey(TKey key) 
+			{
+				lock (syncLock) 
+				{
+					return dict.ContainsKey(key);
 				}
 			}
 		}
