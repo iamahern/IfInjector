@@ -1,6 +1,7 @@
 ﻿using System;
 using NUnit.Framework;
 using IfFastInjector;
+using IfFastInjector.IfInjectorTypes;
 
 namespace IfFastInjector
 {
@@ -12,14 +13,14 @@ namespace IfFastInjector
        	[Test, Timeout(400)]
         public void TestResolverWithLoopingTypes1()
         {
-            IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfInjector.IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSomething).Name);
+			IfInjectorTypes.IfFastInjectorException exception = null;
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSomething).Name);
 
             try
             {
 				var concrete = injector.Resolve<ConcreteSomething>();
             }
-            catch (IfFastInjectorException ex)
+			catch (IfInjectorTypes.IfFastInjectorException ex)
             {
                 exception = ex;
             }
@@ -31,8 +32,8 @@ namespace IfFastInjector
 		[Test, Timeout(100)]
         public void TestResolverWithLoopingTypes2()
         {
-			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfInjector.IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSecretLoop).Name);
+			IfInjectorTypes.IfFastInjectorException exception = null;
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSecretLoop).Name);
 
             try
             {
@@ -50,12 +51,13 @@ namespace IfFastInjector
 		[Test, Timeout(100)]
         public void TestResolverWithPropertyLooping_Broken()
         {
-			injector.AddPropertyInjector<ConcretePropertyLoop, ConcretePropertyLoop> (v => v.MyTestProperty);
+			injector.Bind<ConcretePropertyLoop>()
+				.AddPropertyInjector<ConcretePropertyLoop> (v => v.MyTestProperty);
             
 			//fFastInjector.Injector.InternalResolver<ConcretePropertyLoop>.AddPropertySetter(v => v.MyTestProperty);//, () => Injector.Resolve<ConcretePropertyLoop>());
 
 			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfInjector.IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcretePropertyLoop).Name);
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcretePropertyLoop).Name);
 
             try
             {

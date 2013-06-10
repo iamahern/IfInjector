@@ -19,46 +19,10 @@ namespace IfFastInjector
 	public class IfIgnoreConstructorAttribute : Attribute {}
 
 	/// <summary>
-	/// F fast injector exception.
-	/// </summary>
-	public class IfFastInjectorException : Exception
-	{
-		public IfFastInjectorException () : base() {}
-		public IfFastInjectorException (string message) : base(message) {}
-		public IfFastInjectorException (string message, Exception innerException) : base(message, innerException) {}
-	}
-
-	/// <summary>
 	/// Injector.
 	/// </summary>
 	public abstract class IfInjector
 	{
-		/// <summary>
-		/// If fast injector errors.
-		/// </summary>
-		public static class IfFastInjectorErrors
-		{
-			public const string ErrorResolutionRecursionDetected = "Resolution recursion detected.  Resolve<{0}> is called by a dependency of Resolve<{0}> leading to an infinite loop.";
-			public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
-			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
-			public const string ErrorAmbiguousBinding = "Multiple implicit bindings exist for type: {0}. Please disambiguate by adding an explicit binding for this type.";
-		}
-
-		/// <summary>
-		/// The fluent class is really only important to give the extension methods the type for T. 
-		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		public interface IfFastInjectorFluent<T> where T : class
-		{ 
-			IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression) 
-				where TPropertyType : class;
-
-			IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-				where TPropertyType : class;
-
-			void AsSingleton ();
-		}
-
 		/// <summary>
 		/// News the instance.
 		/// </summary>
@@ -86,7 +50,7 @@ namespace IfFastInjector
 		/// <returns>The resolver.</returns>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TConcreteType">The 2nd type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> Bind<T, TConcreteType> ()
+		public abstract IfInjectorTypes.IfFastInjectorBinding<T> Bind<T, TConcreteType> ()
 			where T : class
 			where TConcreteType : class, T;
 
@@ -94,7 +58,7 @@ namespace IfFastInjector
 		/// Bind this instance.
 		/// </summary>
 		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<TConcreteType> Bind<TConcreteType> ()
+		public abstract IfInjectorTypes.IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> ()
 			where TConcreteType : class;
 
 		/// <summary>
@@ -103,7 +67,7 @@ namespace IfFastInjector
 		/// <returns>The resolver.</returns>
 		/// <param name="constructor">Constructor.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> Bind<T> (ConstructorInfo constructor)
+		public abstract IfInjectorTypes.IfFastInjectorBinding<T> Bind<T> (ConstructorInfo constructor)
 			where T : class;
 
 		/// <summary>
@@ -112,30 +76,48 @@ namespace IfFastInjector
 		/// <returns>The resolver.</returns>
 		/// <param name="factoryExpression">Factory expression.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> Bind<T> (Expression<Func<T>> factoryExpression)
+		public abstract IfInjectorTypes.IfFastInjectorBinding<T> Bind<T> (Expression<Func<T>> factoryExpression)
 			where T : class;
+	}
+
+	/// <summary>
+	/// Holder of secondary IfInjector types and interfaces. Most API users will not need to access these types directly.
+	/// </summary>
+	namespace IfInjectorTypes {
+		/// <summary>
+		/// If fast injector errors.
+		/// </summary>
+		public static class IfFastInjectorErrors
+		{
+			public const string ErrorResolutionRecursionDetected = "Resolution recursion detected.  Resolve<{0}> is called by a dependency of Resolve<{0}> leading to an infinite loop.";
+			public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
+			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
+			public const string ErrorAmbiguousBinding = "Multiple implicit bindings exist for type: {0}. Please disambiguate by adding an explicit binding for this type.";
+		}
 
 		/// <summary>
-		/// Adds the property injector.
+		/// F fast injector exception.
 		/// </summary>
-		/// <returns>The property injector.</returns>
-		/// <param name="propertyExpression">Property expression.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		/// <typeparam name="TPropertyType">The 2nd type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression)
-			where T : class
-			where TPropertyType : class;
-
+		public class IfFastInjectorException : Exception
+		{
+			public IfFastInjectorException () : base() {}
+			public IfFastInjectorException (string message) : base(message) {}
+			public IfFastInjectorException (string message, Exception innerException) : base(message, innerException) {}
+		}
+				
 		/// <summary>
-		/// Adds the property injector.
+		/// The fluent class is really only important to give the extension methods the type for T. 
 		/// </summary>
-		/// <returns>The property injector.</returns>
-		/// <param name="propertyExpression">Property expression.</param>
-		/// <param name="setter">Setter.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		/// <typeparam name="TPropertyType">The 2nd type parameter.</typeparam>
-		public abstract IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-			where T : class
-			where TPropertyType : class;
+		/// <typeparam name="T"></typeparam>
+		public interface IfFastInjectorBinding<T> where T : class
+		{ 
+			IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression) 
+				where TPropertyType : class;
+
+			IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+				where TPropertyType : class;
+
+			void AsSingleton ();
+		}
 	}
 }

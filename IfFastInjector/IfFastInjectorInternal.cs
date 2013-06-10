@@ -5,6 +5,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
+using IfFastInjector.IfInjectorTypes;
+
 /// <summary>
 /// NOTE: no actual implementation
 /// I was was coding these interfaces before rebasing on top of 'fFastInjector' to use as a starting point.
@@ -29,7 +31,6 @@ namespace IfFastInjector
 			public bool IsRecursionTestPending { get; set; }
 			public bool IsInternalResolverPending { get; set; }
 		}
-		
 
 		/// <summary>
 		/// The actual injector implementation.
@@ -41,14 +42,15 @@ namespace IfFastInjector
 			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> ();
 
 			protected internal readonly MethodInfo GenericResolve;
+			private readonly MethodInfo genericResolveClosure;
 
-			/// <summary>
-			/// Initializes a new instance of the <see cref="fFastInjector.Injector"/> class.
-			/// </summary>
 			public InjectorInternal() 
 			{
 				Expression<Func<Exception>> TmpResolveExpression = () => this.Resolve<Exception>();
 				this.GenericResolve = ((MethodCallExpression)TmpResolveExpression.Body).Method.GetGenericMethodDefinition();
+
+				Expression<Func<Expression>> TmpResolveClosureExpression = () => this.ResolveClosure<Exception>();
+				this.genericResolveClosure = ((MethodCallExpression)TmpResolveClosureExpression.Body).Method.GetGenericMethodDefinition();
 			}
 
 			public override T Resolve<T>()
@@ -57,7 +59,7 @@ namespace IfFastInjector
 				ISet<Type> lookup;
 
 				if (typeConstructs.ContainsKey (typeT) || !((implicitTypeLookup.TryGetValue (typeT, out lookup) && lookup.Count > 0))) {
-					return GetInternalResolver<T> ().DoResolveTyped ();
+					return GetInternalResolver<T> (false).DoResolveTyped ();
 				} else {
 					if (lookup.Count == 1) {
 						return (T) Resolve (lookup.First());
@@ -81,57 +83,52 @@ namespace IfFastInjector
 				return GenericResolve.MakeGenericMethod(type).Invoke(this, new object[0]);
 			}
 
-			public override IfFastInjectorFluent<T> Bind<T, TConcreteType>()
+			protected internal Expression ResolveClosure(Type type) {
+				return (Expression) genericResolveClosure.MakeGenericMethod(type).Invoke(this, new object[0]);
+			}
+
+			private Expression ResolveClosure<T>() where T : class {
+				Expression<Func<T>> exp = () => Resolve<T> ();
+				return exp.Body;
+			}
+
+			public override IfFastInjectorBinding<T> Bind<T, TConcreteType>()
 			{
 				if (typeof(T) == typeof(TConcreteType)) {
 					return Bind<T> ();
 				}
 				else {
-					var iResolver = GetInternalResolver<T> ();
-					iResolver.SetResolver (() => GetInternalResolver<TConcreteType>().DoResolveTyped());
+					var iResolver = GetInternalResolver<T> (true);
+					iResolver.SetResolver (() => GetInternalResolver<TConcreteType>(true).DoResolveTyped());
 					return new InjectorFluent<T>(iResolver);
 				}
 			}
 
-			public override IfFastInjectorFluent<TConcreteType> Bind<TConcreteType> () {
-				var iResolver = GetInternalResolver<TConcreteType> ();
+			public override IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> () {
+				var iResolver = GetInternalResolver<TConcreteType> (true);
 				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
-			public override IfFastInjectorFluent<T> Bind<T>(ConstructorInfo constructor)
+			public override IfFastInjectorBinding<T> Bind<T>(ConstructorInfo constructor)
 			{
-				var iResolver = GetInternalResolver<T> ();
+				var iResolver = GetInternalResolver<T> (true);
 				iResolver.SetResolver(constructor);
 				return new InjectorFluent<T>(iResolver);
 			}
 
-			public override IfFastInjectorFluent<T> Bind<T> (Expression<Func<T>> factoryExpression)
+			public override IfFastInjectorBinding<T> Bind<T> (Expression<Func<T>> factoryExpression)
 			{
-				var iResolver = GetInternalResolver<T> ();
+				var iResolver = GetInternalResolver<T> (true);
 				iResolver.SetResolver(factoryExpression);
 				return new InjectorFluent<T>(iResolver);
 			}
 
-			public override IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
-			{
-				var iResolver = GetInternalResolver<T> ();
-				iResolver.AddPropertySetter(propertyExpression);
-				return new InjectorFluent<T>(iResolver);
-			}
-
-			public override IfFastInjectorFluent<T> AddPropertyInjector<T, TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-			{
-				var iResolver = GetInternalResolver<T> ();
-				GetInternalResolver<T>().AddPropertySetter(propertyExpression, setter);
-				return new InjectorFluent<T>(iResolver);
-			}
-
-			protected internal InternalResolver<T> GetInternalResolver<T>() where T : class {
-				return (InternalResolver<T>) GetInternalResolver (typeof(T));
+			private InternalResolver<T> GetInternalResolver<T>(bool clearResolver) where T : class {
+				return (InternalResolver<T>) GetInternalResolver (typeof(T), clearResolver);
 			}
 
 			// TODO - review
-			protected internal object GetInternalResolver(Type type) {
+			private IInternalResolver GetInternalResolver(Type type, bool clearResolver) {
 				InjectorTypeConstructs typeConstruct = GetTypeConstruct (type);
 
 				lock (typeConstruct) {
@@ -233,10 +230,10 @@ namespace IfFastInjector
 			/// Return an InvocationExpression for Resolver of type T
 			/// </summary>
 			/// <returns></returns>
-			private InvocationExpression GetResolverInvocationExpression()
+			private Expression GetResolverInvocationExpression()
 			{
 				Expression<Func<T>> expressionForResolverLambda = () => resolve();
-				return (InvocationExpression)expressionForResolverLambda.Body;
+				return (Expression)expressionForResolverLambda.Body;
 			}
 
 			/// <summary>
@@ -244,20 +241,14 @@ namespace IfFastInjector
 			/// </summary>
 			/// <param name="parameterType"></param>
 			/// <returns></returns>
-			private InvocationExpression GetResolverInvocationExpressionForType(Type parameterType)
+			private Expression GetResolverInvocationExpressionForType(Type parameterType)
 			{
-				var iResolver = MyInjector.GetInternalResolver (parameterType);
-
-				Expression<Func<InvocationExpression>> method = () => GetResolverInvocationExpression();
-				var methodName = ((MethodCallExpression)method.Body).Method.Name;
-				var methodInst = iResolver.GetType().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
-
-				return (InvocationExpression) methodInst.Invoke(iResolver, new object[0]);
+				return MyInjector.ResolveClosure (parameterType);
 			}
 
 			private T ThrowInterfaceException()
 			{
-				throw new IfFastInjectorException(string.Format(IfInjector.IfFastInjectorErrors.ErrorUnableToResultInterface, typeof(T).FullName));
+				throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorUnableToResultInterface, typeof(T).FullName));
 			}
 
 			private class SetterExpression
@@ -315,7 +306,7 @@ namespace IfFastInjector
 				where TPropertyType : class
 			{
 				lock (this) {
-					Expression<Func<TPropertyType>> setter = () => MyInjector.GetInternalResolver<TPropertyType>().resolve();
+					Expression<Func<TPropertyType>> setter = () => MyInjector.Resolve<TPropertyType>();
 					AddPropertySetterInner<TPropertyType>(propertyExpression, setter);
 				}
 			}
@@ -338,7 +329,7 @@ namespace IfFastInjector
 			{
 				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
 				if (propertyMemberExpression == null) {
-					throw new ArgumentException(IfInjector.IfFastInjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
+					throw new ArgumentException(IfFastInjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
 				}
 
 				setterExpressions.Add(new SetterExpression { PropertyMemberExpression = propertyMemberExpression, Setter = setter });
@@ -434,7 +425,7 @@ namespace IfFastInjector
 					{
 						if (IsRecursionTestPending)
 						{
-							throw new IfFastInjectorException(string.Format(IfInjector.IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
 						}
 						IsRecursionTestPending = true;
 					}
@@ -517,7 +508,7 @@ namespace IfFastInjector
 		/// The fluent class is really only important to give the extension methods the type for T
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		protected internal class InjectorFluent<T> : IfInjector.IfFastInjectorFluent<T>
+		protected internal class InjectorFluent<T> : IfFastInjectorBinding<T>
 			where T : class 
 		{ 
 			private readonly InternalResolver<T> resolver;
@@ -526,14 +517,14 @@ namespace IfFastInjector
 				this.resolver = resolver;
 			}
 
-			public IfInjector.IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
+			public IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
 				where TPropertyType : class
 			{
 				resolver.AddPropertySetter(propertyExpression);
 				return this;
 			}
 
-			public IfInjector.IfFastInjectorFluent<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+			public IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
 				where TPropertyType : class 
 			{
 				resolver.AddPropertySetter(propertyExpression, setter);

@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using NUnit.Framework;
 using IfFastInjector;
+using IfFastInjector.IfInjectorTypes;
 
 namespace IfFastInjector
 {
@@ -8,7 +9,6 @@ namespace IfFastInjector
     public class UnitTest2
     {
 		private IfInjector injector = IfInjector.NewInstance();
-
         [Test]
         public void SetResolverByConstructorInfoTest()
         {
@@ -44,8 +44,9 @@ namespace IfFastInjector
         [Test]
         public void AddPropertyInjectorTest()
         {
-			injector.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.Other);
-			injector.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger");
+			var binding = injector.Bind<TestClassAddPropertyInjectorTest> ();
+			binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.Other);
+			binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger");
 
 			var result = injector.Resolve<TestClassAddPropertyInjectorTest>();
 
@@ -82,10 +83,12 @@ namespace IfFastInjector
         [Test]
         public void AddPropertySetterNotMemberExpression()
         {
+			var binding = injector.Bind<TestClassAddPropertyInjectorTest>();
+
             ArgumentException exception = null;
             try
             {
-				injector.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => "");
+				binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => "");
             }
             catch (ArgumentException ex)
             {

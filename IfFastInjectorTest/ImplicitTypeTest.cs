@@ -1,6 +1,7 @@
 ﻿using System;
 using NUnit.Framework;
 using IfFastInjector;
+using IfFastInjector.IfInjectorTypes;
 
 namespace IfFastInjector
 {
@@ -46,7 +47,7 @@ namespace IfFastInjector
 			injector.Bind<MyInterfaceDerived, MyTestClass2> ();
 
 			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfInjector.IfFastInjectorErrors.ErrorAmbiguousBinding, typeof(MyInterface).Name);
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, typeof(MyInterface).Name);
 
 			try 
 			{
