@@ -50,7 +50,7 @@ namespace IfFastInjector
 		/// <returns>The resolver.</returns>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TConcreteType">The 2nd type parameter.</typeparam>
-		public abstract IfInjectorTypes.IfFastInjectorBinding<T> Bind<T, TConcreteType> ()
+		public abstract IfInjectorTypes.IfFastInjectorBinding<TConcreteType> Bind<T, TConcreteType> ()
 			where T : class
 			where TConcreteType : class, T;
 
@@ -60,15 +60,6 @@ namespace IfFastInjector
 		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
 		public abstract IfInjectorTypes.IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> ()
 			where TConcreteType : class;
-
-		/// <summary>
-		/// Sets the resolver.
-		/// </summary>
-		/// <returns>The resolver.</returns>
-		/// <param name="constructor">Constructor.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract IfInjectorTypes.IfFastInjectorBinding<T> Bind<T> (ConstructorInfo constructor)
-			where T : class;
 
 		/// <summary>
 		/// Sets the resolver.

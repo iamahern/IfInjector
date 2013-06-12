@@ -41,6 +41,7 @@
     <Compile Include="MultipleInjectorsTest.cs" />
     <Compile Include="SingletonsTest.cs" />
     <Compile Include="ImplicitTypeTest.cs" />
+    <Compile Include="ConcreteTypesTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">

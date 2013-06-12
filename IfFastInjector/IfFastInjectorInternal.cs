@@ -59,7 +59,7 @@ namespace IfFastInjector
 				ISet<Type> lookup;
 
 				if (typeConstructs.ContainsKey (typeT) || !((implicitTypeLookup.TryGetValue (typeT, out lookup) && lookup.Count > 0))) {
-					return GetInternalResolver<T> (false).DoResolveTyped ();
+					return (T) GetInternalResolver (typeT, typeT, false).DoResolve();
 				} else {
 					if (lookup.Count == 1) {
 						return (T) Resolve (lookup.First());
@@ -92,53 +92,52 @@ namespace IfFastInjector
 				return exp.Body;
 			}
 
-			public override IfFastInjectorBinding<T> Bind<T, TConcreteType>()
+			public override IfFastInjectorBinding<TConcreteType> Bind<T, TConcreteType>()
 			{
-				if (typeof(T) == typeof(TConcreteType)) {
-					return Bind<T> ();
-				}
-				else {
-					var iResolver = GetInternalResolver<T> (true);
-					iResolver.SetResolver (() => GetInternalResolver<TConcreteType>(true).DoResolveTyped());
-					return new InjectorFluent<T>(iResolver);
-				}
-			}
-
-			public override IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> () {
-				var iResolver = GetInternalResolver<TConcreteType> (true);
+				var iResolver = GetInternalResolverAndBind<T, TConcreteType> ();
 				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
-			public override IfFastInjectorBinding<T> Bind<T>(ConstructorInfo constructor)
-			{
-				var iResolver = GetInternalResolver<T> (true);
-				iResolver.SetResolver(constructor);
-				return new InjectorFluent<T>(iResolver);
+			public override IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> () {
+				var iResolver = GetInternalResolverAndBind<TConcreteType, TConcreteType> ();
+				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
 			public override IfFastInjectorBinding<T> Bind<T> (Expression<Func<T>> factoryExpression)
 			{
-				var iResolver = GetInternalResolver<T> (true);
+				var iResolver = GetInternalResolverAndBind<T, T> ();
 				iResolver.SetResolver(factoryExpression);
 				return new InjectorFluent<T>(iResolver);
 			}
 
-			private InternalResolver<T> GetInternalResolver<T>(bool clearResolver) where T : class {
-				return (InternalResolver<T>) GetInternalResolver (typeof(T), clearResolver);
+
+			private InternalResolver<CType> GetInternalResolverAndBind<BType, CType>()
+				where BType : class
+				where CType : class, BType
+			{
+				return (InternalResolver<CType>) GetInternalResolver (typeof(BType), typeof(CType), true);
 			}
 
 			// TODO - review
-			private IInternalResolver GetInternalResolver(Type type, bool clearResolver) {
-				InjectorTypeConstructs typeConstruct = GetTypeConstruct (type);
+
+			/// <summary>
+			/// Gets the internal resolver.  The implType is only used in the case of new or implicit bindings.  TODO: seperate method for implicit binding...
+			/// </summary>
+			/// <returns>The internal resolver.</returns>
+			/// <param name="bindType">Bind type.</param>
+			/// <param name="implType">Impl type.</param>
+			/// <param name="isNewBinding">If set to <c>true</c> is new binding.</param>
+			private IInternalResolver GetInternalResolver(Type bindType, Type implType, bool isNewBinding) {
+				InjectorTypeConstructs typeConstruct = GetTypeConstruct (bindType);
 
 				lock (typeConstruct) {
-					if (typeConstruct.InternalResolver == null) {
+					if (typeConstruct.InternalResolver == null || (isNewBinding && typeConstruct.InternalResolver.GetType().GetGenericArguments()[0] != implType)) {
 						if (typeConstruct.IsInternalResolverPending) {
-							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, type.Name));
+							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, bindType.Name));
 						}
 
 						Type iResolverType = typeof(InternalResolver<>);
-						Type genericType = iResolverType.MakeGenericType(new Type[] { type });
+						Type genericType = iResolverType.MakeGenericType(new Type[] { implType });
 
 						typeConstruct.IsInternalResolverPending = true;
 						typeConstruct.InternalResolver = CreateInstance (genericType, this, typeConstruct);
