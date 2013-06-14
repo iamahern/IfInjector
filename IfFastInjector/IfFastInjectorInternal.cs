@@ -38,14 +38,19 @@ namespace IfFastInjector
 		internal class InjectorInternal : IfInjector
 		{		
 			// Thread safety via lock (internalResolvers) 
-			private readonly SafeDictionary<Type, InjectorTypeConstructs> typeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>();
-			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> ();
+			private readonly object syncLock = new object();
+			private readonly SafeDictionary<Type, InjectorTypeConstructs> allTypeConstructs;
+			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
 
 			protected internal readonly MethodInfo GenericResolve;
 			private readonly MethodInfo genericResolveClosure;
 
 			public InjectorInternal() 
 			{
+				// Init dictionaries
+				allTypeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>(syncLock);
+				implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> (syncLock);
+
 				Expression<Func<Exception>> TmpResolveExpression = () => this.Resolve<Exception>();
 				this.GenericResolve = ((MethodCallExpression)TmpResolveExpression.Body).Method.GetGenericMethodDefinition();
 
@@ -55,34 +60,32 @@ namespace IfFastInjector
 
 			public override T Resolve<T>()
 			{
-				var typeT = typeof(T);
-				ISet<Type> lookup;
-
-				if (typeConstructs.ContainsKey (typeT) || !((implicitTypeLookup.TryGetValue (typeT, out lookup) && lookup.Count > 0))) {
-					return (T) GetInternalResolver (typeT, typeT, false).DoResolve();
-				} else {
-					if (lookup.Count == 1) {
-						return (T) Resolve (lookup.First());
-					} else {
-						throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, typeT.Name));
-					}
-				} 
-
-				// TODO - change implicit resolution strategy
+				return (T)Resolve (typeof(T));
 			}
 
 			public override object Resolve(Type type)
 			{
-				InjectorTypeConstructs constructs;
+				ISet<Type> lookup;
+				InjectorTypeConstructs typeInfo;
 
-				if (typeConstructs.TryGetValue(type, out constructs) && constructs.InternalResolver != null) {
-					return constructs.InternalResolver.DoResolve();
+				if (allTypeConstructs.TryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
+					return typeInfo.InternalResolver.DoResolve();
+				} else if (implicitTypeLookup.TryGetValue (type, out lookup) && lookup.Count > 0) {
+					if (lookup.Count == 1) {
+						return Resolve (lookup.First());
+					} else {
+						throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, type.Name));
+					}
+				} else {
+					return CreateInternalResolver (type,type, true).DoResolve();
 				}
-
-				// Not in dictionary, call Resolve<T> which will, in turn, set up and call the default Resolver
-				return GenericResolve.MakeGenericMethod(type).Invoke(this, new object[0]);
 			}
 
+			/// <summary>
+			/// Trick to provide callbacks in resolve expressions to InternalResolver. The Expression returned is 'typed' allowing it to be used in compiled 'Link' expression chains.
+			/// </summary>
+			/// <returns>The closure.</returns>
+			/// <param name="type">Type.</param>
 			protected internal Expression ResolveClosure(Type type) {
 				return (Expression) genericResolveClosure.MakeGenericMethod(type).Invoke(this, new object[0]);
 			}
@@ -94,86 +97,103 @@ namespace IfFastInjector
 
 			public override IfFastInjectorBinding<TConcreteType> Bind<T, TConcreteType>()
 			{
-				var iResolver = GetInternalResolverAndBind<T, TConcreteType> ();
+				var iResolver = BindExplicit<T, TConcreteType> ();
 				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
 			public override IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> () {
-				var iResolver = GetInternalResolverAndBind<TConcreteType, TConcreteType> ();
+				var iResolver = BindExplicit<TConcreteType, TConcreteType> ();
 				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
 			public override IfFastInjectorBinding<T> Bind<T> (Expression<Func<T>> factoryExpression)
 			{
-				var iResolver = GetInternalResolverAndBind<T, T> ();
+				var iResolver = BindExplicit<T, T> ();
 				iResolver.SetResolver(factoryExpression);
 				return new InjectorFluent<T>(iResolver);
 			}
 
 
-			private InternalResolver<CType> GetInternalResolverAndBind<BType, CType>()
+			private InternalResolver<CType> BindExplicit<BType, CType>()
 				where BType : class
 				where CType : class, BType
 			{
-				return (InternalResolver<CType>) GetInternalResolver (typeof(BType), typeof(CType), true);
+					return (InternalResolver<CType>) CreateInternalResolver (typeof(BType), typeof(CType), false);
 			}
 
-			// TODO - review
-
 			/// <summary>
-			/// Gets the internal resolver.  The implType is only used in the case of new or implicit bindings.  TODO: seperate method for implicit binding...
+			/// Creates the internal resolver.
 			/// </summary>
 			/// <returns>The internal resolver.</returns>
 			/// <param name="bindType">Bind type.</param>
 			/// <param name="implType">Impl type.</param>
-			/// <param name="isNewBinding">If set to <c>true</c> is new binding.</param>
-			private IInternalResolver GetInternalResolver(Type bindType, Type implType, bool isNewBinding) {
-				InjectorTypeConstructs typeConstruct = GetTypeConstruct (bindType);
-
-				lock (typeConstruct) {
-					if (typeConstruct.InternalResolver == null || (isNewBinding && typeConstruct.InternalResolver.GetType().GetGenericArguments()[0] != implType)) {
-						if (typeConstruct.IsInternalResolverPending) {
-							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, bindType.Name));
+			/// <param name="isImplicit">If set to <c>true</c> is implicit.</param>
+			private IInternalResolver CreateInternalResolver(Type bindType, Type implType, bool isImplicit) {
+				lock (syncLock) {
+					InjectorTypeConstructs typeConstruct = null;
+					if (isImplicit) {
+						if (allTypeConstructs.TryGetValue (bindType, out typeConstruct)) {
+							if (typeConstruct.IsInternalResolverPending) {
+								throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, bindType.Name));
+							}
+							return typeConstruct.InternalResolver;
 						}
-
-						Type iResolverType = typeof(InternalResolver<>);
-						Type genericType = iResolverType.MakeGenericType(new Type[] { implType });
-
-						typeConstruct.IsInternalResolverPending = true;
-						typeConstruct.InternalResolver = CreateInstance (genericType, this, typeConstruct);
+					} else  {
+						allTypeConstructs.Remove (bindType);
+						implicitTypeLookup.Remove (bindType);
 					} 
+
+					typeConstruct = CreateTypeConstruct(bindType, implType);
+					typeConstruct.InternalResolver = CreateInternalResolverInstance (implType, this, typeConstruct);
+					typeConstruct.IsInternalResolverPending = false;
 
 					return typeConstruct.InternalResolver;
 				}
 			}
 
-			private IInternalResolver CreateInstance(Type type, params object[] args) {
+			private IInternalResolver CreateInternalResolverInstance(Type implType, params object[] args) {
 				try {
-					return (IInternalResolver) Activator.CreateInstance(type, args);
+					Type iResolverType = typeof(InternalResolver<>);
+					Type genericType = iResolverType.MakeGenericType(new Type[] { implType });
+					return (IInternalResolver) Activator.CreateInstance(genericType, args);
 				} catch (TargetInvocationException ex) {
 					throw ex.InnerException;
 				}
 			}
 
-			private InjectorTypeConstructs GetTypeConstruct(Type type) {
-				return typeConstructs.GetWithInitial(type, () => {
-					foreach (Type iFace in type.GetInterfaces()) {
-						AddImplicitType(iFace, type);
+			private InjectorTypeConstructs CreateTypeConstruct(Type bindType, Type implType) {
+				lock (syncLock) {
+					var typeConstruct = new InjectorTypeConstructs ();
+					typeConstruct.IsInternalResolverPending = true;
+					allTypeConstructs.Add (bindType, typeConstruct);
+
+					foreach (Type iFace in bindType.GetInterfaces()) {
+						AddImplicitType(iFace, bindType);
 					}
 
-					Type wTypeChain = type;
+					Type wTypeChain = bindType;
 					while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-						AddImplicitType(wTypeChain, type);
+						AddImplicitType(wTypeChain, bindType);
 					}
 
-					return new InjectorTypeConstructs();
-				});
+					return typeConstruct;
+				}
 			}
 
 			private void AddImplicitType(Type bType, Type cType) {
-				ISet<Type> mSet = implicitTypeLookup.GetWithInitial(bType, () => new HashSet<Type>());
-				lock (mSet) {
-					mSet.Add (cType);
+				lock (syncLock) {
+					var nSet = new HashSet<Type> ();
+					ISet<Type> oldSet;
+
+					if (implicitTypeLookup.TryGetValue (bType, out oldSet)) {
+						implicitTypeLookup.Remove (bType);
+						foreach (var v in oldSet) {
+							nSet.Add (v);
+						}
+					}
+
+					nSet.Add (cType);
+					implicitTypeLookup.Add (bType, nSet);
 				}
 			}
 		}
@@ -186,6 +206,7 @@ namespace IfFastInjector
 		{
 			private bool isVerifiedNotRecursive;
 
+			private readonly object syncLock = new object();
 			private readonly Type typeofT = typeof(T);
 			private readonly List<SetterExpression> setterExpressions = new List<SetterExpression>();
 			private Func<T> resolverFactoryCompiled;
@@ -202,12 +223,8 @@ namespace IfFastInjector
 				this.resolve = InitInitialResolver();
 			}
 
-			public T DoResolveTyped() {
-				return resolve ();
-			}
-
 			public object DoResolve() {
-				return DoResolveTyped ();
+				return resolve ();
 			}
 
 			private Func<T> InitInitialResolver()
@@ -272,7 +289,7 @@ namespace IfFastInjector
 			/// <param name="factoryExpression">Factory expression.</param>
 			public void SetResolver(Expression<Func<T>> factoryExpression)
 			{
-				lock (this) {
+				lock (syncLock) {
 					var visitor = new ReplaceMethodCallWithInvocationExpressionVisitor<T>(this);
 					var newFactoryExpression = (Expression<Func<T>>)visitor.Visit(factoryExpression);
 					SetResolverInner(newFactoryExpression);
@@ -285,7 +302,7 @@ namespace IfFastInjector
 			/// <param name="constructor">Constructor.</param>
 			public void SetResolver(ConstructorInfo constructor)
 			{
-				lock (this) {
+				lock (syncLock) {
 					SetConstructor(constructor);
 				}
 			}
@@ -304,7 +321,7 @@ namespace IfFastInjector
 			public void AddPropertySetter<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
 				where TPropertyType : class
 			{
-				lock (this) {
+				lock (syncLock) {
 					Expression<Func<TPropertyType>> setter = () => MyInjector.Resolve<TPropertyType>();
 					AddPropertySetterInner<TPropertyType>(propertyExpression, setter);
 				}
@@ -319,7 +336,7 @@ namespace IfFastInjector
 			public void AddPropertySetter<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
 				where TPropertyType : class
 			{
-				lock (this) {
+				lock (syncLock) {
 					AddPropertySetterInner<TPropertyType>(propertyExpression, setter);
 				}
 			}
@@ -337,7 +354,7 @@ namespace IfFastInjector
 			}
 
 			public void AsSingleton() {
-				lock (this) {
+				lock (syncLock) {
 					singleton = true;
 					CompileResolver ();
 				}
@@ -419,7 +436,7 @@ namespace IfFastInjector
 			private T ResolveWithRecursionCheck()
 			{
 				// Lock until executed once; we will compile this away once verified
-				lock (this) {
+				lock (syncLock) {
 					if (!isVerifiedNotRecursive)
 					{
 						if (IsRecursionTestPending)
@@ -539,20 +556,16 @@ namespace IfFastInjector
 		/// Thread safe dictionary wrapper. 
 		/// </summary>
 		protected internal class SafeDictionary<TKey,TValue> {
-			private readonly object syncLock = new object();
+			private readonly object syncLock;
 			private readonly Dictionary<TKey, TValue> dict = new Dictionary<TKey, TValue>();
 
-			public TValue GetWithInitial(TKey key, Func<TValue> initializer) 
-			{
-				lock (syncLock) 
-				{
-					TValue value;
-					if (!dict.TryGetValue (key, out value)) 
-					{
-						dict [key] = value = initializer.Invoke ();
-					}
+			public SafeDictionary(object syncLock) {
+				this.syncLock = syncLock;
+			}
 
-					return value;
+			public void Add(TKey key, TValue value) {
+				lock (syncLock) {
+					dict.Add(key, value);
 				}
 			}
 
@@ -564,12 +577,8 @@ namespace IfFastInjector
 				}
 			}
 
-			public Boolean ContainsKey(TKey key) 
-			{
-				lock (syncLock) 
-				{
-					return dict.ContainsKey(key);
-				}
+			public bool Remove(TKey key) {
+				return dict.Remove (key);
 			}
 		}
 	}
