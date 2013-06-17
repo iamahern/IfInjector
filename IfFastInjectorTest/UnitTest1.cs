@@ -3,7 +3,7 @@ using NUnit.Framework;
 using IfFastInjector;
 using System.Diagnostics;
 
-namespace IfFastInjector
+namespace IfFastInjectorMxTest
 {
     [TestFixture]
     public class UnitTest1

@@ -3,7 +3,7 @@ using System;
 
 using IfFastInjector;
 
-namespace FastInjectorMxTest
+namespace IfFastInjectorMxTest
 {
 	[TestFixture()]
 	public class SingletonsTest

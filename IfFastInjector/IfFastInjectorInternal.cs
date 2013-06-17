@@ -30,6 +30,8 @@ namespace IfFastInjector
 			public IInternalResolver InternalResolver { get; set; }
 			public bool IsRecursionTestPending { get; set; }
 			public bool IsInternalResolverPending { get; set; }
+
+			public ISet<Type> ImplicitTypes { get; private set; }
 		}
 
 		/// <summary>
@@ -65,19 +67,29 @@ namespace IfFastInjector
 
 			public override object Resolve(Type type)
 			{
+				return ResolveResolver (type).DoResolve ();
+			}
+
+			public override T InjectProperties<T> (T instance)
+			{
+				return ((InternalResolver<T>)ResolveResolver (typeof(T))).DoInject (instance);
+			}
+
+			private IInternalResolver ResolveResolver(Type type)
+			{
 				ISet<Type> lookup;
 				InjectorTypeConstructs typeInfo;
 
 				if (allTypeConstructs.TryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
-					return typeInfo.InternalResolver.DoResolve();
+					return typeInfo.InternalResolver;
 				} else if (implicitTypeLookup.TryGetValue (type, out lookup) && lookup.Count > 0) {
 					if (lookup.Count == 1) {
-						return Resolve (lookup.First());
+						return ResolveResolver (lookup.First());
 					} else {
 						throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, type.Name));
 					}
 				} else {
-					return CreateInternalResolver (type,type, true).DoResolve();
+					return CreateInternalResolver (type,type, true);
 				}
 			}
 
@@ -127,24 +139,28 @@ namespace IfFastInjector
 			/// <returns>The internal resolver.</returns>
 			/// <param name="bindType">Bind type.</param>
 			/// <param name="implType">Impl type.</param>
-			/// <param name="isImplicit">If set to <c>true</c> is implicit.</param>
-			private IInternalResolver CreateInternalResolver(Type bindType, Type implType, bool isImplicit) {
+			/// <param name="isAutoBind">If set to <c>true</c> is implicit.</param>
+			private IInternalResolver CreateInternalResolver(Type bindType, Type implType, bool isAutoBind) {
 				lock (syncLock) {
-					InjectorTypeConstructs typeConstruct = null;
-					if (isImplicit) {
-						if (allTypeConstructs.TryGetValue (bindType, out typeConstruct)) {
+					InjectorTypeConstructs typeConstruct;
+					bool hasTypeConstruct = allTypeConstructs.TryGetValue (bindType, out typeConstruct);
+
+					if (isAutoBind) {
+						// On Implicit binding, check if binding exists or was created by other thread. Also check for infinite loops.
+						if (hasTypeConstruct) {
 							if (typeConstruct.IsInternalResolverPending) {
 								throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, bindType.Name));
 							}
 							return typeConstruct.InternalResolver;
 						}
 					} else  {
-						allTypeConstructs.Remove (bindType);
+						// Don't bother removing implicit types in rebinding; as implicit binding remains the same
 						implicitTypeLookup.Remove (bindType);
+						allTypeConstructs.Remove (bindType);
 					} 
 
-					typeConstruct = CreateTypeConstruct(bindType, implType);
-					typeConstruct.InternalResolver = CreateInternalResolverInstance (implType, this, typeConstruct);
+					typeConstruct = CreateTypeConstruct(bindType, implType, isAutoBind);
+					typeConstruct.InternalResolver = CreateInternalResolverInstance (implType, this, typeConstruct, this.syncLock);
 					typeConstruct.IsInternalResolverPending = false;
 
 					return typeConstruct.InternalResolver;
@@ -161,39 +177,37 @@ namespace IfFastInjector
 				}
 			}
 
-			private InjectorTypeConstructs CreateTypeConstruct(Type bindType, Type implType) {
+			private InjectorTypeConstructs CreateTypeConstruct(Type bindType, Type implType, bool isAutoBind) {
 				lock (syncLock) {
 					var typeConstruct = new InjectorTypeConstructs ();
+
 					typeConstruct.IsInternalResolverPending = true;
 					allTypeConstructs.Add (bindType, typeConstruct);
 
-					foreach (Type iFace in bindType.GetInterfaces()) {
-						AddImplicitType(iFace, bindType);
-					}
-
-					Type wTypeChain = bindType;
-					while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-						AddImplicitType(wTypeChain, bindType);
+					// Do not add implicit bindings for auto-bound types
+					if (!isAutoBind) {
+						AddImplicitTypes (bindType, GetImplicitTypes(bindType));
 					}
 
 					return typeConstruct;
 				}
 			}
 
-			private void AddImplicitType(Type bType, Type cType) {
+			private void AddImplicitTypes(Type boundType, ISet<Type> implicitTypes) {
 				lock (syncLock) {
-					var nSet = new HashSet<Type> ();
-					ISet<Type> oldSet;
+					foreach(Type implicitType in implicitTypes) {
+						ISet<Type> newSet, oldSet;
 
-					if (implicitTypeLookup.TryGetValue (bType, out oldSet)) {
-						implicitTypeLookup.Remove (bType);
-						foreach (var v in oldSet) {
-							nSet.Add (v);
+						if (implicitTypeLookup.TryGetValue (implicitType, out oldSet)) {
+							implicitTypeLookup.Remove (implicitType);
+							newSet = new HashSet<Type> (oldSet);
+						} else {
+							newSet = new HashSet<Type> ();
 						}
-					}
 
-					nSet.Add (cType);
-					implicitTypeLookup.Add (bType, nSet);
+						newSet.Add (boundType);
+						implicitTypeLookup.Add (implicitType, newSet);
+					}
 				}
 			}
 		}
@@ -206,25 +220,35 @@ namespace IfFastInjector
 		{
 			private bool isVerifiedNotRecursive;
 
-			private readonly object syncLock = new object();
+			private readonly object syncLock;
 			private readonly Type typeofT = typeof(T);
 			private readonly List<SetterExpression> setterExpressions = new List<SetterExpression>();
 			private Func<T> resolverFactoryCompiled;
 			private Func<T> resolve; // TODO - Ok as not locked?
+			private Action<T> resolveProperties;
 
 			private bool singleton = false;
 
 			private readonly InjectorInternal MyInjector;
 			private readonly InjectorTypeConstructs myTypeConstructs;
 
-			public InternalResolver(InjectorInternal injector, InjectorTypeConstructs typeConstructs) {
+			public InternalResolver(InjectorInternal injector, InjectorTypeConstructs typeConstructs, object syncLock) {
 				this.MyInjector = injector;
 				this.myTypeConstructs = typeConstructs;
+				this.syncLock = syncLock;
 				this.resolve = InitInitialResolver();
 			}
 
 			public object DoResolve() {
 				return resolve ();
+			}
+
+			public T DoInject(T instance) {
+				if (instance != null) {
+					resolveProperties (instance);
+				}
+
+				return instance;
 			}
 
 			private Func<T> InitInitialResolver()
@@ -368,24 +392,17 @@ namespace IfFastInjector
 			private Func<T> CompileResolver()
 			{
 				// if no property expressions, then just use the unmodified ResolverFactoryExpression
-				if (setterExpressions.Any())
-				{
+				if (setterExpressions.Any()) {
 					var resolver = ResolverFactoryExpression;
 
 					var variableExpression = Expression.Variable(typeofT);
 					var assignExpression = Expression.Assign(variableExpression, resolver.Body);
 
-					// begin list of expressions for block expression
 					var blockExpression = new List<Expression>();
 					blockExpression.Add(assignExpression);
 
 					// setters
-					foreach (var v in setterExpressions)
-					{
-						var propertyExpression = Expression.Property(variableExpression, (PropertyInfo)v.PropertyMemberExpression.Member);
-						var propertyAssignExpression = Expression.Assign(propertyExpression, v.Setter.Body);
-						blockExpression.Add(propertyAssignExpression);
-					}
+					AddPropertySetterExpressions (variableExpression, blockExpression);
 
 					// return value
 					blockExpression.Add(variableExpression);
@@ -393,9 +410,7 @@ namespace IfFastInjector
 					var expression = Expression.Block(new ParameterExpression[] { variableExpression }, blockExpression);
 
 					ResolverExpression = (Expression<Func<T>>)Expression.Lambda(expression, resolver.Parameters);
-				}
-				else
-				{
+				} else {
 					ResolverExpression = ResolverFactoryExpression;
 				}
 
@@ -411,7 +426,39 @@ namespace IfFastInjector
 
 				resolve = ResolveWithRecursionCheck;
 
+				// Makes an Action that will set the properties
+				CompilePropertySetters ();
+
 				return ResolveWithRecursionCheck;
+			}
+
+			private void CompilePropertySetters() {
+				// if no property expressions, then just use the unmodified ResolverFactoryExpression
+				if (setterExpressions.Any()) {
+					var instance = Expression.Parameter (typeof(T), "instance");
+					var instanceVar = Expression.Variable(typeofT);
+
+					var assignExpression = Expression.Assign(instanceVar, instance);
+
+					var blockExpression = new List<Expression> ();
+					blockExpression.Add(assignExpression);
+					AddPropertySetterExpressions (instanceVar, blockExpression);
+
+					var expression = Expression.Block(new [] { instanceVar }, blockExpression);
+
+					resolveProperties = Expression.Lambda<Action<T>>(expression, instance).Compile();
+				} else {
+					resolveProperties = (T x) => {};
+				}
+			}
+
+			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpression) {
+				foreach (var v in setterExpressions)
+				{
+					var propertyExpression = Expression.Property(instanceVar, (PropertyInfo)v.PropertyMemberExpression.Member);
+					var propertyAssignExpression = Expression.Assign(propertyExpression, v.Setter.Body);
+					blockExpression.Add(propertyAssignExpression);
+				}
 			}
 
 			/// <summary>
@@ -437,10 +484,8 @@ namespace IfFastInjector
 			{
 				// Lock until executed once; we will compile this away once verified
 				lock (syncLock) {
-					if (!isVerifiedNotRecursive)
-					{
-						if (IsRecursionTestPending)
-						{
+					if (!isVerifiedNotRecursive) {
+						if (IsRecursionTestPending) {
 							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
 						}
 						IsRecursionTestPending = true;
@@ -463,8 +508,7 @@ namespace IfFastInjector
 				// get first available constructor ordered by parameter count ascending
 				var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IfIgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(IfInjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
 
-				if (constructor != null)
-				{
+				if (constructor != null) {
 					return SetConstructor(constructor);
 				}
 
@@ -481,8 +525,7 @@ namespace IfFastInjector
 
 				var arguments = new List<Expression>();
 
-				foreach (var parameterType in methodParameters)
-				{
+				foreach (var parameterType in methodParameters) {
 					var argument = GetResolverInvocationExpressionForType(parameterType);
 					arguments.Add(argument);
 				}
@@ -507,13 +550,11 @@ namespace IfFastInjector
 				protected override Expression VisitMethodCall(MethodCallExpression node)
 				{
 					var method = node.Method;
-					if (method.IsGenericMethod && method.GetGenericMethodDefinition() == resolverMethod)
-					{
+					if (method.IsGenericMethod && method.GetGenericMethodDefinition() == resolverMethod) {
 						var parameterType = method.GetGenericArguments()[0];
 						return resolver.GetResolverInvocationExpressionForType(parameterType);
 					}
-					else
-					{
+					else {
 						return base.VisitMethodCall(node);
 					}
 				}
@@ -571,15 +612,31 @@ namespace IfFastInjector
 
 			public bool TryGetValue(TKey key, out TValue value) 
 			{
-				lock (syncLock) 
-				{
+				lock (syncLock) {
 					return dict.TryGetValue (key, out value);
 				}
 			}
 
 			public bool Remove(TKey key) {
-				return dict.Remove (key);
+				lock (syncLock) {
+					return dict.Remove (key);
+				}
 			}
+		}
+
+		protected internal static ISet<Type> GetImplicitTypes(Type boundType) {
+			var implicitTypes = new HashSet<Type>();
+
+			foreach (Type iFace in boundType.GetInterfaces()) {
+				implicitTypes.Add(iFace);
+			}
+
+			Type wTypeChain = boundType;
+			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
+				implicitTypes.Add(wTypeChain);
+			}
+
+			return implicitTypes;
 		}
 	}
 }

@@ -2,7 +2,7 @@
 using NUnit.Framework;
 using IfFastInjector;
 
-namespace IfFastInjector
+namespace IfFastInjectorMxTest
 {
     [TestFixture]
     public class InjectorTest

@@ -3,7 +3,7 @@ using NUnit.Framework;
 using IfFastInjector;
 using IfFastInjector.IfInjectorTypes;
 
-namespace IfFastInjector
+namespace IfFastInjectorMxTest
 {
     [TestFixture]
     public class ResolverLoopTest
@@ -13,14 +13,14 @@ namespace IfFastInjector
        	[Test, Timeout(400)]
         public void TestResolverWithLoopingTypes1()
         {
-			IfInjectorTypes.IfFastInjectorException exception = null;
+			IfFastInjectorException exception = null;
 			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSomething).Name);
 
             try
             {
 				var concrete = injector.Resolve<ConcreteSomething>();
             }
-			catch (IfInjectorTypes.IfFastInjectorException ex)
+			catch (IfFastInjectorException ex)
             {
                 exception = ex;
             }
@@ -32,7 +32,7 @@ namespace IfFastInjector
 		[Test, Timeout(100)]
         public void TestResolverWithLoopingTypes2()
         {
-			IfInjectorTypes.IfFastInjectorException exception = null;
+			IfFastInjectorException exception = null;
 			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcreteSecretLoop).Name);
 
             try

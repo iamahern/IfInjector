@@ -8,7 +8,7 @@
     <ProjectGuid>{083C5427-83BA-4579-A000-AC49EE2F4105}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>FastInjectorMxTest</RootNamespace>
-    <AssemblyName>FastInjectorMxTest</AssemblyName>
+    <AssemblyName>IfFastInjectorMxTest</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -31,6 +31,9 @@
     <Reference Include="nunit.framework">
       <Private>False</Private>
     </Reference>
+    <Reference Include="System.Data.Linq" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Core" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -42,6 +45,8 @@
     <Compile Include="SingletonsTest.cs" />
     <Compile Include="ImplicitTypeTest.cs" />
     <Compile Include="ConcreteTypesTest.cs" />
+    <Compile Include="TestLinq.cs" />
+    <Compile Include="PropertyInjectionTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">

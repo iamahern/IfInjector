@@ -3,7 +3,7 @@ using NUnit.Framework;
 using IfFastInjector;
 using IfFastInjector.IfInjectorTypes;
 
-namespace IfFastInjector
+namespace IfFastInjectorMxTest
 {
     [TestFixture]
     public class ImplicitTypeTest

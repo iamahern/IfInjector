@@ -69,6 +69,15 @@ namespace IfFastInjector
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		public abstract IfInjectorTypes.IfFastInjectorBinding<T> Bind<T> (Expression<Func<T>> factoryExpression)
 			where T : class;
+
+		/// <summary>
+		/// Injects the properties of an instance.
+		/// </summary>
+		/// <returns>The properties.</returns>
+		/// <param name="instance">Instance.</param>
+		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		public abstract T InjectProperties<T> (T instance)
+			where T : class;
 	}
 
 	/// <summary>
