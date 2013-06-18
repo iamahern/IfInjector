@@ -46,7 +46,9 @@ namespace IfFastInjector
 		/// Resolve this instance.
 		/// </summary>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract T Resolve<T> () where T : class;
+		public T Resolve<T> () where T : class {
+			return (T) Resolve(typeof(T));
+		}
 
 		/// <summary>
 		/// Resolve the specified type.

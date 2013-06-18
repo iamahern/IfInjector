@@ -60,11 +60,6 @@ namespace IfFastInjector
 				this.genericResolveClosure = ((MethodCallExpression)TmpResolveClosureExpression.Body).Method.GetGenericMethodDefinition();
 			}
 
-			public override T Resolve<T>()
-			{
-				return (T) Resolve (typeof(T));
-			}
-
 			public override object Resolve(Type type)
 			{
 				return ResolveResolver (type).DoResolve ();

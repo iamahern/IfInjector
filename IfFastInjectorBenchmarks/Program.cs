@@ -7,6 +7,8 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Diagnostics;
 
+using IfFastInjector;
+
 namespace IfFastInjectorBenchmarks
 {
 	class MainClass
@@ -20,6 +22,14 @@ namespace IfFastInjectorBenchmarks
 		{
 			TestOriginal1 ();
 			TestNew1 ();
+
+			Console.WriteLine ("++++ (sleep) Rinse and repeat ++++");
+
+			System.Threading.Thread.Sleep (2000);
+
+			TestOriginal1 ();
+			TestNew1 ();
+
 			//AddManyImplsForInterface ();
 			//TestOriginal2 ();
 
@@ -56,20 +66,20 @@ namespace IfFastInjectorBenchmarks
 			var result1 = injector.Resolve<MyTestInterface>();
 
 			var stopwatch = new Stopwatch();
-			stopwatch.Start();
+			stopwatch.Start ();
 			for (int i = 0; i < 1000000; i++)
 			{
 				var result = injector.Resolve<MyTestInterface>();
 			}
 			Console.WriteLine("IfFastInjector Resolve<T>(1000000) INSTANCE - NO properties: " + stopwatch.ElapsedTicks.ToString());
-		
+			
 			var typeT = typeof(MyTestInterface);
 			stopwatch.Restart();
 			for (int i = 0; i < 1000000; i++)
 			{
 				var result = injector.Resolve(typeT);
 			}
-			Console.WriteLine("fFastInjector Resolve(<T>)(1000000) INSTANCE - NO properties: " + stopwatch.ElapsedTicks.ToString());
+			Console.WriteLine("IFastInjector Resolve(<T>)(1000000) INSTANCE - NO properties: " + stopwatch.ElapsedTicks.ToString());
 		}
 
 		static void AddManyImplsForInterface() {
