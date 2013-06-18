@@ -62,7 +62,7 @@ namespace IfFastInjector
 
 			public override T Resolve<T>()
 			{
-				return (T)Resolve (typeof(T));
+				return (T) Resolve (typeof(T));
 			}
 
 			public override object Resolve(Type type)
@@ -80,9 +80,9 @@ namespace IfFastInjector
 				ISet<Type> lookup;
 				InjectorTypeConstructs typeInfo;
 
-				if (allTypeConstructs.TryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
+				if (allTypeConstructs.UnsyncedTryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
 					return typeInfo.InternalResolver;
-				} else if (implicitTypeLookup.TryGetValue (type, out lookup) && lookup.Count > 0) {
+				} else if (implicitTypeLookup.UnsyncedTryGetValue (type, out lookup) && lookup.Count > 0) {
 					if (lookup.Count == 1) {
 						return ResolveResolver (lookup.First());
 					} else {
@@ -597,6 +597,7 @@ namespace IfFastInjector
 		protected internal class SafeDictionary<TKey,TValue> {
 			private readonly object syncLock;
 			private readonly Dictionary<TKey, TValue> dict = new Dictionary<TKey, TValue>();
+			private Dictionary<TKey, TValue> unsyncDict = new Dictionary<TKey, TValue> ();
 
 			public SafeDictionary(object syncLock) {
 				this.syncLock = syncLock;
@@ -605,6 +606,7 @@ namespace IfFastInjector
 			public void Add(TKey key, TValue value) {
 				lock (syncLock) {
 					dict.Add(key, value);
+					unsyncDict = new Dictionary<TKey, TValue> (dict);
 				}
 			}
 
@@ -615,9 +617,18 @@ namespace IfFastInjector
 				}
 			}
 
+			public bool UnsyncedTryGetValue(TKey key, out TValue value)
+			{
+				return unsyncDict.TryGetValue (key, out value);
+			}
+
 			public bool Remove(TKey key) {
 				lock (syncLock) {
-					return dict.Remove (key);
+					bool res = dict.Remove (key);
+					if (res) {
+						unsyncDict = new Dictionary<TKey, TValue> (dict);
+					}
+					return res;
 				}
 			}
 		}

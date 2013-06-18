@@ -18,6 +18,16 @@ namespace IfFastInjector
 	[AttributeUsage(AttributeTargets.Constructor)]
 	public class IfIgnoreConstructorAttribute : Attribute {}
 
+	[AttributeUsage(AttributeTargets.Class)]
+	public class IfImplementedByAttribute : Attribute {
+		private readonly Type implementor;
+		public IfImplementedByAttribute(Type implementor) {
+			this.implementor = implementor;
+		}
+
+		Type Implementor { get { return implementor; } }
+	}
+
 	/// <summary>
 	/// Injector.
 	/// </summary>
