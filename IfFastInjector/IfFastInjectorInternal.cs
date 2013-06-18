@@ -358,7 +358,6 @@ namespace IfFastInjector
 			/// <param name="propertyExpression"></param>
 			/// <param name="setter"></param>
 			public void AddPropertySetter<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-				where TPropertyType : class
 			{
 				lock (syncLock) {
 					AddPropertySetterInner<TPropertyType>(propertyExpression, setter);
@@ -582,7 +581,6 @@ namespace IfFastInjector
 			}
 
 			public IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-				where TPropertyType : class 
 			{
 				resolver.AddPropertySetter(propertyExpression, setter);
 				return this;

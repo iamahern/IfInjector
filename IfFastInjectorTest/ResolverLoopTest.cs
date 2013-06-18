@@ -49,7 +49,7 @@ namespace IfFastInjectorMxTest
         }
 
 		[Test, Timeout(100)]
-        public void TestResolverWithPropertyLooping_Broken()
+        public void TestResolverWithPropertyLooping()
         {
 			injector.Bind<ConcretePropertyLoop>()
 				.AddPropertyInjector<ConcretePropertyLoop> (v => v.MyTestProperty);
