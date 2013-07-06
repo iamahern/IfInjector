@@ -48,6 +48,7 @@
     <Compile Include="TestLinq.cs" />
     <Compile Include="PropertyInjectionTest.cs" />
     <Compile Include="ImplementedByTest.cs" />
+    <Compile Include="BindingAttributeTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">

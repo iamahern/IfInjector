@@ -20,6 +20,15 @@ namespace IfFastInjector
 	/// </summary>
 	internal abstract class IfFastInjectorInternal 
 	{
+		[Flags]
+		protected internal enum ResolveFlag {
+			FLAG_NONE = 1,
+			FLAG_IMPLICIT = 2,
+			FLAG_NO_EXPLICIT = 4,
+
+			BIND_NO_EXPLICIT = FLAG_IMPLICIT | FLAG_NO_EXPLICIT
+		}
+
 		/// <summary>Internal resolver type.</summary>
 		protected internal interface IInternalResolver {
 			object DoResolve();
@@ -125,7 +134,9 @@ namespace IfFastInjector
 				where BType : class
 				where CType : class, BType
 			{
-					return (InternalResolver<CType>) CreateInternalResolver (typeof(BType), typeof(CType), false);
+				var resolver = (InternalResolver<CType>) CreateInternalResolver (typeof(BType), typeof(CType), false);
+				SetupImplicitBindings (resolver);
+				return resolver;
 			}
 
 			/// <summary>
@@ -449,9 +460,18 @@ namespace IfFastInjector
 			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpression) {
 				foreach (var v in setterExpressions)
 				{
-					var propertyExpression = Expression.Property(instanceVar, (PropertyInfo)v.PropertyMemberExpression.Member);
-					var propertyAssignExpression = Expression.Assign(propertyExpression, v.Setter.Body);
-					blockExpression.Add(propertyAssignExpression);
+					var propertyOrFieldExpression = GetSetterExpressionBody(instanceVar, v);
+					var propertyOrFieldAssignExpression = Expression.Assign(propertyOrFieldExpression, v.Setter.Body);
+					blockExpression.Add(propertyOrFieldAssignExpression);
+				}
+			}
+
+			private MemberExpression GetSetterExpressionBody(ParameterExpression instanceVar, SetterExpression expr) {
+				var member = expr.PropertyMemberExpression.Member;
+				if (member is PropertyInfo) {
+					return Expression.Property (instanceVar, (PropertyInfo)member);
+				} else {
+					return Expression.Field(instanceVar, (FieldInfo) member);
 				}
 			}
 
@@ -642,5 +662,63 @@ namespace IfFastInjector
 
 			return implicitTypes;
 		}
+
+		////////////////////////////////////////
+		#region ImplicitBindingsHelpers
+
+		private static readonly MethodInfo GenericSetupImplicitBindingsInternal;
+
+		static IfFastInjectorInternal() {
+			Expression<Action<InternalResolver<Exception>,ParameterExpression,MemberExpression>> TmpBindingExpression = (r, p, e) => SetupImplicitBindingsInternal<Exception, Exception>(r, p, e);
+			GenericSetupImplicitBindingsInternal = ((MethodCallExpression)TmpBindingExpression.Body).Method.GetGenericMethodDefinition();
+		}			
+
+		protected internal static void SetupImplicitBindings<T>(InternalResolver<T> resolver) where T : class {
+			Type typeT = typeof(T);
+			var parameterT = Expression.Parameter(typeT, "x");
+
+			// Handle properties
+			var props = typeT.GetProperties (BindingFlags.Public | BindingFlags.Instance)
+				.Union (typeT.GetProperties(BindingFlags.NonPublic | BindingFlags.Instance))
+				.Where (x => x.GetCustomAttributes(typeof(IfInjectAttribute), true).Length != 0);
+				
+			foreach (var property in props) {
+				var propertyExpression = Expression.Property (parameterT, property);
+				InvokeSetupImplicitBindingsInternal<T> (property.PropertyType, resolver, parameterT, propertyExpression);
+			}
+
+			// Handle fields
+			var fields = typeT.GetFields (BindingFlags.Public | BindingFlags.Instance)
+				.Union (typeT.GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
+				.Where (x => x.GetCustomAttributes(typeof(IfInjectAttribute), true).Length != 0);
+
+			foreach (var field in fields) {
+				var fieldExpression = Expression.Field (parameterT, field);
+				InvokeSetupImplicitBindingsInternal<T> (field.FieldType, resolver, parameterT, fieldExpression); 
+			}
+		}
+
+		private static void InvokeSetupImplicitBindingsInternal<T>(Type memberType, InternalResolver<T> resolver, ParameterExpression objExpr, MemberExpression memExpr) 
+			where T : class 
+		{
+			GenericSetupImplicitBindingsInternal
+				.MakeGenericMethod (typeof(T), memberType)
+					.Invoke (null, new object[]{resolver, objExpr, memExpr});
+		}
+
+		private static void SetupImplicitBindingsInternal<T, TProperty>(InternalResolver<T> resolver, ParameterExpression parameterT, MemberExpression propertyExpression) 
+			where T : class 
+			where TProperty : class
+		{
+			var expr =
+				Expression.Lambda<Func<T, TProperty>>(
+					propertyExpression,
+					parameterT);
+
+			resolver.AddPropertySetter (expr);
+		}
+
+		////////////////////////////////////////
+		#endregion // ImplicitBindingsHelpers
 	}
 }
