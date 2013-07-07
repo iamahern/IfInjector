@@ -42,6 +42,26 @@ namespace IfFastInjector
 
 			public ISet<Type> ImplicitTypes { get; private set; }
 		}
+		
+		/// <summary>
+		/// Gets the implicit types.
+		/// </summary>
+		/// <returns>The implicit types.</returns>
+		/// <param name="boundType">Bound type.</param>
+		protected internal static ISet<Type> GetImplicitTypes(Type boundType) {
+			var implicitTypes = new HashSet<Type>();
+
+			foreach (Type iFace in boundType.GetInterfaces()) {
+				implicitTypes.Add(iFace);
+			}
+
+			Type wTypeChain = boundType;
+			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
+				implicitTypes.Add(wTypeChain);
+			}
+
+			return implicitTypes;
+		}
 
 		/// <summary>
 		/// The actual injector implementation.
@@ -300,6 +320,7 @@ namespace IfFastInjector
 			private class SetterExpression
 			{
 				public MemberExpression PropertyMemberExpression { get; set; }
+				public MethodCallExpression SetterMethodExpression { get; set; }
 				public LambdaExpression Setter { get; set; }
 			}
 
@@ -351,10 +372,8 @@ namespace IfFastInjector
 			public void AddPropertySetter<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
 				where TPropertyType : class
 			{
-				lock (syncLock) {
-					Expression<Func<TPropertyType>> setter = () => MyInjector.Resolve<TPropertyType>();
-					AddPropertySetterInner<TPropertyType>(propertyExpression, setter);
-				}
+				Expression<Func<TPropertyType>> setter = () => MyInjector.Resolve<TPropertyType>();
+				AddPropertySetter<TPropertyType>(propertyExpression, setter);
 			}
 
 			/// <summary>
@@ -381,6 +400,39 @@ namespace IfFastInjector
 
 				CompileResolver();
 			}
+
+			/// <summary>
+			/// Adds the method injector.
+			/// </summary>
+			/// <param name="methodExpression">Method expression.</param>
+			/// <typeparam name="TPropertyType">The 1st type parameter.</typeparam>
+			public void AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression)
+				where TPropertyType : class
+			{
+				Expression<Func<TPropertyType>> setter = () => MyInjector.Resolve<TPropertyType>();
+				AddMethodInjector (methodExpression, setter);
+			}
+
+			/// <summary>
+			/// Adds the method injector.
+			/// </summary>
+			/// <param name="methodExpression">Method expression.</param>
+			/// <param name="setter">Setter.</param>
+			/// <typeparam name="TPropertyType">The 1st type parameter.</typeparam>
+			public void AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression, Expression<Func<TPropertyType>> setter)
+			{
+				lock (syncLock) {
+					AddMethodSetterInner (methodExpression, setter);
+				}
+			}
+
+			private void AddMethodSetterInner<TPropertyType>(Expression<Action<T, TPropertyType>> methodExpression, Expression<Func<TPropertyType>> setter)
+			{
+				var callExpr = methodExpression.Body as MethodCallExpression;
+				setterExpressions.Add(new SetterExpression { SetterMethodExpression = callExpr, Setter = setter });
+				CompileResolver();
+			}
+
 
 			public void AsSingleton() {
 				lock (syncLock) {
@@ -460,16 +512,30 @@ namespace IfFastInjector
 			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpression) {
 				foreach (var v in setterExpressions)
 				{
-					var propertyOrFieldExpression = GetSetterExpressionBody(instanceVar, v);
-					var propertyOrFieldAssignExpression = Expression.Assign(propertyOrFieldExpression, v.Setter.Body);
-					blockExpression.Add(propertyOrFieldAssignExpression);
+					if (v.PropertyMemberExpression != null) {
+						var propertyOrFieldExpression = GetSetterExpressionBody (instanceVar, v);
+						var propertyOrFieldAssignExpression = Expression.Assign (propertyOrFieldExpression, v.Setter.Body);
+						blockExpression.Add (propertyOrFieldAssignExpression);
+					} else {
+						var methodCallExpression = Expression.Call(instanceVar, v.SetterMethodExpression.Method, v.Setter.Body);
+						blockExpression.Add (methodCallExpression);
+					}
 				}
 			}
 
 			private MemberExpression GetSetterExpressionBody(ParameterExpression instanceVar, SetterExpression expr) {
 				var member = expr.PropertyMemberExpression.Member;
 				if (member is PropertyInfo) {
-					return Expression.Property (instanceVar, (PropertyInfo)member);
+					// Trick to handle Property{get; private set} where the property is declared on a parent type
+					var propMem = (PropertyInfo)member;
+					if (propMem.DeclaringType != typeofT) {
+						propMem = propMem.DeclaringType
+							.GetProperties (BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+							.Where (p => p.Name.Equals(propMem.Name))
+							.First ();
+					}
+
+					return Expression.Property (instanceVar, propMem);
 				} else {
 					return Expression.Field(instanceVar, (FieldInfo) member);
 				}
@@ -601,6 +667,19 @@ namespace IfFastInjector
 				return this;
 			}
 
+			public IfFastInjectorBinding<T> AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression)
+				where TPropertyType : class
+			{
+				resolver.AddMethodInjector (methodExpression);
+				return this;
+			}
+
+			public IfFastInjectorBinding<T> AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression, Expression<Func<TPropertyType>> setter)
+			{
+				resolver.AddMethodInjector (methodExpression, setter);
+				return this;
+			}
+
 			public void AsSingleton () {
 				resolver.AsSingleton ();
 			}
@@ -648,22 +727,7 @@ namespace IfFastInjector
 			}
 		}
 
-		protected internal static ISet<Type> GetImplicitTypes(Type boundType) {
-			var implicitTypes = new HashSet<Type>();
-
-			foreach (Type iFace in boundType.GetInterfaces()) {
-				implicitTypes.Add(iFace);
-			}
-
-			Type wTypeChain = boundType;
-			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-				implicitTypes.Add(wTypeChain);
-			}
-
-			return implicitTypes;
-		}
-
-		////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////
 		#region ImplicitBindingsHelpers
 
 		private static readonly MethodInfo GenericSetupImplicitBindingsInternal;
@@ -674,33 +738,31 @@ namespace IfFastInjector
 		}			
 
 		protected internal static void SetupImplicitBindings<T>(InternalResolver<T> resolver) where T : class {
+			var parameterT = Expression.Parameter(typeof(T), "x");
+
 			Type typeT = typeof(T);
-			var parameterT = Expression.Parameter(typeT, "x");
+			do {
+				var propsAndFields =
+					(from p in typeT.GetProperties (BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+						select new { Expr = Expression.Property (parameterT, p), Info = p as MemberInfo, MemType = p.PropertyType })
+					.Union(from f in typeT.GetFields (BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+						select new { Expr = Expression.Field (parameterT, f), Info = f as MemberInfo, MemType = f.FieldType })
+					.Where(pf => pf.Info.GetCustomAttributes(typeof(IfInjectAttribute), true).Length != 0)
+					.Where (pf => pf.Info.DeclaringType == typeT);
 
-			// Handle properties
-			var props = typeT.GetProperties (BindingFlags.Public | BindingFlags.Instance)
-				.Union (typeT.GetProperties(BindingFlags.NonPublic | BindingFlags.Instance))
-				.Where (x => x.GetCustomAttributes(typeof(IfInjectAttribute), true).Length != 0);
-				
-			foreach (var property in props) {
-				var propertyExpression = Expression.Property (parameterT, property);
-				InvokeSetupImplicitBindingsInternal<T> (property.PropertyType, resolver, parameterT, propertyExpression);
-			}
-
-			// Handle fields
-			var fields = typeT.GetFields (BindingFlags.Public | BindingFlags.Instance)
-				.Union (typeT.GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
-				.Where (x => x.GetCustomAttributes(typeof(IfInjectAttribute), true).Length != 0);
-
-			foreach (var field in fields) {
-				var fieldExpression = Expression.Field (parameterT, field);
-				InvokeSetupImplicitBindingsInternal<T> (field.FieldType, resolver, parameterT, fieldExpression); 
-			}
+				foreach (var pf in propsAndFields) {
+					InvokeSetupImplicitBindingsInternal<T> (pf.MemType, pf.Info.Name, resolver, parameterT, pf.Expr);
+				}
+			} while ((typeT = typeT.BaseType) != null && typeT != typeof(object));
 		}
 
-		private static void InvokeSetupImplicitBindingsInternal<T>(Type memberType, InternalResolver<T> resolver, ParameterExpression objExpr, MemberExpression memExpr) 
+		private static void InvokeSetupImplicitBindingsInternal<T>(Type memberType, string memberName, InternalResolver<T> resolver, ParameterExpression objExpr, MemberExpression memExpr) 
 			where T : class 
 		{
+			if (!memberType.IsClass && !memberType.IsInterface) {
+				throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties, memberName, typeof(T).Name));
+			}
+
 			GenericSetupImplicitBindingsInternal
 				.MakeGenericMethod (typeof(T), memberType)
 					.Invoke (null, new object[]{resolver, objExpr, memExpr});

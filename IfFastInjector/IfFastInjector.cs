@@ -105,6 +105,7 @@ namespace IfFastInjector
 			public const string ErrorUnableToResultInterface = "Error on {0}. Unable to resolve Interface and Abstract classes without a configuration.";
 			public const string ErrorMustContainMemberExpression = "Must contain a MemberExpression";
 			public const string ErrorAmbiguousBinding = "Multiple implicit bindings exist for type: {0}. Please disambiguate by adding an explicit binding for this type.";
+			public const string ErrorUnableToBindNonClassFieldsProperties = "Autoinjection is only supported on single instance 'class' fields. Please define a manual binding for the field or property '{0}' on class '{1}'.";
 		}
 
 		/// <summary>
@@ -127,6 +128,11 @@ namespace IfFastInjector
 				where TPropertyType : class;
 
 			IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
+
+			IfFastInjectorBinding<T> AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression)
+				where TPropertyType : class;
+
+			IfFastInjectorBinding<T> AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression, Expression<Func<TPropertyType>> setter);
 
 			void AsSingleton ();
 		}

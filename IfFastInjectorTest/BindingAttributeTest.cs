@@ -3,51 +3,75 @@ using NUnit.Framework;
 using IfFastInjector;
 using IfFastInjector.IfInjectorTypes;
 
+using System.Linq.Expressions;
+
 namespace IfFastInjectorMxTest
 {
     [TestFixture]
     public class BindingAttributeTest
     {
+		IfInjector injector = IfInjector.NewInstance ();
+
+		public BindingAttributeTest() {
+			injector.Bind<Inner> ().AsSingleton ();
+			injector.Bind<Outer> ().AsSingleton ();
+		}
+
 		[Test]
         public void ImplicitBindPublicProperty ()
 		{
-			// resolve at least twice to execute both code paths
-			var injector = IfInjector.NewInstance ();
-			injector.Bind<Inner> ().AsSingleton ();
-			injector.Bind<Outer> ().AsSingleton ();
-
 			var res = injector.Resolve<Outer> ();
-
 			Assert.IsNotNull (res.MyInner);
 		}
 
 		[Test]
 		public void ImplicitBindPrivateProperty ()
 		{
-			// resolve at least twice to execute both code paths
-			var injector = IfInjector.NewInstance ();
-			injector.Bind<Inner> ().AsSingleton ();
-			injector.Bind<Outer> ().AsSingleton ();
-
 			var res = injector.Resolve<Outer> ();
-
 			Assert.IsNotNull (res.GetMyInnerPrivateProp());
 		}
 
 		[Test]
 		public void ImplicitBindPrivateField ()
 		{
-			// resolve at least twice to execute both code paths
-			var injector = IfInjector.NewInstance ();
-			injector.Bind<Inner> ().AsSingleton ();
-			injector.Bind<Outer> ().AsSingleton ();
-
 			var res = injector.Resolve<Outer> ();
-
 			Assert.IsNotNull (res.GetMyInnerPrivateField());
 		}
 
-		class Outer
+		[Test]
+		public void ImplicitBindDerivedProperty()
+		{
+			var res = injector.Resolve<Outer> ();
+			Assert.IsNotNull (res.ParentInner);
+		}
+
+		[Test]
+		public void ImplicitBindDerivedField()
+		{
+			var res = injector.Resolve<Outer> ();
+			Assert.IsNotNull (res.GetMyParentInner());
+
+			Expression<Action<Outer, Inner>> x = (Outer a, Inner i) => a.TestSet (i);
+
+			var ex = x.Body as MethodCallExpression;
+
+			System.Console.WriteLine("++++++" + ex.Method.Name);
+
+		}
+
+		class Parent {
+			[IfInject]
+			public Inner ParentInner { get; set; }
+
+			[IfInject]
+			private Inner myParentInner = null;
+
+			public Inner GetMyParentInner() {
+				return myParentInner;
+			}
+		}
+
+		class Outer : Parent
 		{
 			[IfInject]
 			public Inner MyInner { get; private set; }
@@ -56,7 +80,7 @@ namespace IfFastInjectorMxTest
 			private Inner MyInnerPrivate { get; set; }
 
 			[IfInject]
-			private Inner myInnerPrivate;
+			private Inner myInnerPrivate = null;
 
 			public Inner GetMyInnerPrivateProp ()
 			{
@@ -67,10 +91,61 @@ namespace IfFastInjectorMxTest
 			{
 				return myInnerPrivate;
 			}
+
+			public void TestSet(Inner inner) {
+			}
+
+			public Outer TestSet2(Inner inner) {
+				return this;
+			}
 		}
 
 		class Inner
 		{
+		}
+
+#pragma warning disable
+		class TestPrimitiveBinding {
+			[IfInject]
+			int Bad;
+		}
+
+		class TestPrimitiveBindingProp {
+			[IfInject]
+			int Bad { get; set; }
+		}
+
+		class TestStuctBinding {
+			[IfInject]
+			DateTime Bad;
+		}
+
+		class TestStuctBindingProp {
+			[IfInject]
+			DateTime Bad { get; set; }
+		}
+#pragma warning enable
+
+		[Test]
+		public void PrimitiveBindingTest() {
+			GenericBadTypeBindingTest<TestPrimitiveBinding> ();
+			GenericBadTypeBindingTest<TestPrimitiveBindingProp> ();
+		}
+
+		[Test]
+		public void StructBindingTest() {
+			GenericBadTypeBindingTest<TestStuctBinding> ();
+			GenericBadTypeBindingTest<TestStuctBindingProp> ();
+		}
+
+		private void GenericBadTypeBindingTest<T>() where T : class {
+			try {
+				var gbInjector = IfInjector.NewInstance ();
+				gbInjector.Bind<T> ();
+				Assert.Fail("Attempting to bind should fail");
+			} catch (IfFastInjectorException ex) {
+				Assert.AreEqual (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties, "Bad", typeof(T).Name), ex.Message);
+			}
 		}
     }
 }

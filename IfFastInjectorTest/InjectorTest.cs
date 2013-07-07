@@ -7,11 +7,10 @@ namespace IfFastInjectorMxTest
     [TestFixture]
     public class InjectorTest
     {
-		IfInjector injector = IfInjector.NewInstance();
-
         [Test]
         public void ResolveInterface()
         {
+			IfInjector injector = IfInjector.NewInstance();
 			injector.Bind<MyInterface, MyTestClass>();
 
 			var result = injector.Resolve<MyInterface>();
@@ -22,6 +21,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void ResolveDefaultConcrete()
         {
+			IfInjector injector = IfInjector.NewInstance();
 			var result = injector.Resolve<MyTestClass>();
             Assert.IsInstanceOf<MyTestClass>(result);
         }
@@ -45,6 +45,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void InjectProperty()
         {
+			IfInjector injector = IfInjector.NewInstance();
 			injector
                 .Bind<MyInterface, MyTestClass>()
              	.AddPropertyInjector(v => v.MyProperty)
@@ -54,6 +55,24 @@ namespace IfFastInjectorMxTest
 
             Assert.IsInstanceOf<MyTestClass>(result);
         }
+
+		[Test]
+		public void InjectMethod()
+		{
+			var expect = new MyPropertyClass ();
+
+			IfInjector injector = IfInjector.NewInstance();
+			injector.Bind<MyTestClass> ()
+				.AddMethodInjector ((MyTestClass o, MyPropertyClass v) => o.SetMyProperty(v))
+				.AddMethodInjector ((o,v) => o.SetMyOtherProperty(v), () => expect); 
+
+			var r = injector.Resolve<MyTestClass> ();
+
+			Assert.IsNotNull (r.GetMyProperty());
+			Assert.IsFalse (object.ReferenceEquals(expect, r.GetMyProperty()));
+
+			Assert.IsTrue (object.ReferenceEquals(expect, r.GetMyOtherProperty()));
+		}
 
         interface MyInterface
         {
@@ -65,6 +84,22 @@ namespace IfFastInjectorMxTest
         {
             public MyPropertyClass MyProperty { get; set; }
             public MyPropertyClass MyOtherProperty { get; set; }
+
+			private MyPropertyClass myProperty;
+			public void SetMyProperty(MyPropertyClass m) {
+				myProperty = m;
+			}
+			public MyPropertyClass GetMyProperty() {
+				return myProperty;
+			}
+
+			private MyPropertyClass myOtherProperty;
+			public void SetMyOtherProperty(MyPropertyClass m) {
+				myOtherProperty = m;
+			}
+			public MyPropertyClass GetMyOtherProperty() {
+				return myOtherProperty;
+			}
         }
 
         class MyPropertyClass
@@ -75,6 +110,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void TestSelectConstructorByAttribute()
         {
+			IfInjector injector = IfInjector.NewInstance();
 			injector.Bind<TestSelectConstructorByAttributeTestClass.IMyOtherInterface, TestSelectConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
 			var result = injector.Resolve<TestSelectConstructorByAttributeTestClass>();
@@ -105,6 +141,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void TestSelectConstructorByIgnoreAttribute()
         {
+			IfInjector injector = IfInjector.NewInstance();
 			injector.Bind<TestIgnoreConstructorByAttributeTestClass.IMyOtherInterface, TestIgnoreConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
 			var result = injector.Resolve<TestIgnoreConstructorByAttributeTestClass>();
