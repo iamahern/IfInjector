@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -22,11 +22,13 @@ namespace IfFastInjector
 	{
 		[Flags]
 		protected internal enum ResolveFlag {
-			FLAG_NONE = 1,
-			FLAG_IMPLICIT = 2,
-			FLAG_NO_EXPLICIT = 4,
+			RESOLVE_IMPLICIT = 2,
+			RESOLVE_EXPLICIT = 4,
+			AUTO_BIND = 8,
+			BIND_EXPLICIT = 16,
 
-			BIND_NO_EXPLICIT = FLAG_IMPLICIT | FLAG_NO_EXPLICIT
+			RESOLVE_ANY = RESOLVE_IMPLICIT | RESOLVE_EXPLICIT,
+			RESOLVE_AUTO_BIND = RESOLVE_ANY | AUTO_BIND
 		}
 
 		/// <summary>Internal resolver type.</summary>
@@ -41,6 +43,10 @@ namespace IfFastInjector
 			public bool IsInternalResolverPending { get; set; }
 
 			public ISet<Type> ImplicitTypes { get; private set; }
+
+			public InjectorTypeConstructs() {
+				IsInternalResolverPending = true;
+			}
 		}
 		
 		/// <summary>
@@ -71,6 +77,7 @@ namespace IfFastInjector
 			// Thread safety via lock (internalResolvers) 
 			private readonly object syncLock = new object();
 			private readonly SafeDictionary<Type, InjectorTypeConstructs> allTypeConstructs;
+			private readonly SafeDictionary<Type, InjectorTypeConstructs> implicitConstructs;
 			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
 
 			protected internal readonly MethodInfo GenericResolve;
@@ -80,6 +87,7 @@ namespace IfFastInjector
 			{
 				// Init dictionaries
 				allTypeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>(syncLock);
+				implicitConstructs = new SafeDictionary<Type, InjectorTypeConstructs>(syncLock);
 				implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> (syncLock);
 
 				Expression<Func<Exception>> TmpResolveExpression = () => this.Resolve<Exception>();
@@ -91,29 +99,31 @@ namespace IfFastInjector
 
 			public override object Resolve(Type type)
 			{
-				return ResolveResolver (type).DoResolve ();
+				return ResolveResolver (type, ResolveFlag.RESOLVE_AUTO_BIND).DoResolve ();
 			}
 
 			public override T InjectProperties<T> (T instance)
 			{
-				return ((InternalResolver<T>)ResolveResolver (typeof(T))).DoInject (instance);
+				return ((InternalResolver<T>)ResolveResolver (typeof(T), ResolveFlag.RESOLVE_AUTO_BIND)).DoInject (instance);
 			}
 
-			private IInternalResolver ResolveResolver(Type type)
+			private IInternalResolver ResolveResolver(Type type, ResolveFlag flags)
 			{
+				var lookupDict = flags.HasFlag(ResolveFlag.RESOLVE_AUTO_BIND) ? allTypeConstructs : implicitConstructs;
+
 				ISet<Type> lookup;
 				InjectorTypeConstructs typeInfo;
 
-				if (allTypeConstructs.UnsyncedTryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
+				if (lookupDict.UnsyncedTryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
 					return typeInfo.InternalResolver;
 				} else if (implicitTypeLookup.UnsyncedTryGetValue (type, out lookup) && lookup.Count > 0) {
 					if (lookup.Count == 1) {
-						return ResolveResolver (lookup.First());
+						return ResolveResolver (lookup.First(), flags);
 					} else {
 						throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, type.Name));
 					}
 				} else {
-					return CreateInternalResolver (type,type, true);
+					return BindImplicit (type);
 				}
 			}
 
@@ -154,68 +164,52 @@ namespace IfFastInjector
 				where BType : class
 				where CType : class, BType
 			{
-				var resolver = (InternalResolver<CType>) CreateInternalResolver (typeof(BType), typeof(CType), false);
-				SetupImplicitBindings (resolver);
-				return resolver;
+				lock (syncLock) {
+					Type bindType = typeof(BType);
+					InjectorTypeConstructs typeConstruct = new InjectorTypeConstructs ();
+					
+					implicitTypeLookup.Remove (bindType);
+					allTypeConstructs.Remove (bindType);
+					allTypeConstructs.Add (bindType, typeConstruct);
+					AddImplicitTypes (bindType, GetImplicitTypes(bindType));
+					
+					CreateInternalResolverInstance (typeof(CType), typeConstruct);
+
+					return (InternalResolver<CType>) typeConstruct.InternalResolver;
+				}
 			}
 
-			/// <summary>
-			/// Creates the internal resolver.
-			/// </summary>
-			/// <returns>The internal resolver.</returns>
-			/// <param name="bindType">Bind type.</param>
-			/// <param name="implType">Impl type.</param>
-			/// <param name="isAutoBind">If set to <c>true</c> is implicit.</param>
-			private IInternalResolver CreateInternalResolver(Type bindType, Type implType, bool isAutoBind) {
+			private IInternalResolver BindImplicit(Type bindType) {
 				lock (syncLock) {
 					InjectorTypeConstructs typeConstruct;
-					bool hasTypeConstruct = allTypeConstructs.TryGetValue (bindType, out typeConstruct);
-
-					if (isAutoBind) {
-						// On Implicit binding, check if binding exists or was created by other thread. Also check for infinite loops.
-						if (hasTypeConstruct) {
-							if (typeConstruct.IsInternalResolverPending) {
-								throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, bindType.Name));
-							}
-							return typeConstruct.InternalResolver;
+					if (allTypeConstructs.TryGetValue (bindType, out typeConstruct)) {
+						if (typeConstruct.IsInternalResolverPending) {
+							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, bindType.Name));
 						}
-					} else  {
-						// Don't bother removing implicit types in rebinding; as implicit binding remains the same
-						implicitTypeLookup.Remove (bindType);
-						allTypeConstructs.Remove (bindType);
-					} 
+						return typeConstruct.InternalResolver;
+					}
 
-					typeConstruct = CreateTypeConstruct(bindType, implType, isAutoBind);
-					typeConstruct.InternalResolver = CreateInternalResolverInstance (implType, this, typeConstruct, this.syncLock);
-					typeConstruct.IsInternalResolverPending = false;
+					typeConstruct = new InjectorTypeConstructs ();
+
+					allTypeConstructs.Add (bindType, typeConstruct);
+					implicitConstructs.Add (bindType, typeConstruct);
+
+					CreateInternalResolverInstance (bindType, typeConstruct);
 
 					return typeConstruct.InternalResolver;
 				}
 			}
 
-			private IInternalResolver CreateInternalResolverInstance(Type implType, params object[] args) {
+			private void CreateInternalResolverInstance(Type implType, InjectorTypeConstructs typeConstruct) {
 				try {
 					Type iResolverType = typeof(InternalResolver<>);
 					Type genericType = iResolverType.MakeGenericType(new Type[] { implType });
-					return (IInternalResolver) Activator.CreateInstance(genericType, args);
+					typeConstruct.InternalResolver = (IInternalResolver) Activator.CreateInstance(genericType, this, typeConstruct, syncLock);
+					typeConstruct.IsInternalResolverPending = false;
+					// TODO
+					//SetupImplicitBindings (typeConstruct.InternalResolver);
 				} catch (TargetInvocationException ex) {
 					throw ex.InnerException;
-				}
-			}
-
-			private InjectorTypeConstructs CreateTypeConstruct(Type bindType, Type implType, bool isAutoBind) {
-				lock (syncLock) {
-					var typeConstruct = new InjectorTypeConstructs ();
-
-					typeConstruct.IsInternalResolverPending = true;
-					allTypeConstructs.Add (bindType, typeConstruct);
-
-					// Do not add implicit bindings for auto-bound types
-					if (!isAutoBind) {
-						AddImplicitTypes (bindType, GetImplicitTypes(bindType));
-					}
-
-					return typeConstruct;
 				}
 			}
 
@@ -701,6 +695,17 @@ namespace IfFastInjector
 				lock (syncLock) {
 					dict.Add(key, value);
 					unsyncDict = new Dictionary<TKey, TValue> (dict);
+				}
+			}
+
+			public TValue AddIfNotSet(TKey key, TValue nValue) {
+				lock (syncLock) {
+					TValue value;
+					if (!TryGetValue (key, out value)) {
+						value = nValue;
+						Add (key, nValue);
+					}
+					return value;
 				}
 			}
 
