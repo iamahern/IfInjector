@@ -17,8 +17,8 @@ namespace IfFastInjectorMxTest
 			MyClass i1expect = new MyClass(), 
 					i2expect = new MyClass();
 
-			injector1.Bind<MyClass> (() => i1expect);
-			injector2.Bind<MyClass> (() => i2expect);
+			injector1.Bind<MyClass, MyClass> (() => i1expect);
+			injector2.Bind<MyClass, MyClass> (() => i2expect);
 
 			var res1 = injector2.Resolve<MyClass>();
 			var res2 = injector2.Resolve<MyClass>();

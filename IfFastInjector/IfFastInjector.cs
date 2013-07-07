@@ -67,20 +67,24 @@ namespace IfFastInjector
 			where TConcreteType : class, T;
 
 		/// <summary>
-		/// Bind this instance.
-		/// </summary>
-		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
-		public abstract IfInjectorTypes.IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> ()
-			where TConcreteType : class;
-
-		/// <summary>
 		/// Sets the resolver.
 		/// </summary>
-		/// <returns>The resolver.</returns>
+		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
+		public IfInjectorTypes.IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> ()
+			where TConcreteType : class
+		{
+			return Bind<TConcreteType, TConcreteType> ();
+		}
+
+		/// <summary>
+		/// Bind the specified factoryExpression.
+		/// </summary>
 		/// <param name="factoryExpression">Factory expression.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract IfInjectorTypes.IfFastInjectorBinding<T> Bind<T> (Expression<Func<T>> factoryExpression)
-			where T : class;
+		/// <typeparam name="CT">The 2nd type parameter. This parameter is required to allow for auto-injection of factory provided object.</typeparam>
+		public abstract IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (Expression<Func<CT>> factoryExpression)
+			where T : class
+			where CT : class, T;
 
 		/// <summary>
 		/// Injects the properties of an instance.

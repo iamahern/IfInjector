@@ -20,17 +20,6 @@ namespace IfFastInjector
 	/// </summary>
 	internal abstract class IfFastInjectorInternal 
 	{
-		[Flags]
-		protected internal enum ResolveFlag {
-			RESOLVE_IMPLICIT = 2,
-			RESOLVE_EXPLICIT = 4,
-			AUTO_BIND = 8,
-			BIND_EXPLICIT = 16,
-
-			RESOLVE_ANY = RESOLVE_IMPLICIT | RESOLVE_EXPLICIT,
-			RESOLVE_AUTO_BIND = RESOLVE_ANY | AUTO_BIND
-		}
-
 		/// <summary>Internal resolver type.</summary>
 		protected internal interface IInternalResolver {
 			object DoResolve();
@@ -77,7 +66,6 @@ namespace IfFastInjector
 			// Thread safety via lock (internalResolvers) 
 			private readonly object syncLock = new object();
 			private readonly SafeDictionary<Type, InjectorTypeConstructs> allTypeConstructs;
-			private readonly SafeDictionary<Type, InjectorTypeConstructs> implicitConstructs;
 			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
 
 			protected internal readonly MethodInfo GenericResolve;
@@ -87,7 +75,6 @@ namespace IfFastInjector
 			{
 				// Init dictionaries
 				allTypeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>(syncLock);
-				implicitConstructs = new SafeDictionary<Type, InjectorTypeConstructs>(syncLock);
 				implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> (syncLock);
 
 				Expression<Func<Exception>> TmpResolveExpression = () => this.Resolve<Exception>();
@@ -99,26 +86,24 @@ namespace IfFastInjector
 
 			public override object Resolve(Type type)
 			{
-				return ResolveResolver (type, ResolveFlag.RESOLVE_AUTO_BIND).DoResolve ();
+				return ResolveResolver (type).DoResolve ();
 			}
 
 			public override T InjectProperties<T> (T instance)
 			{
-				return ((InternalResolver<T>)ResolveResolver (typeof(T), ResolveFlag.RESOLVE_AUTO_BIND)).DoInject (instance);
+				return ((InternalResolver<T>)ResolveResolver (typeof(T))).DoInject (instance);
 			}
 
-			private IInternalResolver ResolveResolver(Type type, ResolveFlag flags)
+			private IInternalResolver ResolveResolver(Type type)
 			{
-				var lookupDict = flags.HasFlag(ResolveFlag.RESOLVE_AUTO_BIND) ? allTypeConstructs : implicitConstructs;
-
 				ISet<Type> lookup;
 				InjectorTypeConstructs typeInfo;
 
-				if (lookupDict.UnsyncedTryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
+				if (allTypeConstructs.UnsyncedTryGetValue (type, out typeInfo) && typeInfo.InternalResolver != null) {
 					return typeInfo.InternalResolver;
 				} else if (implicitTypeLookup.UnsyncedTryGetValue (type, out lookup) && lookup.Count > 0) {
 					if (lookup.Count == 1) {
-						return ResolveResolver (lookup.First(), flags);
+						return ResolveResolver (lookup.First());
 					} else {
 						throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, type.Name));
 					}
@@ -147,18 +132,12 @@ namespace IfFastInjector
 				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
-			public override IfFastInjectorBinding<TConcreteType> Bind<TConcreteType> () {
-				var iResolver = BindExplicit<TConcreteType, TConcreteType> ();
-				return new InjectorFluent<TConcreteType>(iResolver);
-			}
-
-			public override IfFastInjectorBinding<T> Bind<T> (Expression<Func<T>> factoryExpression)
+			public override IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (Expression<Func<CT>> factoryExpression)
 			{
-				var iResolver = BindExplicit<T, T> ();
+				var iResolver = BindExplicit<T, CT> ();
 				iResolver.SetResolver(factoryExpression);
-				return new InjectorFluent<T>(iResolver);
+				return new InjectorFluent<CT>(iResolver);
 			}
-
 
 			private InternalResolver<CType> BindExplicit<BType, CType>()
 				where BType : class
@@ -190,9 +169,7 @@ namespace IfFastInjector
 					}
 
 					typeConstruct = new InjectorTypeConstructs ();
-
 					allTypeConstructs.Add (bindType, typeConstruct);
-					implicitConstructs.Add (bindType, typeConstruct);
 
 					CreateInternalResolverInstance (bindType, typeConstruct);
 
@@ -206,8 +183,8 @@ namespace IfFastInjector
 					Type genericType = iResolverType.MakeGenericType(new Type[] { implType });
 					typeConstruct.InternalResolver = (IInternalResolver) Activator.CreateInstance(genericType, this, typeConstruct, syncLock);
 					typeConstruct.IsInternalResolverPending = false;
-					// TODO
-					//SetupImplicitBindings (typeConstruct.InternalResolver);
+
+					SetupImplicitBindings (typeConstruct.InternalResolver, implType);
 				} catch (TargetInvocationException ex) {
 					throw ex.InnerException;
 				}
@@ -735,12 +712,20 @@ namespace IfFastInjector
 		////////////////////////////////////////////////////////////////////////////////
 		#region ImplicitBindingsHelpers
 
+		private static readonly MethodInfo GenericSetupImplicitBindings;
 		private static readonly MethodInfo GenericSetupImplicitBindingsInternal;
 
 		static IfFastInjectorInternal() {
-			Expression<Action<InternalResolver<Exception>,ParameterExpression,MemberExpression>> TmpBindingExpression = (r, p, e) => SetupImplicitBindingsInternal<Exception, Exception>(r, p, e);
-			GenericSetupImplicitBindingsInternal = ((MethodCallExpression)TmpBindingExpression.Body).Method.GetGenericMethodDefinition();
+			Expression<Action<InternalResolver<Exception>>> TmpBindingExpression = (r) => SetupImplicitBindings<Exception>(r);
+			GenericSetupImplicitBindings = ((MethodCallExpression)TmpBindingExpression.Body).Method.GetGenericMethodDefinition();
+
+			Expression<Action<InternalResolver<Exception>,ParameterExpression,MemberExpression>> TmpBindingExpressionInternal = (r, p, e) => SetupImplicitBindingsInternal<Exception, Exception>(r, p, e);
+			GenericSetupImplicitBindingsInternal = ((MethodCallExpression)TmpBindingExpressionInternal.Body).Method.GetGenericMethodDefinition();		
 		}			
+
+		protected internal static void SetupImplicitBindings(IInternalResolver resolver, Type implType) {
+			GenericSetupImplicitBindings.MakeGenericMethod (implType).Invoke (null, new object[]{resolver});
+		}
 
 		protected internal static void SetupImplicitBindings<T>(InternalResolver<T> resolver) where T : class {
 			var parameterT = Expression.Parameter(typeof(T), "x");
@@ -785,7 +770,7 @@ namespace IfFastInjector
 			resolver.AddPropertySetter (expr);
 		}
 
-		////////////////////////////////////////
 		#endregion // ImplicitBindingsHelpers
+		////////////////////////////////////////////////////////////////////////////////
 	}
 }

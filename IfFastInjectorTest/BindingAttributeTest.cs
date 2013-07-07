@@ -50,13 +50,26 @@ namespace IfFastInjectorMxTest
 		{
 			var res = injector.Resolve<Outer> ();
 			Assert.IsNotNull (res.GetMyParentInner());
+		}
 
-			Expression<Action<Outer, Inner>> x = (Outer a, Inner i) => a.TestSet (i);
+		[Test]
+		public void FactoryConstructorAutoBinding()
+		{
+			var mInjector = IfInjector.NewInstance ();
+			mInjector.Bind<Parent, Outer> (() => new Outer()).AsSingleton();
+			mInjector.Bind<Inner> ().AsSingleton ();
 
-			var ex = x.Body as MethodCallExpression;
+			var res = injector.Resolve<Parent> ();
+			Assert.IsNotNull (res.FactoryParentInner);
+		}
 
-			System.Console.WriteLine("++++++" + ex.Method.Name);
+		[Test]
+		public void ShadowProperties() {
+			var res = injector.Resolve<Outer> ();
+			Assert.IsNull (res.ShadowProp);
 
+			Parent resPar = res as Parent;
+			Assert.IsNotNull (resPar.ShadowProp);
 		}
 
 		class Parent {
@@ -69,6 +82,11 @@ namespace IfFastInjectorMxTest
 			public Inner GetMyParentInner() {
 				return myParentInner;
 			}
+
+			public virtual Inner FactoryParentInner { get; set; }
+
+			[IfInject]
+			public Inner ShadowProp { get; set; }
 		}
 
 		class Outer : Parent
@@ -92,12 +110,10 @@ namespace IfFastInjectorMxTest
 				return myInnerPrivate;
 			}
 
-			public void TestSet(Inner inner) {
-			}
+			[IfInject]
+			public override Inner FactoryParentInner { get; set; }
 
-			public Outer TestSet2(Inner inner) {
-				return this;
-			}
+			public new Inner ShadowProp { get; set; }
 		}
 
 		class Inner
