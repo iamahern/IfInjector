@@ -163,5 +163,71 @@ namespace IfFastInjectorMxTest
 				Assert.AreEqual (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties, "Bad", typeof(T).Name), ex.Message);
 			}
 		}
+
+		[IfImplementedBy(typeof(MyIFaceImpl))]
+		interface MyIFace { }
+
+		[IfImplementedBy(typeof(MyIFaceImpl))]
+		class MyIFaceBaseImpl : MyIFace {}
+
+		class MyIFaceImpl : MyIFaceBaseImpl {}
+
+		[Test]
+		public void CheckImplementedBy() {
+			var mInjector = IfInjector.NewInstance ();
+			var res = mInjector.Resolve<MyIFace> ();
+
+			Assert.IsNotNull (res);
+			Assert.IsInstanceOf<MyIFaceImpl> (res);
+
+			var res2 = mInjector.Resolve<MyIFaceBaseImpl> ();
+
+			Assert.IsNotNull (res2);
+			Assert.IsInstanceOf<MyIFaceImpl> (res2);
+		}
+
+		[Test]
+		public void CheckImplementedByOverrideAndAmbiguity() {
+			var mInjector = IfInjector.NewInstance ();
+
+			// Check - ambiguous situation where Resolve<XXX> may be for type with an @IfImplementedBy; but the user explicitly Bind<YYY> where YYY : XXX.
+			mInjector.Bind<MyIFace, MyIFaceImpl>().AsSingleton();
+			mInjector.Bind<MyIFaceImpl>().AsSingleton();
+
+			var res1 = mInjector.Resolve<MyIFaceBaseImpl> ();
+			var res2 = mInjector.Resolve<MyIFaceBaseImpl> ();
+			Assert.IsNotNull (res1);
+			Assert.IsInstanceOf<MyIFaceImpl> (res1);
+			Assert.IsFalse (object.ReferenceEquals(res1, res2)); // This should use the IfImplementedBy, not the bind statement
+
+			var res3 = mInjector.Resolve<MyIFace> ();
+			var res4 = mInjector.Resolve<MyIFace> ();
+			Assert.IsNotNull (res3);
+			Assert.IsTrue (object.ReferenceEquals(res3, res4));
+
+			var res5 = mInjector.Resolve<MyIFaceBaseImpl> ();
+			Assert.IsNotNull (res5);
+			Assert.IsFalse (object.ReferenceEquals(res4, res5));
+			Assert.IsFalse (object.ReferenceEquals(res1, res5));
+		}
+
+		[IfSingleton]
+		class MySingletonBase {}
+		class MyNonSingletonDerived : MySingletonBase {}
+
+		public void CheckSingletonBehavior() {
+			var mInjector = IfInjector.NewInstance ();
+
+			var res1 = mInjector.Resolve<MyNonSingletonDerived> ();
+			var res2 = mInjector.Resolve<MyNonSingletonDerived> ();
+			Assert.IsNotNull (res1);
+			Assert.IsFalse (object.ReferenceEquals(res1, res2));
+
+			var res3 = mInjector.Resolve<MySingletonBase> ();
+			var res4 = mInjector.Resolve<MySingletonBase> ();
+			Assert.IsNotNull (res3);
+			Assert.IsTrue (object.ReferenceEquals(res3, res4));
+		}
+
     }
 }

@@ -18,15 +18,24 @@ namespace IfFastInjector
 	[AttributeUsage(AttributeTargets.Constructor)]
 	public class IfIgnoreConstructorAttribute : Attribute {}
 
-	[AttributeUsage(AttributeTargets.Class)]
+	/// <summary>
+	/// Implemented by attribute.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
 	public class IfImplementedByAttribute : Attribute {
 		private readonly Type implementor;
 		public IfImplementedByAttribute(Type implementor) {
 			this.implementor = implementor;
 		}
 
-		Type Implementor { get { return implementor; } }
+		public Type Implementor { get { return implementor; } }
 	}
+
+	/// <summary>
+	/// Singleton attribute.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	public class IfSingletonAttribute : Attribute {}
 
 	/// <summary>
 	/// Injector.

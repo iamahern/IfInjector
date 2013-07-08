@@ -171,10 +171,24 @@ namespace IfFastInjector
 					typeConstruct = new InjectorTypeConstructs ();
 					allTypeConstructs.Add (bindType, typeConstruct);
 
-					CreateInternalResolverInstance (bindType, typeConstruct);
+					// Handle implementedBy
+					var implType = GetIfImplementedBy (bindType);
+					if (implType != null) {
+						CreateInternalResolverInstance (implType, typeConstruct);
+					} else {
+						CreateInternalResolverInstance (bindType, typeConstruct);
+					}
 
 					return typeConstruct.InternalResolver;
 				}
+			}
+
+			protected internal Type GetIfImplementedBy(Type type) {
+				var implTypeAttrs = type.GetCustomAttributes(typeof(IfImplementedByAttribute), false);
+				if (implTypeAttrs.Length > 0) {
+					return (implTypeAttrs[0] as IfImplementedByAttribute).Implementor;
+				}
+				return null;
 			}
 
 			private void CreateInternalResolverInstance(Type implType, InjectorTypeConstructs typeConstruct) {
@@ -184,7 +198,7 @@ namespace IfFastInjector
 					typeConstruct.InternalResolver = (IInternalResolver) Activator.CreateInstance(genericType, this, typeConstruct, syncLock);
 					typeConstruct.IsInternalResolverPending = false;
 
-					SetupImplicitBindings (typeConstruct.InternalResolver, implType);
+					SetupImplicitPropResolvers (typeConstruct.InternalResolver, implType);
 				} catch (TargetInvocationException ex) {
 					throw ex.InnerException;
 				}
@@ -193,17 +207,21 @@ namespace IfFastInjector
 			private void AddImplicitTypes(Type boundType, ISet<Type> implicitTypes) {
 				lock (syncLock) {
 					foreach(Type implicitType in implicitTypes) {
-						ISet<Type> newSet, oldSet;
+						if (GetIfImplementedBy (implicitType) == null) {
+							ISet<Type> newSet, oldSet;
 
-						if (implicitTypeLookup.TryGetValue (implicitType, out oldSet)) {
-							implicitTypeLookup.Remove (implicitType);
-							newSet = new HashSet<Type> (oldSet);
+							if (implicitTypeLookup.TryGetValue (implicitType, out oldSet)) {
+								implicitTypeLookup.Remove (implicitType);
+								newSet = new HashSet<Type> (oldSet);
+							} else {
+								newSet = new HashSet<Type> ();
+							}
+
+							newSet.Add (boundType);
+							implicitTypeLookup.Add (implicitType, newSet);
 						} else {
-							newSet = new HashSet<Type> ();
+							BindImplicit (implicitType);
 						}
-
-						newSet.Add (boundType);
-						implicitTypeLookup.Add (implicitType, newSet);
 					}
 				}
 			}
@@ -712,22 +730,22 @@ namespace IfFastInjector
 		////////////////////////////////////////////////////////////////////////////////
 		#region ImplicitBindingsHelpers
 
-		private static readonly MethodInfo GenericSetupImplicitBindings;
-		private static readonly MethodInfo GenericSetupImplicitBindingsInternal;
+		private static readonly MethodInfo GenericSetupImplicitPropResolvers;
+		private static readonly MethodInfo GenericSetupImplicitPropResolversInternal;
 
 		static IfFastInjectorInternal() {
-			Expression<Action<InternalResolver<Exception>>> TmpBindingExpression = (r) => SetupImplicitBindings<Exception>(r);
-			GenericSetupImplicitBindings = ((MethodCallExpression)TmpBindingExpression.Body).Method.GetGenericMethodDefinition();
+			Expression<Action<InternalResolver<Exception>>> TmpBindingExpression = (r) => SetupImplicitPropResolvers<Exception>(r);
+			GenericSetupImplicitPropResolvers = ((MethodCallExpression)TmpBindingExpression.Body).Method.GetGenericMethodDefinition();
 
-			Expression<Action<InternalResolver<Exception>,ParameterExpression,MemberExpression>> TmpBindingExpressionInternal = (r, p, e) => SetupImplicitBindingsInternal<Exception, Exception>(r, p, e);
-			GenericSetupImplicitBindingsInternal = ((MethodCallExpression)TmpBindingExpressionInternal.Body).Method.GetGenericMethodDefinition();		
+			Expression<Action<InternalResolver<Exception>,ParameterExpression,MemberExpression>> TmpBindingExpressionInternal = (r, p, e) => SetupImplicitPropResolversInternal<Exception, Exception>(r, p, e);
+			GenericSetupImplicitPropResolversInternal = ((MethodCallExpression)TmpBindingExpressionInternal.Body).Method.GetGenericMethodDefinition();		
 		}			
 
-		protected internal static void SetupImplicitBindings(IInternalResolver resolver, Type implType) {
-			GenericSetupImplicitBindings.MakeGenericMethod (implType).Invoke (null, new object[]{resolver});
+		protected internal static void SetupImplicitPropResolvers(IInternalResolver resolver, Type implType) {
+			GenericSetupImplicitPropResolvers.MakeGenericMethod (implType).Invoke (null, new object[]{resolver});
 		}
 
-		protected internal static void SetupImplicitBindings<T>(InternalResolver<T> resolver) where T : class {
+		protected internal static void SetupImplicitPropResolvers<T>(InternalResolver<T> resolver) where T : class {
 			var parameterT = Expression.Parameter(typeof(T), "x");
 
 			Type typeT = typeof(T);
@@ -741,24 +759,29 @@ namespace IfFastInjector
 					.Where (pf => pf.Info.DeclaringType == typeT);
 
 				foreach (var pf in propsAndFields) {
-					InvokeSetupImplicitBindingsInternal<T> (pf.MemType, pf.Info.Name, resolver, parameterT, pf.Expr);
+					InvokeSetupImplicitPropResolversInternal<T> (pf.MemType, pf.Info.Name, resolver, parameterT, pf.Expr);
 				}
 			} while ((typeT = typeT.BaseType) != null && typeT != typeof(object));
+
+			// setup singleton
+			if (typeof(T).GetCustomAttributes (typeof(IfSingletonAttribute), false).Length > 0) {
+				resolver.AsSingleton ();
+			}
 		}
 
-		private static void InvokeSetupImplicitBindingsInternal<T>(Type memberType, string memberName, InternalResolver<T> resolver, ParameterExpression objExpr, MemberExpression memExpr) 
+		private static void InvokeSetupImplicitPropResolversInternal<T>(Type memberType, string memberName, InternalResolver<T> resolver, ParameterExpression objExpr, MemberExpression memExpr) 
 			where T : class 
 		{
 			if (!memberType.IsClass && !memberType.IsInterface) {
 				throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties, memberName, typeof(T).Name));
 			}
 
-			GenericSetupImplicitBindingsInternal
+			GenericSetupImplicitPropResolversInternal
 				.MakeGenericMethod (typeof(T), memberType)
 					.Invoke (null, new object[]{resolver, objExpr, memExpr});
 		}
 
-		private static void SetupImplicitBindingsInternal<T, TProperty>(InternalResolver<T> resolver, ParameterExpression parameterT, MemberExpression propertyExpression) 
+		private static void SetupImplicitPropResolversInternal<T, TProperty>(InternalResolver<T> resolver, ParameterExpression parameterT, MemberExpression propertyExpression) 
 			where T : class 
 			where TProperty : class
 		{
