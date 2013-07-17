@@ -10,6 +10,54 @@ namespace IfFastInjectorMxTest
     [TestFixture]
     public class BindingAttributeTest
     {
+		class Parent {
+			[IfInject]
+			public Inner ParentInner { get; set; }
+
+			[IfInject]
+			private Inner myParentInner = null;
+
+			public Inner GetMyParentInner() {
+				return myParentInner;
+			}
+
+			public virtual Inner FactoryParentInner { get; set; }
+
+			[IfInject]
+			public Inner ShadowProp { get; set; }
+		}
+
+		class Outer : Parent
+		{
+			[IfInject]
+			public Inner MyInner { get; private set; }
+
+			[IfInject]
+			private Inner MyInnerPrivate { get; set; }
+
+			[IfInject]
+			private Inner myInnerPrivate = null;
+
+			public Inner GetMyInnerPrivateProp ()
+			{
+				return MyInnerPrivate;
+			}
+
+			public Inner GetMyInnerPrivateField ()
+			{
+				return myInnerPrivate;
+			}
+
+			[IfInject]
+			public override Inner FactoryParentInner { get; set; }
+
+			public new Inner ShadowProp { get; set; }
+		}
+
+		class Inner
+		{
+		}
+
 		IfInjector injector = IfInjector.NewInstance ();
 
 		public BindingAttributeTest() {
@@ -70,54 +118,6 @@ namespace IfFastInjectorMxTest
 
 			Parent resPar = res as Parent;
 			Assert.IsNotNull (resPar.ShadowProp);
-		}
-
-		class Parent {
-			[IfInject]
-			public Inner ParentInner { get; set; }
-
-			[IfInject]
-			private Inner myParentInner = null;
-
-			public Inner GetMyParentInner() {
-				return myParentInner;
-			}
-
-			public virtual Inner FactoryParentInner { get; set; }
-
-			[IfInject]
-			public Inner ShadowProp { get; set; }
-		}
-
-		class Outer : Parent
-		{
-			[IfInject]
-			public Inner MyInner { get; private set; }
-
-			[IfInject]
-			private Inner MyInnerPrivate { get; set; }
-
-			[IfInject]
-			private Inner myInnerPrivate = null;
-
-			public Inner GetMyInnerPrivateProp ()
-			{
-				return MyInnerPrivate;
-			}
-
-			public Inner GetMyInnerPrivateField ()
-			{
-				return myInnerPrivate;
-			}
-
-			[IfInject]
-			public override Inner FactoryParentInner { get; set; }
-
-			public new Inner ShadowProp { get; set; }
-		}
-
-		class Inner
-		{
 		}
 
 #pragma warning disable
@@ -215,6 +215,7 @@ namespace IfFastInjectorMxTest
 		class MySingletonBase {}
 		class MyNonSingletonDerived : MySingletonBase {}
 
+		[Test]
 		public void CheckSingletonBehavior() {
 			var mInjector = IfInjector.NewInstance ();
 
@@ -227,6 +228,18 @@ namespace IfFastInjectorMxTest
 			var res4 = mInjector.Resolve<MySingletonBase> ();
 			Assert.IsNotNull (res3);
 			Assert.IsTrue (object.ReferenceEquals(res3, res4));
+		}
+
+		[Test]
+		public void CheckOverrideSingletonBehavior() {
+			var mInjector = IfInjector.NewInstance ();
+			mInjector.Bind<MySingletonBase> ().AsSingleton (false);
+
+			var res1 = mInjector.Resolve<MySingletonBase> ();
+			var res2 = mInjector.Resolve<MySingletonBase> ();
+			Assert.IsNotNull (res1);
+			Assert.IsNotNull (res2);
+			Assert.IsFalse (object.ReferenceEquals(res1, res2));
 		}
 
     }

@@ -23,6 +23,8 @@ namespace IfFastInjector
 		/// <summary>Internal resolver type.</summary>
 		protected internal interface IInternalResolver {
 			object DoResolve();
+
+			Func<T> GetResolveFunc<T> () where T : class;
 		}
 
 		/// <summary>Utility to allow for locking granularity at the type construct level. Also simplifies map management.</summary>
@@ -67,6 +69,7 @@ namespace IfFastInjector
 			private readonly object syncLock = new object();
 			private readonly SafeDictionary<Type, InjectorTypeConstructs> allTypeConstructs;
 			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
+			private readonly Dictionary<Type, IDisposable> typeResolveClosures;
 
 			protected internal readonly MethodInfo GenericResolve;
 			private readonly MethodInfo genericResolveClosure;
@@ -76,6 +79,7 @@ namespace IfFastInjector
 				// Init dictionaries
 				allTypeConstructs = new SafeDictionary<Type, InjectorTypeConstructs>(syncLock);
 				implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> (syncLock);
+				typeResolveClosures = new Dictionary<Type, IDisposable>();
 
 				Expression<Func<Exception>> TmpResolveExpression = () => this.Resolve<Exception>();
 				this.GenericResolve = ((MethodCallExpression)TmpResolveExpression.Body).Method.GetGenericMethodDefinition();
@@ -94,7 +98,7 @@ namespace IfFastInjector
 				return ((InternalResolver<T>)ResolveResolver (typeof(T))).DoInject (instance);
 			}
 
-			private IInternalResolver ResolveResolver(Type type)
+			protected IInternalResolver ResolveResolver(Type type)
 			{
 				ISet<Type> lookup;
 				InjectorTypeConstructs typeInfo;
@@ -112,18 +116,30 @@ namespace IfFastInjector
 				}
 			}
 
-			/// <summary>
-			/// Trick to provide callbacks in resolve expressions to InternalResolver. The Expression returned is 'typed' allowing it to be used in compiled 'Link' expression chains.
-			/// </summary>
-			/// <returns>The closure.</returns>
-			/// <param name="type">Type.</param>
 			protected internal Expression ResolveClosure(Type type) {
 				return (Expression) genericResolveClosure.MakeGenericMethod(type).Invoke(this, new object[0]);
 			}
 
 			private Expression ResolveClosure<T>() where T : class {
-				Expression<Func<T>> exp = () => Resolve<T> ();
-				return exp.Body;
+				var resolveFactory = ResolveFactoryClosure<T> ();
+				return resolveFactory.Body;
+			}
+
+			protected internal Expression<Func<T>> ResolveFactoryClosure<T>() where T : class {
+				lock (syncLock) {
+					TypeResolverClosure<T> ptResolver;
+					IDisposable cachedResolver;
+
+					if (!typeResolveClosures.TryGetValue (typeof(T), out cachedResolver)) {
+						cachedResolver = ptResolver = new TypeResolverClosure<T> (this);
+						typeResolveClosures.Add (typeof(T), ptResolver);
+					} else {
+						ptResolver = cachedResolver as TypeResolverClosure<T>;
+					}
+						
+					Expression<Func<T>> resolver = () => ptResolver.DoResolve();
+					return resolver;
+				}
 			}
 
 			public override IfFastInjectorBinding<TConcreteType> Bind<T, TConcreteType>()
@@ -154,6 +170,8 @@ namespace IfFastInjector
 					
 					CreateInternalResolverInstance (typeof(CType), typeConstruct);
 
+					ResetTypeResolveClosures ();
+
 					return (InternalResolver<CType>) typeConstruct.InternalResolver;
 				}
 			}
@@ -178,6 +196,8 @@ namespace IfFastInjector
 					} else {
 						CreateInternalResolverInstance (bindType, typeConstruct);
 					}
+
+					ResetTypeResolveClosures ();
 
 					return typeConstruct.InternalResolver;
 				}
@@ -225,6 +245,35 @@ namespace IfFastInjector
 					}
 				}
 			}
+
+			private void ResetTypeResolveClosures () {
+				lock (syncLock) {
+					foreach (var resolveClosure in typeResolveClosures.Values) {
+						resolveClosure.Dispose ();
+					}
+				}
+			}
+
+			private class TypeResolverClosure<T> : IDisposable where T : class {
+				private readonly InjectorInternal injector;
+				private Func<T> resolver;
+
+				public TypeResolverClosure(InjectorInternal injector) {
+					this.injector = injector;
+				}
+
+				public T DoResolve() {
+					if (resolver == null) {
+						resolver = injector.ResolveResolver (typeof(T)).GetResolveFunc<T>();
+					}
+
+					return resolver();
+				}
+
+				public void Dispose() {
+					resolver = null;
+				}
+			}
 		}
 
 		/// <summary>
@@ -244,14 +293,14 @@ namespace IfFastInjector
 
 			private bool singleton = false;
 
-			private readonly InjectorInternal MyInjector;
-			private readonly InjectorTypeConstructs myTypeConstructs;
+			private readonly InjectorInternal injector;
+			private readonly InjectorTypeConstructs typeConstructs;
 
 			public InternalResolver(InjectorInternal injector, InjectorTypeConstructs typeConstructs, object syncLock) {
-				this.MyInjector = injector;
-				this.myTypeConstructs = typeConstructs;
+				this.injector = injector;
+				this.typeConstructs = typeConstructs;
 				this.syncLock = syncLock;
-				this.resolve = InitInitialResolver();
+				InitInitialResolver();
 			}
 
 			public object DoResolve() {
@@ -266,18 +315,25 @@ namespace IfFastInjector
 				return instance;
 			}
 
-			private Func<T> InitInitialResolver()
+			public Func<ST> GetResolveFunc<ST> () where ST : class {
+				lock (syncLock) {
+					resolve ();
+					return resolve as Func<ST>;
+				}
+			}
+
+			private void InitInitialResolver()
 			{
 				if (typeofT.IsInterface || typeofT.IsAbstract)
 				{
 					// if we can not instantiate, set the resolver to throw an exception.
 					// this resolver will be replaced when the type is configured
-					return SetResolverInner(() => ThrowInterfaceException());
+					SetResolverInner(() => ThrowInterfaceException());
 				}
 				else
 				{
 					// try to find the default constructor and create a default resolver from it
-					return SetDefaultConstructor();
+					SetDefaultConstructor();
 				}
 			}
 
@@ -298,7 +354,7 @@ namespace IfFastInjector
 			/// <returns></returns>
 			private Expression GetResolverInvocationExpressionForType(Type parameterType)
 			{
-				return MyInjector.ResolveClosure (parameterType);
+				return injector.ResolveClosure (parameterType);
 			}
 
 			private T ThrowInterfaceException()
@@ -347,30 +403,18 @@ namespace IfFastInjector
 				}
 			}
 
-			private Func<T> SetResolverInner(Expression<Func<T>> factoryExpression)
+			private void SetResolverInner(Expression<Func<T>> factoryExpression)
 			{
 				ResolverFactoryExpression = factoryExpression;
-				return CompileResolver();
+				CompileResolver();
 			}
 
-			/// <summary>
-			/// Add property setter for property, use the Resolver to determine the value of the property
-			/// </summary>
-			/// <typeparam name="TPropertyType"></typeparam>
-			/// <param name="propertyExpression"></param>
 			public void AddPropertySetter<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
 				where TPropertyType : class
 			{
-				Expression<Func<TPropertyType>> setter = () => MyInjector.Resolve<TPropertyType>();
-				AddPropertySetter<TPropertyType>(propertyExpression, setter);
+				AddPropertySetter<TPropertyType>(propertyExpression, injector.ResolveFactoryClosure<TPropertyType>());
 			}
 
-			/// <summary>
-			/// Add property setter for the property, compile and use the expression for the value of the property
-			/// </summary>
-			/// <typeparam name="TPropertyType"></typeparam>
-			/// <param name="propertyExpression"></param>
-			/// <param name="setter"></param>
 			public void AddPropertySetter<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
 			{
 				lock (syncLock) {
@@ -390,24 +434,12 @@ namespace IfFastInjector
 				CompileResolver();
 			}
 
-			/// <summary>
-			/// Adds the method injector.
-			/// </summary>
-			/// <param name="methodExpression">Method expression.</param>
-			/// <typeparam name="TPropertyType">The 1st type parameter.</typeparam>
 			public void AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression)
 				where TPropertyType : class
 			{
-				Expression<Func<TPropertyType>> setter = () => MyInjector.Resolve<TPropertyType>();
-				AddMethodInjector (methodExpression, setter);
+				AddMethodInjector (methodExpression, injector.ResolveFactoryClosure<TPropertyType>());
 			}
 
-			/// <summary>
-			/// Adds the method injector.
-			/// </summary>
-			/// <param name="methodExpression">Method expression.</param>
-			/// <param name="setter">Setter.</param>
-			/// <typeparam name="TPropertyType">The 1st type parameter.</typeparam>
 			public void AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression, Expression<Func<TPropertyType>> setter)
 			{
 				lock (syncLock) {
@@ -423,9 +455,9 @@ namespace IfFastInjector
 			}
 
 
-			public void AsSingleton() {
+			public void AsSingleton(bool singleton) {
 				lock (syncLock) {
-					singleton = true;
+					this.singleton = singleton;
 					CompileResolver ();
 				}
 			}
@@ -435,7 +467,7 @@ namespace IfFastInjector
 			/// If any setter expressions are used, build an expression that creates the object and then sets the properties before returning it,
 			/// otherwise, use the simpler expression that just returns the object
 			/// </summary>
-			private Func<T> CompileResolver()
+			private void CompileResolver()
 			{
 				// if no property expressions, then just use the unmodified ResolverFactoryExpression
 				if (setterExpressions.Any()) {
@@ -462,20 +494,11 @@ namespace IfFastInjector
 
 				this.isVerifiedNotRecursive = false;
 
-				// Handle singleton
-				if (singleton) {
-					var lazySingle = new Lazy<T> (ResolverExpression.Compile ());
-					resolverFactoryCompiled = () => lazySingle.Value;
-				} else {
-					resolverFactoryCompiled = ResolverExpression.Compile ();
-				}
-
+				resolverFactoryCompiled = ResolverExpression.Compile ();
 				resolve = ResolveWithRecursionCheck;
 
 				// Makes an Action that will set the properties
 				CompilePropertySetters ();
-
-				return ResolveWithRecursionCheck;
 			}
 
 			private void CompilePropertySetters() {
@@ -542,10 +565,10 @@ namespace IfFastInjector
 
 			private bool IsRecursionTestPending {
 				get {
-					return myTypeConstructs.IsRecursionTestPending;
+					return typeConstructs.IsRecursionTestPending;
 				}
 				set {
-					myTypeConstructs.IsRecursionTestPending = value;
+					typeConstructs.IsRecursionTestPending = value;
 				}
 			}
 
@@ -564,7 +587,12 @@ namespace IfFastInjector
 
 					isVerifiedNotRecursive = true;
 					IsRecursionTestPending = false;
-					resolve = resolverFactoryCompiled;
+
+					if (this.singleton) {
+						resolve = () => retval;
+					} else {
+						resolve = resolverFactoryCompiled;
+					}
 					return retval;
 				}
 			}
@@ -572,23 +600,21 @@ namespace IfFastInjector
 			/// <summary>
 			/// Get the constructor with the fewest number of parameters and create a factory for it
 			/// </summary>
-			private Func<T> SetDefaultConstructor()
+			private void SetDefaultConstructor()
 			{
 				// get first available constructor ordered by parameter count ascending
 				var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IfIgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(IfInjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
 
 				if (constructor != null) {
-					return SetConstructor(constructor);
+					SetConstructor(constructor);
 				}
-
-				return null;
 			}
 
 			/// <summary>
 			/// Create an expression to create this type from the passed-in constructor
 			/// </summary>
 			/// <param name="constructor"></param>
-			private Func<T> SetConstructor(ConstructorInfo constructor)
+			private void SetConstructor(ConstructorInfo constructor)
 			{
 				var methodParameters = constructor.GetParameters().Select(v => v.ParameterType).ToArray();
 
@@ -601,7 +627,7 @@ namespace IfFastInjector
 
 				Expression createInstanceExpression = Expression.New(constructor, arguments);
 
-				return SetResolverInner((Expression<Func<T>>)Expression.Lambda(createInstanceExpression));
+				SetResolverInner((Expression<Func<T>>)Expression.Lambda(createInstanceExpression));
 			}
 
 			private class ReplaceMethodCallWithInvocationExpressionVisitor<RMT> : ExpressionVisitor
@@ -613,7 +639,7 @@ namespace IfFastInjector
 				public ReplaceMethodCallWithInvocationExpressionVisitor(InternalResolver<RMT> resolver)
 				{
 					this.resolver = resolver;
-					this.resolverMethod = resolver.MyInjector.GenericResolve;
+					this.resolverMethod = resolver.injector.GenericResolve;
 				}
 
 				protected override Expression VisitMethodCall(MethodCallExpression node)
@@ -669,8 +695,9 @@ namespace IfFastInjector
 				return this;
 			}
 
-			public void AsSingleton () {
-				resolver.AsSingleton ();
+			public IfFastInjectorBinding<T> AsSingleton (bool singlton = true) {
+				resolver.AsSingleton (singlton);
+				return this;
 			}
 		}
 
@@ -690,17 +717,6 @@ namespace IfFastInjector
 				lock (syncLock) {
 					dict.Add(key, value);
 					unsyncDict = new Dictionary<TKey, TValue> (dict);
-				}
-			}
-
-			public TValue AddIfNotSet(TKey key, TValue nValue) {
-				lock (syncLock) {
-					TValue value;
-					if (!TryGetValue (key, out value)) {
-						value = nValue;
-						Add (key, nValue);
-					}
-					return value;
 				}
 			}
 
@@ -765,7 +781,7 @@ namespace IfFastInjector
 
 			// setup singleton
 			if (typeof(T).GetCustomAttributes (typeof(IfSingletonAttribute), false).Length > 0) {
-				resolver.AsSingleton ();
+				resolver.AsSingleton (true);
 			}
 		}
 
@@ -781,13 +797,13 @@ namespace IfFastInjector
 					.Invoke (null, new object[]{resolver, objExpr, memExpr});
 		}
 
-		private static void SetupImplicitPropResolversInternal<T, TProperty>(InternalResolver<T> resolver, ParameterExpression parameterT, MemberExpression propertyExpression) 
+		private static void SetupImplicitPropResolversInternal<T, TProperty>(InternalResolver<T> resolver, ParameterExpression parameterT, MemberExpression memberExpression) 
 			where T : class 
 			where TProperty : class
 		{
 			var expr =
 				Expression.Lambda<Func<T, TProperty>>(
-					propertyExpression,
+					memberExpression,
 					parameterT);
 
 			resolver.AddPropertySetter (expr);

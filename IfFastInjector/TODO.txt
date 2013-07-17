@@ -1,0 +1,12 @@
+
+*** Add unit tests to ensure that cached closure factories are handled correctly
+
+
+- Need to add logic to handle IDisposable properly
+
+- Run MS code analysis and deal with warnings
+
+- Find missing Millis in performance
+	- Theory: overhead of extra objects???
+
+- Eliminate code path differences between constructor type injection and field type injection

@@ -136,7 +136,7 @@ namespace IfFastInjector
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		public interface IfFastInjectorBinding<T> where T : class
-		{ 
+		{
 			IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression) 
 				where TPropertyType : class;
 
@@ -147,7 +147,7 @@ namespace IfFastInjector
 
 			IfFastInjectorBinding<T> AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression, Expression<Func<TPropertyType>> setter);
 
-			void AsSingleton ();
+			IfFastInjectorBinding<T> AsSingleton (bool singlton = true);
 		}
 	}
 }

@@ -41,4 +41,7 @@
     <Compile Include="IfFastInjector.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
+  <ItemGroup>
+    <None Include="TODO.txt" />
+  </ItemGroup>
 </Project>
