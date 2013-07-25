@@ -306,8 +306,10 @@ namespace IfFastInjector
 						Expression<Func<T>> expr = () => instance;
 						return expr.Body;
 					} else {
-						Expression<Func<T>> expr = () => DoResolveTyped();
-						return expr.Body;
+						if (!isVerifiedNotRecursive) {
+							DoResolveTyped ();
+						}
+						return resolverExpression.Body;
 					}
 				}
 			}
@@ -415,6 +417,12 @@ namespace IfFastInjector
 			private void CompileResolver() {
 				lock (SyncLock) {
 					if (!IsResolved()) {
+						// START: Handle compile loop
+						if (IsRecursionTestPending) {
+							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+						}
+						IsRecursionTestPending = true; 
+
 						var constructorExpr = CompileConstructorExpr ();
 
 						if (fieldInjectors.Any() || propertyInjectors.Any()) {
@@ -440,6 +448,8 @@ namespace IfFastInjector
 						resolverExpressionCompiled = resolverExpression.Compile ();
 						resolve = ResolveWithRecursionCheck;
 						resolveProperties = CompilePropertiesResolver ();
+
+						IsRecursionTestPending = false; // END: Handle compile loop
 					}
 				}
 			}
