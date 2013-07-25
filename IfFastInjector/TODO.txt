@@ -8,5 +8,10 @@
 
 - Find missing Millis in performance
 	- Theory: overhead of extra objects???
+	
+	No              177             185             196             227
+	fFastInjector   193             213             257             351
+	HaveBox         236             260             265             358
+	IfFastInjector  215             237             322             558
 
 - Eliminate code path differences between constructor type injection and field type injection

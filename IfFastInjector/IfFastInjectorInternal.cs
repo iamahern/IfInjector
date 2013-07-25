@@ -25,6 +25,8 @@ namespace IfFastInjector
 			object DoResolve();
 
 			Func<T> GetResolveFunc<T> () where T : class;
+
+			bool IsSingleton ();
 		}
 
 		/// <summary>Utility to allow for locking granularity at the type construct level. Also simplifies map management.</summary>
@@ -257,14 +259,22 @@ namespace IfFastInjector
 			private class TypeResolverClosure<T> : IDisposable where T : class {
 				private readonly InjectorInternal injector;
 				private Func<T> resolver;
+				private T instance;
 
 				public TypeResolverClosure(InjectorInternal injector) {
 					this.injector = injector;
 				}
 
 				public T DoResolve() {
-					if (resolver == null) {
-						resolver = injector.ResolveResolver (typeof(T)).GetResolveFunc<T>();
+					if (instance != null) {
+						return instance;
+					} else if (resolver == null) {
+						var iResolver = injector.ResolveResolver (typeof(T));
+						resolver = iResolver.GetResolveFunc<T> ();
+
+						if (iResolver.IsSingleton ()) {
+							instance = resolver();
+						}
 					}
 
 					return resolver();
@@ -272,6 +282,7 @@ namespace IfFastInjector
 
 				public void Dispose() {
 					resolver = null;
+					instance = null;
 				}
 			}
 		}
@@ -320,6 +331,10 @@ namespace IfFastInjector
 					resolve ();
 					return resolve as Func<ST>;
 				}
+			}
+
+			public bool IsSingleton() {
+				return singleton;
 			}
 
 			private void InitInitialResolver()
@@ -700,6 +715,8 @@ namespace IfFastInjector
 				return this;
 			}
 		}
+
+
 
 		/// <summary>
 		/// Thread safe dictionary wrapper. 

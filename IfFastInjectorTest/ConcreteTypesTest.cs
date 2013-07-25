@@ -34,19 +34,6 @@ namespace IfFastInjectorMxTest
 			Assert.IsTrue(object.ReferenceEquals(a, b));
 		}
 
-		[Test()]
-		public void TestBindingsRespectKeyConcreateTypeDistinction ()
-		{
-			IfInjector injector = IfInjector.NewInstance ();
-			injector.Bind<Foo, Bar> ().AsSingleton();
-			injector.Bind<Bar, Bar> ().AsSingleton();
-
-			Foo a = injector.Resolve<Foo> ();
-			Foo b = injector.Resolve<Bar> ();
-
-			Assert.IsFalse(object.ReferenceEquals(a, b));
-		}
-
 
 		interface Foo {}
 

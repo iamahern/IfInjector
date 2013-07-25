@@ -48,7 +48,7 @@ namespace IfFastInjector
 		/// <returns>The instance.</returns>
 		public static IfInjector NewInstance ()
 		{
-			return new IfFastInjectorInternal.InjectorInternal ();
+			return new IfFastInjectorInternal2.InjectorInternal ();
 		}
 
 		/// <summary>
