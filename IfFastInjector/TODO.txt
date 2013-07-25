@@ -1,12 +1,11 @@
 
-*** Need logic to handle reset logic correctly: still 'todo' in code
-	*** Need unit tests around this area!
+- Need for IDisposable???
 
-- Need to add logic to handle IDisposable properly
+- FEATURE: Need logic to handle lambda
 
-- Run MS code analysis and deal with warnings
+- FEATURE: Error type codes
 
-- DONE: Closed performance differences with peers in Injector2:
+- DONE: Closed performance differences with peers:
 	
 Name            Singleton       Transient       Combined        Complex
 No              180             194             208             239

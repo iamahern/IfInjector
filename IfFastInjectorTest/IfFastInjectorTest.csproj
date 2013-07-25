@@ -45,10 +45,10 @@
     <Compile Include="SingletonsTest.cs" />
     <Compile Include="ImplicitTypeTest.cs" />
     <Compile Include="ConcreteTypesTest.cs" />
-    <Compile Include="TestLinq.cs" />
     <Compile Include="PropertyInjectionTest.cs" />
     <Compile Include="ImplementedByTest.cs" />
     <Compile Include="BindingAttributeTest.cs" />
+    <Compile Include="RecompilationTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">

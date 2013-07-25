@@ -124,6 +124,7 @@ namespace IfFastInjector
 		/// <summary>
 		/// F fast injector exception.
 		/// </summary>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2237:MarkISerializableTypesWithSerializable")]
 		public class IfFastInjectorException : Exception
 		{
 			public IfFastInjectorException () : base() {}
