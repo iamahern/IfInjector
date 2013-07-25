@@ -499,7 +499,7 @@ namespace IfFastInjector
 				foreach (var pf in fields.Union(props))
 				{
 					var valueExpr = pf.setter.IsResolve() ? 
-						GetResolverInvocationExpressionForType(pf.setter.MemberType) : pf.setter.Setter;
+						GetResolverInvocationExpressionForType(pf.setter.MemberType) : pf.setter.Setter.Body;
 					var propOrFieldExpr = Expression.Assign (pf.pfExpr, valueExpr);
 					blockExpressions.Add (propOrFieldExpr);
 				}
