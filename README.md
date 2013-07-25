@@ -22,7 +22,7 @@ IfFastInjectorInternal.cs
 
 The code sample below should give you a flavor of the types of things you can do.  A deeper explanation is given in the full documentation.
 
-{{{
+```
 // =================================
 // Setup
 // =================================
@@ -102,7 +102,7 @@ MyCType {
 
 */
 
-}}}
+```
 
 # LICENSE
 
