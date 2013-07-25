@@ -37,9 +37,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="IfFastInjectorInternal.cs" />
     <Compile Include="IfFastInjector.cs" />
-    <Compile Include="IfFastInjectorInternal2.cs" />
+    <Compile Include="IfFastInjectorInternalLegacy.cs" />
+    <Compile Include="IfFastInjectorInternal.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>

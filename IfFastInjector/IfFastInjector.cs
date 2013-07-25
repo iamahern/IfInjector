@@ -48,7 +48,7 @@ namespace IfFastInjector
 		/// <returns>The instance.</returns>
 		public static IfInjector NewInstance ()
 		{
-			return new IfFastInjectorInternal2.InjectorInternal ();
+			return new IfFastInjectorInternal.InjectorInternal ();
 		}
 
 		/// <summary>
@@ -141,11 +141,6 @@ namespace IfFastInjector
 				where TPropertyType : class;
 
 			IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
-
-			IfFastInjectorBinding<T> AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression)
-				where TPropertyType : class;
-
-			IfFastInjectorBinding<T> AddMethodInjector<TPropertyType> (Expression<Action<T, TPropertyType>> methodExpression, Expression<Func<TPropertyType>> setter);
 
 			IfFastInjectorBinding<T> AsSingleton (bool singlton = true);
 		}

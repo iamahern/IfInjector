@@ -1,5 +1,6 @@
 
-*** Add unit tests to ensure that cached closure factories are handled correctly
+*** Need logic to handle reset logic correctly: still 'todo' in code
+	*** Need unit tests around this area!
 
 - Need to add logic to handle IDisposable properly
 
@@ -12,5 +13,3 @@ No              180             194             208             239
 fFastInjector   203             237             274             372
 HaveBox         216             246             249             352
 IfFastInjector  230             253             283             350
-
-- Resolve remaining TODOs in code and deprecate injectorInternal_Legacy.

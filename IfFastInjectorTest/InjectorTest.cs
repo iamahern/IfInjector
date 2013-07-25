@@ -56,24 +56,6 @@ namespace IfFastInjectorMxTest
             Assert.IsInstanceOf<MyTestClass>(result);
         }
 
-		[Test]
-		public void InjectMethod()
-		{
-			var expect = new MyPropertyClass ();
-
-			IfInjector injector = IfInjector.NewInstance();
-			injector.Bind<MyTestClass> ()
-				.AddMethodInjector ((MyTestClass o, MyPropertyClass v) => o.SetMyProperty(v))
-				.AddMethodInjector ((o,v) => o.SetMyOtherProperty(v), () => expect); 
-
-			var r = injector.Resolve<MyTestClass> ();
-
-			Assert.IsNotNull (r.GetMyProperty());
-			Assert.IsFalse (object.ReferenceEquals(expect, r.GetMyProperty()));
-
-			Assert.IsTrue (object.ReferenceEquals(expect, r.GetMyOtherProperty()));
-		}
-
         interface MyInterface
         {
             MyPropertyClass MyProperty { get; set; }
