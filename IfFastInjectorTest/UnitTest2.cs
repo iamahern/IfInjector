@@ -74,12 +74,12 @@ namespace IfFastInjectorMxTest
         {
 			var binding = injector.Bind<TestClassAddPropertyInjectorTest>();
 
-            ArgumentException exception = null;
+            IfFastInjectorException exception = null;
             try
             {
 				binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => "");
             }
-            catch (ArgumentException ex)
+			catch (IfFastInjectorException ex)
             {
                 exception = ex;
             }
@@ -90,11 +90,21 @@ namespace IfFastInjectorMxTest
         [Test]
         public void ExceptionConstructorTest()
         {
-			var ex1 = new IfFastInjectorException();
-			var ex2 = new IfFastInjectorException("something", ex1);
+			var ex1 = new IfFastInjectorException(IfFastInjectorErrors.ErrorAmbiguousBinding, "foobar");
+			var ex2 = new IfFastInjectorException(IfFastInjectorErrors.ErrorAmbiguousBinding, "something", ex1);
 
             Assert.IsNotNull(ex1);
             Assert.IsNotNull(ex2);
         }
+
+		[Test]
+		public void ExceptionErrorCodeFormattingTest()
+		{
+			var random = Guid.NewGuid ().ToString ();
+			var ex = IfFastInjectorErrors.ErrorAmbiguousBinding.FormatEx (random);
+
+			Assert.AreEqual (string.Format (IfFastInjectorErrors.ErrorAmbiguousBinding.MessageTemplate, random), ex.Message);
+			Assert.AreEqual ("IF0004", IfFastInjectorErrors.ErrorAmbiguousBinding.MessageCode);
+		}
     }
 }

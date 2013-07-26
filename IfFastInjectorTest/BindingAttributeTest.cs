@@ -160,7 +160,7 @@ namespace IfFastInjectorMxTest
 				gbInjector.Bind<T> ();
 				Assert.Fail("Attempting to bind should fail");
 			} catch (IfFastInjectorException ex) {
-				Assert.AreEqual (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties, "Bad", typeof(T).Name), ex.Message);
+				Assert.AreEqual (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties.MessageTemplate, "Bad", typeof(T).Name), ex.Message);
 			}
 		}
 

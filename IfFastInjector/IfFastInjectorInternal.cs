@@ -89,7 +89,7 @@ namespace IfFastInjector
 					if (lookup.Count == 1) {
 						return ResolveResolver (lookup.First());
 					} else {
-						throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, type.Name));
+						throw IfFastInjectorErrors.ErrorAmbiguousBinding.FormatEx(type.Name);
 					}
 				} else {
 					return BindImplicit (type);
@@ -134,7 +134,7 @@ namespace IfFastInjector
 					InjectorTypeConstruct typeConstruct;
 					if (allTypeConstructs.TryGetValue (bindType, out typeConstruct)) {
 						if (typeConstruct.IsInternalResolverPending) {
-							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, bindType.Name));
+							throw IfFastInjectorErrors.ErrorResolutionRecursionDetected.FormatEx(bindType.Name);
 						}
 						return typeConstruct.MyRegistration;
 					}
@@ -321,7 +321,7 @@ namespace IfFastInjector
 
 			private T ThrowInterfaceException()
 			{
-				throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorUnableToResultInterface, typeof(T).FullName));
+				throw IfFastInjectorErrors.ErrorUnableToResultInterface.FormatEx(typeof(T).FullName);
 			}
 
 			public void AddPropertySetter(PropertyInfo propertyInfo, LambdaExpression setter)
@@ -375,24 +375,6 @@ namespace IfFastInjector
 				}
 			}
 
-			private IEnumerable<Type> GetAllReferencedTypes() {
-				if (ResolverFactoryExpression != null) {
-					// TODO
-				} else {
-					foreach (var cp in MyConstructor.GetParameters()) {
-						yield return cp.ParameterType;
-					}
-				}
-
-				foreach (var f in fieldInjectors.Where(f => f.Value.IsResolve())) {
-					yield return f.Key.FieldType;
-				}
-
-				foreach (var p in propertyInjectors.Where(p => p.Value.IsResolve())) {
-					yield return p.Key.PropertyType;
-				}
-			}
-
 			private bool IsRecursionTestPending {
 				get {
 					return typeConstruct.IsRecursionTestPending;
@@ -408,7 +390,7 @@ namespace IfFastInjector
 				lock (syncLock) {
 					if (!isVerifiedNotRecursive) {
 						if (IsRecursionTestPending) {
-							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+							throw IfFastInjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
 						}
 						IsRecursionTestPending = true;
 					}
@@ -445,7 +427,7 @@ namespace IfFastInjector
 					if (!IsResolved()) {
 						// START: Handle compile loop
 						if (IsRecursionTestPending) {
-							throw new IfFastInjectorException(string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeofT.Name));
+							throw IfFastInjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
 						}
 						IsRecursionTestPending = true; 
 
@@ -577,7 +559,7 @@ namespace IfFastInjector
 			private IfFastInjectorBinding<T> AddPropertyInjectorInner<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
 				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
 				if (propertyMemberExpression == null) {
-					throw new ArgumentException(IfFastInjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
+					throw IfFastInjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
 				}
 
 				var member = propertyMemberExpression.Member;
@@ -586,7 +568,7 @@ namespace IfFastInjector
 				} else if (member is FieldInfo) {
 					resolver.AddFieldSetter (member as FieldInfo, setter);
 				} else {
-					throw new ArgumentException (IfFastInjectorErrors.ErrorMustContainMemberExpression, "propertyExpression");
+					throw IfFastInjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
 				}
 
 				return this;
@@ -688,7 +670,7 @@ namespace IfFastInjector
 			where T : class 
 		{
 			if (!memberType.IsClass && !memberType.IsInterface) {
-				throw new IfFastInjectorException (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties, memberName, typeof(T).Name));
+				throw IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties.FormatEx(memberName, typeof(T).Name);
 			}
 
 			if (memberInfo is PropertyInfo) {

@@ -47,7 +47,7 @@ namespace IfFastInjectorMxTest
 			injector.Bind<MyInterfaceDerived, MyTestClass2> ();
 
 			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding, typeof(MyInterface).Name);
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding.MessageTemplate, typeof(MyInterface).Name);
 
 			try 
 			{

@@ -1,14 +1,7 @@
 
 - Need for IDisposable???
 
-- FEATURE: Need logic to handle lambda
+- FEATURE: Logic to handle lambda
 
-- FEATURE: Error type codes
-
-- DONE: Closed performance differences with peers:
-	
-Name            Singleton       Transient       Combined        Complex
-No              180             194             208             239
-fFastInjector   203             237             274             372
-HaveBox         216             246             249             352
-IfFastInjector  230             253             283             350
+- DONE: Closed performance differences: 
+	http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison

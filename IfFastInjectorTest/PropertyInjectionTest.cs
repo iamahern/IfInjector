@@ -34,7 +34,7 @@ namespace IfFastInjectorMxTest
 			//fFastInjector.Injector.InternalResolver<ConcretePropertyLoop>.AddPropertySetter(v => v.MyTestProperty);//, () => Injector.Resolve<ConcretePropertyLoop>());
 
 			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected, typeof(ConcretePropertyLoop).Name);
+			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected.MessageTemplate, typeof(ConcretePropertyLoop).Name);
 
 			try
 			{
