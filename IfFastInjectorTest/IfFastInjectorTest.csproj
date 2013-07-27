@@ -7,7 +7,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{083C5427-83BA-4579-A000-AC49EE2F4105}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>FastInjectorMxTest</RootNamespace>
+    <RootNamespace>IfFastInjectorMxTest</RootNamespace>
     <AssemblyName>IfFastInjectorMxTest</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -46,9 +46,9 @@
     <Compile Include="ImplicitTypeTest.cs" />
     <Compile Include="ConcreteTypesTest.cs" />
     <Compile Include="PropertyInjectionTest.cs" />
-    <Compile Include="ImplementedByTest.cs" />
     <Compile Include="BindingAttributeTest.cs" />
     <Compile Include="RecompilationTests.cs" />
+    <Compile Include="FactoryTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">

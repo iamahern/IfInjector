@@ -1,7 +1,9 @@
 
 - Need for IDisposable???
 
-- FEATURE: Logic to handle lambda
+- Check on IfInject of private Constructors
+
+- Error + test for InitConstructor
 
 - DONE: Closed performance differences: 
 	http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison

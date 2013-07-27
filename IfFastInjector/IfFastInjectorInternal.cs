@@ -102,13 +102,13 @@ namespace IfFastInjector
 				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
-			public override IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (Expression<Func<CT>> factoryExpression)
+			protected override IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (LambdaExpression factoryExpression)
 			{
 				var iResolver = BindExplicit<T, CT> (factoryExpression);
 				return new InjectorFluent<CT>(iResolver);
 			}
 
-			private Registration<CType> BindExplicit<BType, CType>(Expression<Func<CType>> factoryExpression = null)
+			private Registration<CType> BindExplicit<BType, CType>(LambdaExpression factoryExpression = null)
 				where BType : class
 				where CType : class, BType
 			{
@@ -164,15 +164,11 @@ namespace IfFastInjector
 				return null;
 			}
 
-			private void CreateInternalResolverInstance(Type keyType, Type implType, InjectorTypeConstruct typeConstruct, Expression factoryExpression = null) {
+			private void CreateInternalResolverInstance(Type keyType, Type implType, InjectorTypeConstruct typeConstruct, LambdaExpression factoryExpression = null) {
 				try {
 					Type iResolverType = typeof(Registration<>);
 					Type genericType = iResolverType.MakeGenericType(new Type[] { implType });
-					if (factoryExpression == null) {
-						typeConstruct.MyRegistration = (IRegistration) Activator.CreateInstance(genericType, this, typeConstruct, keyType, syncLock);
-					} else {
-						typeConstruct.MyRegistration = (IRegistration) Activator.CreateInstance(genericType, this, typeConstruct, keyType, syncLock, factoryExpression);
-					}
+					typeConstruct.MyRegistration = (IRegistration) Activator.CreateInstance(genericType, this, typeConstruct, keyType, syncLock, factoryExpression);
 					typeConstruct.IsInternalResolverPending = false;
 
 					SetupImplicitPropResolvers (typeConstruct.MyRegistration, implType);
@@ -223,7 +219,7 @@ namespace IfFastInjector
 			private readonly Dictionary<PropertyInfo, SetterExpression> propertyInjectors;
 			private readonly Dictionary<FieldInfo, SetterExpression> fieldInjectors;
 
-			private Expression<Func<T>> ResolverFactoryExpression { get; set; }
+			private LambdaExpression ResolverFactoryExpression { get; set; }
 			private ConstructorInfo MyConstructor { get; set; }
 
 			private bool isVerifiedNotRecursive;
@@ -241,7 +237,7 @@ namespace IfFastInjector
 
 			public bool IsSingleton { get; private set; }
 
-			public Registration(InjectorInternal injector, InjectorTypeConstruct typeConstruct, Type keyType, object syncLock)
+			public Registration(InjectorInternal injector, InjectorTypeConstruct typeConstruct, Type keyType, object syncLock, LambdaExpression factoryExpression)
 			{
 				this.keyType = keyType;
 				this.syncLock = syncLock;
@@ -252,13 +248,11 @@ namespace IfFastInjector
 				this.propertyInjectors = new Dictionary<PropertyInfo, SetterExpression>();
 				this.fieldInjectors = new Dictionary<FieldInfo, SetterExpression>();
 
-				InitInitialResolver();
-			}
-
-			public Registration(InjectorInternal injector, InjectorTypeConstruct typeConstruct, Type keyType, object syncLock, Expression<Func<T>> factoryExpression) : 
-				this(injector, typeConstruct, keyType, syncLock) 
-			{
-				ResolverFactoryExpression = factoryExpression;
+				if (factoryExpression == null) {
+					InitInitialResolver();
+				} else {
+					ResolverFactoryExpression = factoryExpression;
+				}
 			}
 
 			public object DoResolve() {
@@ -275,8 +269,10 @@ namespace IfFastInjector
 
 			public T DoInject(T instance) {
 				if (instance != null) {
-					if (!IsResolved()) {
-						CompileResolver ();
+					if (resolveProperties == null) {
+						lock (this) {
+							resolveProperties = CompilePropertiesResolver ();
+						}
 					}
 
 					resolveProperties (instance);
@@ -310,12 +306,19 @@ namespace IfFastInjector
 				if (typeofT.IsInterface || typeofT.IsAbstract)
 				{
 					// if we can not instantiate, set the resolver to throw an exception.
-					ResolverFactoryExpression = () => ThrowInterfaceException();
+					Expression<Func<T>> throwEx = () => ThrowInterfaceException ();
+					ResolverFactoryExpression = throwEx;
 				}
 				else
 				{
 					// try to find the default constructor and create a default resolver from it
-					SetDefaultConstructor();
+					var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IfIgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(IfInjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
+
+					if (constructor != null) {
+						MyConstructor = constructor;
+					}
+
+					// TODO: error?
 				}
 			}
 
@@ -409,19 +412,6 @@ namespace IfFastInjector
 				}
 			}
 
-			/// <summary>
-			/// Get the constructor with the fewest number of parameters and create a factory for it
-			/// </summary>
-			private void SetDefaultConstructor()
-			{
-				// get first available constructor ordered by parameter count ascending
-				var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IfIgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(IfInjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
-
-				if (constructor != null) {
-					MyConstructor = constructor;
-				}
-			}
-
 			private void CompileResolver() {
 				lock (syncLock) {
 					if (!IsResolved()) {
@@ -455,7 +445,6 @@ namespace IfFastInjector
 
 						resolverExpressionCompiled = resolverExpression.Compile ();
 						resolve = ResolveWithRecursionCheck;
-						resolveProperties = CompilePropertiesResolver ();
 
 						IsRecursionTestPending = false; // END: Handle compile loop
 					}
@@ -490,19 +479,25 @@ namespace IfFastInjector
 			private Expression<Func<T>> CompileConstructorExpr()
 			{
 				if (ResolverFactoryExpression != null) {
-					return ResolverFactoryExpression;
+					var arguments = CompileArgumentListExprs(ResolverFactoryExpression.Parameters.Select (x => x.Type));
+					var callLambdaExpression = Expression.Invoke (ResolverFactoryExpression, arguments.ToArray());
+					return ((Expression<Func<T>>)Expression.Lambda(callLambdaExpression));
 				} else {
-					var methodParameters = MyConstructor.GetParameters().Select(v => v.ParameterType);
-					var arguments = new List<Expression>();
-
-					foreach (var parameterType in methodParameters) {
-						var argument = GetResolverInvocationExpressionForType(parameterType);
-						arguments.Add(argument);
-					}
-
+					var arguments = CompileArgumentListExprs(MyConstructor.GetParameters().Select(v => v.ParameterType));
 					Expression createInstanceExpression = Expression.New(MyConstructor, arguments);
 					return ((Expression<Func<T>>)Expression.Lambda(createInstanceExpression));
 				}
+			}
+
+			private List<Expression> CompileArgumentListExprs(IEnumerable<Type> args) {
+				var argumentsOut = new List<Expression>();
+
+				foreach (var parameterType in args) {
+					var argument = GetResolverInvocationExpressionForType(parameterType);
+					argumentsOut.Add(argument);
+				}
+
+				return argumentsOut;
 			}
 
 			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpressions) {

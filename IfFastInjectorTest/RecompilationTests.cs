@@ -3,7 +3,7 @@ using System;
 
 using IfFastInjector;
 
-namespace FastInjectorMxTest
+namespace IfFastInjectorMxTest
 {
 	[TestFixture()]
 	public class RecompilationTests
@@ -26,6 +26,9 @@ namespace FastInjectorMxTest
 		class D {
 			public D(C c) {}
 		}
+
+		[IfSingleton]
+		class E {}
 
 
 		[Test]
@@ -83,6 +86,26 @@ namespace FastInjectorMxTest
 
 			Assert.IsFalse (object.ReferenceEquals(before, after));
 			Assert.IsTrue (object.ReferenceEquals(after, injector.Resolve<D>()));
+		}
+
+		[Test]
+		public void TestOnlyRecompileAffectedGraph ()
+		{
+			var injector = IfInjector.NewInstance();
+			injector.Bind<E> ();
+			injector.Bind<C> ().AddPropertyInjector (c => c.MyAField);
+
+			var beforeD = injector.Resolve<D> ();
+			var beforeE = injector.Resolve<E> ();
+
+			injector.Bind<A> ();
+
+			var afterD = injector.Resolve<D> ();
+			var afterE = injector.Resolve<E> ();
+
+			Assert.IsFalse (object.ReferenceEquals(beforeD, afterD));
+			Assert.IsTrue (object.ReferenceEquals(afterD, injector.Resolve<D>()));
+			Assert.IsTrue (object.ReferenceEquals(beforeE, afterE));
 		}
 	}
 }

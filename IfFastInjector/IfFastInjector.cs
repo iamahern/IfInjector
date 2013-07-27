@@ -91,7 +91,20 @@ namespace IfFastInjector
 		/// <param name="factoryExpression">Factory expression.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="CT">The 2nd type parameter. This parameter is required to allow for auto-injection of factory provided object.</typeparam>
-		public abstract IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (Expression<Func<CT>> factoryExpression)
+		public IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (Expression<Func<CT>> factoryExpression)
+			where T : class
+			where CT : class, T
+		{
+			return Bind<T,CT> (factoryExpression as LambdaExpression);
+		}
+		
+		/// <summary>
+		/// Bind the specified factoryExpression.
+		/// </summary>
+		/// <param name="factoryExpression">Factory expression.</param>
+		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		/// <typeparam name="CT">The 2nd type parameter.</typeparam>
+		protected abstract IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (LambdaExpression factoryExpression)
 			where T : class
 			where CT : class, T;
 
@@ -103,13 +116,72 @@ namespace IfFastInjector
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		public abstract T InjectProperties<T> (T instance)
 			where T : class;
+
+		/// <summary>
+		/// Binds the lambda factory. Do not use thid directly, but instead create extension methods that take N-input Func<> methods.
+		/// </summary>
+		/// <returns>The lambda factory.</returns>
+		/// <param name="injector">Injector.</param>
+		/// <param name="factoryExpression">Factory expression.</param>
+		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		/// <typeparam name="CT">The 2nd type parameter.</typeparam>
+		public static IfInjectorTypes.IfFastInjectorBinding<CT> BindFactory<T,CT> (IfInjector injector, LambdaExpression factoryExpression) 
+			where T : class
+			where CT : class, T
+		{
+			return injector.Bind<T,CT> (factoryExpression);
+		}
+	}
+
+	namespace IfFastExtensions {
+		/// <summary>
+		/// Provide extension methods up to Func<P1..P4,CT>
+		/// </summary>
+		public static class IfInjectorBindingExtensions {
+			public static IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,P1,CT>(this IfInjector injector, Expression<Func<P1,CT>> factoryExpression) 
+				where T : class
+				where CT : class, T
+				where P1 : class
+			{
+				return IfInjector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
+			}
+
+			public static IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,P1,P2,CT>(this IfInjector injector, Expression<Func<P1,P2,CT>> factoryExpression) 
+				where T : class
+				where CT : class, T
+				where P1 : class
+				where P2 : class
+			{
+				return IfInjector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
+			}
+
+			public static IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,P1,P2,P3,CT>(this IfInjector injector, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
+				where T : class
+				where CT : class, T
+				where P1 : class
+				where P2 : class
+				where P3 : class
+			{
+				return IfInjector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
+			}
+
+			public static IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,P1,P2,P3,P4,CT>(this IfInjector injector, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
+				where T : class
+				where CT : class, T
+				where P1 : class
+				where P2 : class
+				where P3 : class
+				where P4 : class
+			{
+				return IfInjector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
+			}
+		}
 	}
 
 	/// <summary>
 	/// Holder of secondary IfInjector types and interfaces. Most API users will not need to access these types directly.
 	/// </summary>
 	namespace IfInjectorTypes {
-
 		/// <summary>
 		/// Represents an error code constant.
 		/// </summary>

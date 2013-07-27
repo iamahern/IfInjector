@@ -50,6 +50,38 @@ namespace IfFastInjectorMxTest
 			Assert.AreEqual(expectedErrorMessage, exception.Message);
 		}
 
+		[Test, Timeout(100)]
+		public void TestMayInjectMembersEvenIfConstructorLoops() 
+		{
+			var injector = IfInjector.NewInstance ();
+			injector.Bind<LoopingConstructorOnly> ();
+
+			bool caughtEx = false;
+			try {
+				injector.Resolve<LoopingConstructorOnly>();
+			} catch (IfFastInjectorException) {
+				caughtEx = true;
+			}
+			Assert.IsTrue (caughtEx);
+
+			var val = new LoopingConstructorOnly ();
+			injector.InjectProperties (val);
+
+			Assert.IsNotNull (val.MCls);
+		}
+
+
+		class LoopingConstructorOnly {
+
+			public LoopingConstructorOnly(){}
+
+			[IfInject]
+			public LoopingConstructorOnly(LoopingConstructorOnly c) {}
+
+			[IfInject]
+			public MyClass MCls { get; set; }
+		}
+
 		class MyClass {
 			public int Age { get; set; }
 			public string Name { get; set; }
