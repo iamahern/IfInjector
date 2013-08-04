@@ -1,14 +1,14 @@
 ﻿using System;
 using NUnit.Framework;
-using IfFastInjector;
+using IfInjector;
 using System.Diagnostics;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
     [TestFixture]
     public class UnitTest1
     {
-		private IfInjector injector = IfInjector.NewInstance();
+		private Injector injector = Injector.NewInstance();
 
         [Test]
         public void RegisterMethodToResolveInterfaceTest()

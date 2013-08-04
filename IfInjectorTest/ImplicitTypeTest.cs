@@ -1,9 +1,9 @@
 ﻿using System;
 using NUnit.Framework;
-using IfFastInjector;
-using IfFastInjector.IfInjectorTypes;
+using IfInjector;
+using IfInjector.IfInjectorTypes;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
     [TestFixture]
     public class ImplicitTypeTest
@@ -11,7 +11,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void TestResolveInterfaces()
         {
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<MyTestClass1>();
 			Assert.IsInstanceOf<MyTestClass1>(injector.Resolve<MyInterfaceDerived>());
 			Assert.IsInstanceOf<MyTestClass1>(injector.Resolve<MyInterface>());
@@ -20,7 +20,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestResolveInterfacesByType()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<MyTestClass1>();
 			Assert.IsInstanceOf<MyTestClass1>(injector.Resolve(typeof(MyInterfaceDerived)));
 			Assert.IsInstanceOf<MyTestClass1>(injector.Resolve(typeof(MyInterface)));
@@ -29,7 +29,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestBindingSpecificity()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<MyTestClass1>();
 			injector.Bind<MyInterface, MyTestClass2> ();
 
@@ -42,18 +42,18 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestErrorOnAmbiguousResolution()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<MyTestClass1>();
 			injector.Bind<MyInterfaceDerived, MyTestClass2> ();
 
-			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorAmbiguousBinding.MessageTemplate, typeof(MyInterface).Name);
+			InjectorException exception = null;
+			var expectedErrorMessage = string.Format(InjectorErrors.ErrorAmbiguousBinding.MessageTemplate, typeof(MyInterface).Name);
 
 			try 
 			{
 				injector.Resolve<MyInterface> ();
 			} 
-			catch (IfFastInjectorException ex) 
+			catch (InjectorException ex) 
 			{
 				exception = ex;
 			}
@@ -65,7 +65,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestResolveBaseTypeImplicitly()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<MyTestClass1>();
 			injector.Bind<MyTestClass3>();
 
@@ -77,7 +77,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestResolveBaseTypeImplicitlyNonGeneric()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<MyTestClass1>();
 			injector.Bind<MyTestClass3>();
 

@@ -1,40 +1,40 @@
 using NUnit.Framework;
 using System;
 
-using IfFastInjector;
+using IfInjector;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
 	[TestFixture()]
 	public class RecompilationTests
 	{
-		[IfSingleton]
+		[Singleton]
 		class A {}
 
-		[IfSingleton]
+		[Singleton]
 		class B {
 			public B(A a) {}
 		}
 
-		[IfSingleton]
+		[Singleton]
 		class C {
 			public A MyAProp { get; set; }
 			public A MyAField = null;
 		}
 
-		[IfSingleton]
+		[Singleton]
 		class D {
 			public D(C c) {}
 		}
 
-		[IfSingleton]
+		[Singleton]
 		class E {}
 
 
 		[Test]
 		public void TestConstructDependency ()
 		{
-			var injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			var before = injector.Resolve<B> ();
 			injector.Bind<B> ();
 			var after = injector.Resolve<B> ();
@@ -45,7 +45,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestPropertyDependency ()
 		{
-			var injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 
 			injector.Bind<C> ().AddPropertyInjector (c => c.MyAProp);
 			var before = injector.Resolve<C> ();
@@ -60,7 +60,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestFieldDependency ()
 		{
-			var injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 
 			injector.Bind<C> ().AddPropertyInjector (c => c.MyAField);
 			var before = injector.Resolve<C> ();
@@ -75,7 +75,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestDeepDependencyDependency ()
 		{
-			var injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<C> ().AddPropertyInjector (c => c.MyAField);
 
 			var before = injector.Resolve<D> ();
@@ -91,7 +91,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestOnlyRecompileAffectedGraph ()
 		{
-			var injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<E> ();
 			injector.Bind<C> ().AddPropertyInjector (c => c.MyAField);
 

@@ -1,10 +1,10 @@
 using NUnit.Framework;
 using System;
 
-using IfFastInjector;
-using IfFastInjector.IfFastExtensions;
+using IfInjector;
+using IfInjector.IfInjectorExtensions;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
 	[TestFixture()]
 	public class FactoryTest
@@ -46,7 +46,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestFunc1 ()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<B,A1,B> ((a1) => new B (a1));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);
@@ -58,7 +58,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestFunc2 ()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<B,A1,A2,B> ((a1,a2) => new B (a1,a2));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);
@@ -70,7 +70,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestFunc3 ()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<B,A1,A2,A3,B> ((a1,a2,a3) => new B (a1,a2,a3));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);
@@ -82,7 +82,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void TestFunc4 ()
 		{
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<B,A1,A2,A3,A4,B> ((a1,a2,a3,a4) => new B (a1,a2,a3,a4));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);

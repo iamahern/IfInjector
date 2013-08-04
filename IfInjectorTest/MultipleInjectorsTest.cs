@@ -1,15 +1,15 @@
 ﻿using System;
 using NUnit.Framework;
-using IfFastInjector;
+using IfInjector;
 using System.Diagnostics;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
     [TestFixture]
     public class MultipleInjectorsTest
     {
-		private IfInjector injector1 = IfInjector.NewInstance();
-		private IfInjector injector2 = IfInjector.NewInstance();
+		private Injector injector1 = Injector.NewInstance();
+		private Injector injector2 = Injector.NewInstance();
 
         [Test]
         public void RegisterMethodToResolveInterfaceTest()

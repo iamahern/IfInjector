@@ -1,10 +1,10 @@
 using NUnit.Framework;
 using System;
 
-using IfFastInjector;
-using IfFastInjector.IfInjectorTypes;
+using IfInjector;
+using IfInjector.IfInjectorTypes;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
 	[TestFixture()]
 	public class PropertyInjectionTest
@@ -12,7 +12,7 @@ namespace IfFastInjectorMxTest
 		[Test()]
 		public void InjectMembers ()
 		{
-			var injector = IfInjector.NewInstance ();
+			var injector = Injector.NewInstance ();
 			injector.Bind<MyClass>()
 				.AddPropertyInjector<int>((x) => x.Age, () => 10)
 				.AddPropertyInjector((x) => x.Name, () => "Mike");
@@ -27,21 +27,21 @@ namespace IfFastInjectorMxTest
 		[Test, Timeout(100)]
 		public void TestResolverWithPropertyLooping()
 		{
-			var injector = IfInjector.NewInstance ();
+			var injector = Injector.NewInstance ();
 			injector.Bind<ConcretePropertyLoop>()
 				.AddPropertyInjector<ConcretePropertyLoop> (v => v.MyTestProperty);
 
 			//fFastInjector.Injector.InternalResolver<ConcretePropertyLoop>.AddPropertySetter(v => v.MyTestProperty);//, () => Injector.Resolve<ConcretePropertyLoop>());
 
-			IfFastInjectorException exception = null;
-			var expectedErrorMessage = string.Format(IfFastInjectorErrors.ErrorResolutionRecursionDetected.MessageTemplate, typeof(ConcretePropertyLoop).Name);
+			InjectorException exception = null;
+			var expectedErrorMessage = string.Format(InjectorErrors.ErrorResolutionRecursionDetected.MessageTemplate, typeof(ConcretePropertyLoop).Name);
 
 			try
 			{
 				var concrete = new ConcretePropertyLoop();
 				injector.InjectProperties(concrete);
 			}
-			catch (IfFastInjectorException ex)
+			catch (InjectorException ex)
 			{
 				exception = ex;
 			}
@@ -53,13 +53,13 @@ namespace IfFastInjectorMxTest
 		[Test, Timeout(100)]
 		public void TestMayInjectMembersEvenIfConstructorLoops() 
 		{
-			var injector = IfInjector.NewInstance ();
+			var injector = Injector.NewInstance ();
 			injector.Bind<LoopingConstructorOnly> ();
 
 			bool caughtEx = false;
 			try {
 				injector.Resolve<LoopingConstructorOnly>();
-			} catch (IfFastInjectorException) {
+			} catch (InjectorException) {
 				caughtEx = true;
 			}
 			Assert.IsTrue (caughtEx);
@@ -75,10 +75,10 @@ namespace IfFastInjectorMxTest
 
 			public LoopingConstructorOnly(){}
 
-			[IfInject]
+			[Inject]
 			public LoopingConstructorOnly(LoopingConstructorOnly c) {}
 
-			[IfInject]
+			[Inject]
 			public MyClass MCls { get; set; }
 		}
 

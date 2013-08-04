@@ -1,20 +1,20 @@
 using System;
 using NUnit.Framework;
-using IfFastInjector;
-using IfFastInjector.IfInjectorTypes;
+using IfInjector;
+using IfInjector.IfInjectorTypes;
 
 using System.Linq.Expressions;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
     [TestFixture]
     public class BindingAttributeTest
     {
 		class Parent {
-			[IfInject]
+			[Inject]
 			public Inner ParentInner { get; set; }
 
-			[IfInject]
+			[Inject]
 			private Inner myParentInner = null;
 
 			public Inner GetMyParentInner() {
@@ -23,19 +23,19 @@ namespace IfFastInjectorMxTest
 
 			public virtual Inner FactoryParentInner { get; set; }
 
-			[IfInject]
+			[Inject]
 			public Inner ShadowProp { get; set; }
 		}
 
 		class Outer : Parent
 		{
-			[IfInject]
+			[Inject]
 			public Inner MyInner { get; private set; }
 
-			[IfInject]
+			[Inject]
 			private Inner MyInnerPrivate { get; set; }
 
-			[IfInject]
+			[Inject]
 			private Inner myInnerPrivate = null;
 
 			public Inner GetMyInnerPrivateProp ()
@@ -48,7 +48,7 @@ namespace IfFastInjectorMxTest
 				return myInnerPrivate;
 			}
 
-			[IfInject]
+			[Inject]
 			public override Inner FactoryParentInner { get; set; }
 
 			public new Inner ShadowProp { get; set; }
@@ -58,7 +58,7 @@ namespace IfFastInjectorMxTest
 		{
 		}
 
-		IfInjector injector = IfInjector.NewInstance ();
+		Injector injector = Injector.NewInstance ();
 
 		public BindingAttributeTest() {
 			injector.Bind<Inner> ().AsSingleton ();
@@ -103,7 +103,7 @@ namespace IfFastInjectorMxTest
 		[Test]
 		public void FactoryConstructorAutoBinding()
 		{
-			var mInjector = IfInjector.NewInstance ();
+			var mInjector = Injector.NewInstance ();
 			mInjector.Bind<Parent, Outer> (() => new Outer()).AsSingleton();
 			mInjector.Bind<Inner> ().AsSingleton ();
 
@@ -122,22 +122,22 @@ namespace IfFastInjectorMxTest
 
 #pragma warning disable
 		class TestPrimitiveBinding {
-			[IfInject]
+			[Inject]
 			int Bad;
 		}
 
 		class TestPrimitiveBindingProp {
-			[IfInject]
+			[Inject]
 			int Bad { get; set; }
 		}
 
 		class TestStuctBinding {
-			[IfInject]
+			[Inject]
 			DateTime Bad;
 		}
 
 		class TestStuctBindingProp {
-			[IfInject]
+			[Inject]
 			DateTime Bad { get; set; }
 		}
 #pragma warning enable
@@ -156,25 +156,25 @@ namespace IfFastInjectorMxTest
 
 		private void GenericBadTypeBindingTest<T>() where T : class {
 			try {
-				var gbInjector = IfInjector.NewInstance ();
+				var gbInjector = Injector.NewInstance ();
 				gbInjector.Bind<T> ();
 				Assert.Fail("Attempting to bind should fail");
-			} catch (IfFastInjectorException ex) {
-				Assert.AreEqual (string.Format(IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties.MessageTemplate, "Bad", typeof(T).Name), ex.Message);
+			} catch (InjectorException ex) {
+				Assert.AreEqual (string.Format(InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.MessageTemplate, "Bad", typeof(T).Name), ex.Message);
 			}
 		}
 
-		[IfImplementedBy(typeof(MyIFaceImpl))]
+		[ImplementedBy(typeof(MyIFaceImpl))]
 		interface MyIFace { }
 
-		[IfImplementedBy(typeof(MyIFaceImpl))]
+		[ImplementedBy(typeof(MyIFaceImpl))]
 		class MyIFaceBaseImpl : MyIFace {}
 
 		class MyIFaceImpl : MyIFaceBaseImpl {}
 
 		[Test]
 		public void CheckImplementedBy() {
-			var mInjector = IfInjector.NewInstance ();
+			var mInjector = Injector.NewInstance ();
 			var res = mInjector.Resolve<MyIFace> ();
 
 			Assert.IsNotNull (res);
@@ -188,7 +188,7 @@ namespace IfFastInjectorMxTest
 
 		[Test]
 		public void CheckImplementedByOverrideAndAmbiguity() {
-			var mInjector = IfInjector.NewInstance ();
+			var mInjector = Injector.NewInstance ();
 
 			// Check - ambiguous situation where Resolve<XXX> may be for type with an @IfImplementedBy; but the user explicitly Bind<YYY> where YYY : XXX.
 			mInjector.Bind<MyIFace, MyIFaceImpl>().AsSingleton();
@@ -211,13 +211,13 @@ namespace IfFastInjectorMxTest
 			Assert.IsFalse (object.ReferenceEquals(res1, res5));
 		}
 
-		[IfSingleton]
+		[Singleton]
 		class MySingletonBase {}
 		class MyNonSingletonDerived : MySingletonBase {}
 
 		[Test]
 		public void CheckSingletonBehavior() {
-			var mInjector = IfInjector.NewInstance ();
+			var mInjector = Injector.NewInstance ();
 
 			var res1 = mInjector.Resolve<MyNonSingletonDerived> ();
 			var res2 = mInjector.Resolve<MyNonSingletonDerived> ();
@@ -232,7 +232,7 @@ namespace IfFastInjectorMxTest
 
 		[Test]
 		public void CheckOverrideSingletonBehavior() {
-			var mInjector = IfInjector.NewInstance ();
+			var mInjector = Injector.NewInstance ();
 			mInjector.Bind<MySingletonBase> ().AsSingleton (false);
 
 			var res1 = mInjector.Resolve<MySingletonBase> ();

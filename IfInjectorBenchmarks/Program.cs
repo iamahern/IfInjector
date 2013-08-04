@@ -7,16 +7,16 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Diagnostics;
 
-using IfFastInjector;
+using IfInjector;
 
-namespace IfFastInjectorBenchmarks
+namespace IfInjectorMain
 {
 	class MainClass
 	{
 		interface MyTestInterface { }
 		class MyTestClass : MyTestInterface { }
 
-		static IfFastInjector.IfInjector injector = IfFastInjector.IfInjector.NewInstance();
+		static Injector injector = Injector.NewInstance();
 
 		public static void Main (string[] args)
 		{

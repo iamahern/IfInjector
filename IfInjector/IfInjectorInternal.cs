@@ -5,11 +5,11 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
-using IfFastInjector.IfInjectorTypes;
+using IfInjector.IfInjectorTypes;
 
-namespace IfFastInjector
+namespace IfInjector
 {
-	internal abstract class IfFastInjectorInternal
+	internal abstract class InjectorInternal
 	{
 		protected internal interface IRegistration {
 			bool IsSingleton { get; }
@@ -54,14 +54,14 @@ namespace IfFastInjector
 		/// <summary>
 		/// The actual injector implementation.
 		/// </summary>
-		internal class InjectorInternal : IfInjector
+		internal class InjectorImpl : Injector
 		{		
 			// Thread safety via lock (internalResolvers) 
 			private readonly object syncLock = new object();
 			private readonly SafeDictionary<Type, InjectorTypeConstruct> allTypeConstructs;
 			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
 
-			public InjectorInternal() 
+			public InjectorImpl() 
 			{
 				// Init dictionaries
 				allTypeConstructs = new SafeDictionary<Type, InjectorTypeConstruct>(syncLock);
@@ -89,20 +89,20 @@ namespace IfFastInjector
 					if (lookup.Count == 1) {
 						return ResolveResolver (lookup.First());
 					} else {
-						throw IfFastInjectorErrors.ErrorAmbiguousBinding.FormatEx(type.Name);
+						throw InjectorErrors.ErrorAmbiguousBinding.FormatEx(type.Name);
 					}
 				} else {
 					return BindImplicit (type);
 				}
 			}
 
-			public override IfFastInjectorBinding<TConcreteType> Bind<T, TConcreteType>()
+			public override IInjectorBinding<TConcreteType> Bind<T, TConcreteType>()
 			{
 				var iResolver = BindExplicit<T, TConcreteType> ();
 				return new InjectorFluent<TConcreteType>(iResolver);
 			}
 
-			protected override IfInjectorTypes.IfFastInjectorBinding<CT> Bind<T,CT> (LambdaExpression factoryExpression)
+			protected override IfInjectorTypes.IInjectorBinding<CT> Bind<T,CT> (LambdaExpression factoryExpression)
 			{
 				var iResolver = BindExplicit<T, CT> (factoryExpression);
 				return new InjectorFluent<CT>(iResolver);
@@ -134,7 +134,7 @@ namespace IfFastInjector
 					InjectorTypeConstruct typeConstruct;
 					if (allTypeConstructs.TryGetValue (bindType, out typeConstruct)) {
 						if (typeConstruct.IsInternalResolverPending) {
-							throw IfFastInjectorErrors.ErrorResolutionRecursionDetected.FormatEx(bindType.Name);
+							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(bindType.Name);
 						}
 						return typeConstruct.MyRegistration;
 					}
@@ -157,9 +157,9 @@ namespace IfFastInjector
 			}
 
 			protected internal Type GetIfImplementedBy(Type type) {
-				var implTypeAttrs = type.GetCustomAttributes(typeof(IfImplementedByAttribute), false);
+				var implTypeAttrs = type.GetCustomAttributes(typeof(ImplementedByAttribute), false);
 				if (implTypeAttrs.Length > 0) {
-					return (implTypeAttrs[0] as IfImplementedByAttribute).Implementor;
+					return (implTypeAttrs[0] as ImplementedByAttribute).Implementor;
 				}
 				return null;
 			}
@@ -232,12 +232,12 @@ namespace IfFastInjector
 
 			private readonly HashSet<Type> dependencies = new HashSet<Type>();
 
-			private readonly InjectorInternal injector;
+			private readonly InjectorImpl injector;
 			private readonly InjectorTypeConstruct typeConstruct;
 
 			public bool IsSingleton { get; private set; }
 
-			public Registration(InjectorInternal injector, InjectorTypeConstruct typeConstruct, Type keyType, object syncLock, LambdaExpression factoryExpression)
+			public Registration(InjectorImpl injector, InjectorTypeConstruct typeConstruct, Type keyType, object syncLock, LambdaExpression factoryExpression)
 			{
 				this.keyType = keyType;
 				this.syncLock = syncLock;
@@ -312,7 +312,7 @@ namespace IfFastInjector
 				else
 				{
 					// try to find the default constructor and create a default resolver from it
-					var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IfIgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(IfInjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
+					var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(InjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
 
 					if (constructor != null) {
 						MyConstructor = constructor;
@@ -324,7 +324,7 @@ namespace IfFastInjector
 
 			private T ThrowInterfaceException()
 			{
-				throw IfFastInjectorErrors.ErrorUnableToResultInterface.FormatEx(typeof(T).FullName);
+				throw InjectorErrors.ErrorUnableToResultInterface.FormatEx(typeof(T).FullName);
 			}
 
 			public void AddPropertySetter(PropertyInfo propertyInfo, LambdaExpression setter)
@@ -393,7 +393,7 @@ namespace IfFastInjector
 				lock (syncLock) {
 					if (!isVerifiedNotRecursive) {
 						if (IsRecursionTestPending) {
-							throw IfFastInjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
+							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
 						}
 						IsRecursionTestPending = true;
 					}
@@ -417,7 +417,7 @@ namespace IfFastInjector
 					if (!IsResolved()) {
 						// START: Handle compile loop
 						if (IsRecursionTestPending) {
-							throw IfFastInjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
+							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
 						}
 						IsRecursionTestPending = true; 
 
@@ -531,7 +531,7 @@ namespace IfFastInjector
 			}
 		}
 
-		protected internal class InjectorFluent<T> : IfFastInjectorBinding<T>
+		protected internal class InjectorFluent<T> : IInjectorBinding<T>
 			where T : class 
 		{ 
 			private readonly Registration<T> resolver;
@@ -540,21 +540,21 @@ namespace IfFastInjector
 				this.resolver = resolver;
 			}
 
-			public IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
+			public IInjectorBinding<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
 				where TPropertyType : class
 			{
 				return AddPropertyInjectorInner (propertyExpression, null);
 			}
 
-			public IfFastInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+			public IInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
 			{
 				return AddPropertyInjectorInner (propertyExpression, setter);
 			}
 
-			private IfFastInjectorBinding<T> AddPropertyInjectorInner<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
+			private IInjectorBinding<T> AddPropertyInjectorInner<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
 				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
 				if (propertyMemberExpression == null) {
-					throw IfFastInjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
+					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
 				}
 
 				var member = propertyMemberExpression.Member;
@@ -563,13 +563,13 @@ namespace IfFastInjector
 				} else if (member is FieldInfo) {
 					resolver.AddFieldSetter (member as FieldInfo, setter);
 				} else {
-					throw IfFastInjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
+					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
 				}
 
 				return this;
 			}
 
-			public IfFastInjectorBinding<T> AsSingleton (bool singlton = true) {
+			public IInjectorBinding<T> AsSingleton (bool singlton = true) {
 				resolver.AsSingleton (singlton);
 				return this;
 			}
@@ -629,7 +629,7 @@ namespace IfFastInjector
 
 		private static readonly MethodInfo GenericSetupImplicitPropResolvers;
 
-		static IfFastInjectorInternal() {
+		static InjectorInternal() {
 			Expression<Action<Registration<Exception>>> TmpBindingExpression = (r) => SetupImplicitPropResolvers<Exception>(r);
 			GenericSetupImplicitPropResolvers = ((MethodCallExpression)TmpBindingExpression.Body).Method.GetGenericMethodDefinition();
 		}			
@@ -647,7 +647,7 @@ namespace IfFastInjector
 							 select new { Info = f as MemberInfo, MemType = f.FieldType };
 
 				var propsAndFields = props.Union(fields)
-						.Where(pf => pf.Info.GetCustomAttributes(typeof(IfInjectAttribute), true).Length != 0)
+						.Where(pf => pf.Info.GetCustomAttributes(typeof(InjectAttribute), true).Length != 0)
 						.Where (pf => pf.Info.DeclaringType == typeT);
 
 				foreach (var pf in propsAndFields) {
@@ -656,7 +656,7 @@ namespace IfFastInjector
 			} while ((typeT = typeT.BaseType) != null && typeT != typeof(object));
 
 			// setup singleton
-			if (typeof(T).GetCustomAttributes (typeof(IfSingletonAttribute), false).Length > 0) {
+			if (typeof(T).GetCustomAttributes (typeof(SingletonAttribute), false).Length > 0) {
 				resolver.AsSingleton (true);
 			}
 		}
@@ -665,7 +665,7 @@ namespace IfFastInjector
 			where T : class 
 		{
 			if (!memberType.IsClass && !memberType.IsInterface) {
-				throw IfFastInjectorErrors.ErrorUnableToBindNonClassFieldsProperties.FormatEx(memberName, typeof(T).Name);
+				throw InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.FormatEx(memberName, typeof(T).Name);
 			}
 
 			if (memberInfo is PropertyInfo) {

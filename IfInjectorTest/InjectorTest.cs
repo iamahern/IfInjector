@@ -1,8 +1,8 @@
 ﻿using System;
 using NUnit.Framework;
-using IfFastInjector;
+using IfInjector;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
     [TestFixture]
     public class InjectorTest
@@ -10,7 +10,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void ResolveInterface()
         {
-			IfInjector injector = IfInjector.NewInstance();
+			Injector injector = Injector.NewInstance();
 			injector.Bind<MyInterface, MyTestClass>();
 
 			var result = injector.Resolve<MyInterface>();
@@ -21,14 +21,14 @@ namespace IfFastInjectorMxTest
         [Test]
         public void ResolveDefaultConcrete()
         {
-			IfInjector injector = IfInjector.NewInstance();
+			Injector injector = Injector.NewInstance();
 			var result = injector.Resolve<MyTestClass>();
             Assert.IsInstanceOf<MyTestClass>(result);
         }
 
 		[Test]
 		public void ResolveConcreteTypeSame() {
-			IfInjector injector = IfInjector.NewInstance();
+			Injector injector = Injector.NewInstance();
 			injector.Bind<MyTestClass, MyTestClass>();
 			var result = injector.Resolve<MyTestClass>();
 			Assert.IsInstanceOf<MyTestClass>(result);
@@ -36,7 +36,7 @@ namespace IfFastInjectorMxTest
 
 		[Test]
 		public void BindConcreteType() {
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<MyTestClass>();
 			var result = injector.Resolve<MyTestClass>();
 			Assert.IsInstanceOf<MyTestClass>(result);
@@ -45,7 +45,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void InjectProperty()
         {
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector
                 .Bind<MyInterface, MyTestClass>()
              	.AddPropertyInjector(v => v.MyProperty)
@@ -92,7 +92,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void TestSelectConstructorByAttribute()
         {
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<TestSelectConstructorByAttributeTestClass.IMyOtherInterface, TestSelectConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
 			var result = injector.Resolve<TestSelectConstructorByAttributeTestClass>();
@@ -108,7 +108,7 @@ namespace IfFastInjectorMxTest
                 CorrectConstructorWasUsed = false;
             }
 
-            [IfInject]
+            [Inject]
             public TestSelectConstructorByAttributeTestClass(IMyOtherInterface dep)
             {
                 CorrectConstructorWasUsed = true;
@@ -123,7 +123,7 @@ namespace IfFastInjectorMxTest
         [Test]
         public void TestSelectConstructorByIgnoreAttribute()
         {
-			IfInjector injector = IfInjector.NewInstance();
+			var injector = Injector.NewInstance();
 			injector.Bind<TestIgnoreConstructorByAttributeTestClass.IMyOtherInterface, TestIgnoreConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
 			var result = injector.Resolve<TestIgnoreConstructorByAttributeTestClass>();
@@ -134,7 +134,7 @@ namespace IfFastInjectorMxTest
 
         class TestIgnoreConstructorByAttributeTestClass
         {
-            [IfIgnoreConstructor]
+            [IgnoreConstructor]
             public TestIgnoreConstructorByAttributeTestClass()
             {
                 CorrectConstructorWasUsed = false;

@@ -1,14 +1,14 @@
 using System;
 using NUnit.Framework;
-using IfFastInjector;
-using IfFastInjector.IfInjectorTypes;
+using IfInjector;
+using IfInjector.IfInjectorTypes;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
     [TestFixture]
     public class UnitTest2
     {
-		private IfInjector injector = IfInjector.NewInstance();
+		private Injector injector = Injector.NewInstance();
 
         class TestClassSetResolverByConstructorInfoTest
         {
@@ -54,12 +54,12 @@ namespace IfFastInjectorMxTest
         [Test]
         public void InterfaceExceptionTest()
         {
-			IfFastInjectorException exception = null;
+			InjectorException exception = null;
             try
             {
 				injector.Resolve<IInterfaceExceptionTest>();
             }
-			catch (IfFastInjectorException ex)
+			catch (InjectorException ex)
             {
                 exception = ex;
             }
@@ -74,12 +74,12 @@ namespace IfFastInjectorMxTest
         {
 			var binding = injector.Bind<TestClassAddPropertyInjectorTest>();
 
-            IfFastInjectorException exception = null;
+			InjectorException exception = null;
             try
             {
 				binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => "");
             }
-			catch (IfFastInjectorException ex)
+			catch (InjectorException ex)
             {
                 exception = ex;
             }
@@ -90,8 +90,8 @@ namespace IfFastInjectorMxTest
         [Test]
         public void ExceptionConstructorTest()
         {
-			var ex1 = new IfFastInjectorException(IfFastInjectorErrors.ErrorAmbiguousBinding, "foobar");
-			var ex2 = new IfFastInjectorException(IfFastInjectorErrors.ErrorAmbiguousBinding, "something", ex1);
+			var ex1 = new InjectorException(InjectorErrors.ErrorAmbiguousBinding, "foobar");
+			var ex2 = new InjectorException(InjectorErrors.ErrorAmbiguousBinding, "something", ex1);
 
             Assert.IsNotNull(ex1);
             Assert.IsNotNull(ex2);
@@ -101,10 +101,10 @@ namespace IfFastInjectorMxTest
 		public void ExceptionErrorCodeFormattingTest()
 		{
 			var random = Guid.NewGuid ().ToString ();
-			var ex = IfFastInjectorErrors.ErrorAmbiguousBinding.FormatEx (random);
+			var ex = InjectorErrors.ErrorAmbiguousBinding.FormatEx (random);
 
-			Assert.AreEqual (string.Format (IfFastInjectorErrors.ErrorAmbiguousBinding.MessageTemplate, random), ex.Message);
-			Assert.AreEqual ("IF0004", IfFastInjectorErrors.ErrorAmbiguousBinding.MessageCode);
+			Assert.AreEqual (string.Format (InjectorErrors.ErrorAmbiguousBinding.MessageTemplate, random), ex.Message);
+			Assert.AreEqual ("IF0004", InjectorErrors.ErrorAmbiguousBinding.MessageCode);
 		}
     }
 }

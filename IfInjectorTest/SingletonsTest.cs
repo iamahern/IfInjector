@@ -1,9 +1,9 @@
 using NUnit.Framework;
 using System;
 
-using IfFastInjector;
+using IfInjector;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
 	[TestFixture()]
 	public class SingletonsTest
@@ -11,7 +11,7 @@ namespace IfFastInjectorMxTest
 		[Test()]
 		public void TestSingletonWithSetResolver ()
 		{
-			IfInjector injector = IfInjector.NewInstance ();
+			var injector = Injector.NewInstance ();
 
 			injector.Bind<MyIFace, MyClass> ().AsSingleton ();
 
@@ -24,7 +24,7 @@ namespace IfFastInjectorMxTest
 		[Test()]
 		public void TestSingletonWithForConcreteType ()
 		{
-			IfInjector injector = IfInjector.NewInstance ();
+			var injector = Injector.NewInstance ();
 
 			injector.Bind<MyClass> ().AsSingleton ();
 

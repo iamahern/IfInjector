@@ -1,9 +1,9 @@
 using NUnit.Framework;
 using System;
 
-using IfFastInjector;
+using IfInjector;
 
-namespace IfFastInjectorMxTest
+namespace IfInjectorTest
 {
 	[TestFixture()]
 	public class ConcreteTypesTest
@@ -13,7 +13,7 @@ namespace IfFastInjectorMxTest
 		{
 			string expectX = "foobar";
 
-			IfInjector injector = IfInjector.NewInstance ();
+			var injector = Injector.NewInstance ();
 			injector.Bind<Foo, Bar> ()
 				.AddPropertyInjector (v => v.X, () => expectX);
 
@@ -25,7 +25,7 @@ namespace IfFastInjectorMxTest
 		[Test()]
 		public void TestTypeSingletonsForInterfaceBindings ()
 		{
-			IfInjector injector = IfInjector.NewInstance ();
+			var injector = Injector.NewInstance ();
 			injector.Bind<Foo, Bar> ().AsSingleton();
 
 			Foo a = injector.Resolve<Foo> ();

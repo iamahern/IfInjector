@@ -5,10 +5,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>10.0.0</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{083C5427-83BA-4579-A000-AC49EE2F4105}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>IfFastInjectorMxTest</RootNamespace>
-    <AssemblyName>IfFastInjectorMxTest</AssemblyName>
+    <ProjectGuid>{1254F89A-40A7-4F96-95AC-6483C64713B5}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>IfFastInjectorBenchmarks</RootNamespace>
+    <AssemblyName>IfFastInjectorBenchmarks</AssemblyName>
+    <ReleaseVersion>0.3</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -17,43 +18,29 @@
     <DefineConstants>DEBUG;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
+    <Externalconsole>true</Externalconsole>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <Optimize>true</Optimize>
     <OutputPath>bin\Release</OutputPath>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <ConsolePause>false</ConsolePause>
+    <Externalconsole>true</Externalconsole>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="nunit.framework">
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Original_fFastInjector.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <Compile Include="InjectorTest.cs" />
-    <Compile Include="ResolverLoopTest.cs" />
-    <Compile Include="UnitTest1.cs" />
-    <Compile Include="UnitTest2.cs" />
-    <Compile Include="MultipleInjectorsTest.cs" />
-    <Compile Include="SingletonsTest.cs" />
-    <Compile Include="ImplicitTypeTest.cs" />
-    <Compile Include="ConcreteTypesTest.cs" />
-    <Compile Include="PropertyInjectionTest.cs" />
-    <Compile Include="BindingAttributeTest.cs" />
-    <Compile Include="RecompilationTests.cs" />
-    <Compile Include="FactoryTest.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\IfFastInjector\IfFastInjector.csproj">
+    <ProjectReference Include="..\IfInjector\IfInjector.csproj">
       <Project>{E223D620-7563-4C59-8361-B10A7C398723}</Project>
-      <Name>IfFastInjector</Name>
+      <Name>IfInjector</Name>
     </ProjectReference>
   </ItemGroup>
 </Project>
