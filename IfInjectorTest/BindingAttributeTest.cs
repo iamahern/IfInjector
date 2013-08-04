@@ -104,7 +104,7 @@ namespace IfInjectorTest
 		public void FactoryConstructorAutoBinding()
 		{
 			var mInjector = Injector.NewInstance ();
-			mInjector.Bind<Parent, Outer> (() => new Outer()).AsSingleton();
+			mInjector.Bind<Parent, Outer> ().SetFactory(() => new Outer()).AsSingleton();
 			mInjector.Bind<Inner> ().AsSingleton ();
 
 			var res = injector.Resolve<Parent> ();
@@ -160,7 +160,7 @@ namespace IfInjectorTest
 				gbInjector.Bind<T> ();
 				Assert.Fail("Attempting to bind should fail");
 			} catch (InjectorException ex) {
-				Assert.AreEqual (string.Format(InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.MessageTemplate, "Bad", typeof(T).Name), ex.Message);
+				Assert.AreEqual (string.Format(InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.MessageTemplate, "Bad", typeof(T).FullName), ex.Message);
 			}
 		}
 

@@ -1,9 +1,14 @@
 
 - Need for IDisposable???
 
-- Check on IfInject of private Constructors
+- DEFECT:
+	- InjectProperties() uses Bind<> rather than implicit binding
+		- Add test case
+		
+- MISSING FEATURES:
+	- InjectStatic()
+	- Add Verify()
 
-- Error + test for InitConstructor
-
-- DONE: Closed performance differences: 
-	http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison
+- WISH LIST:
+	- Generics
+	- Custom LifeCycles

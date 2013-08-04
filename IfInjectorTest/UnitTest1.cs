@@ -15,7 +15,7 @@ namespace IfInjectorTest
         {
             var x = new myClass();
 
-			injector.Bind<myInterface, myClass>(() => GetNew());
+			injector.Bind<myInterface, myClass>().SetFactory(() => GetNew());
 
 			var z1 = injector.Resolve<myInterface>();
 			var z2 = injector.Resolve<myInterface>();
@@ -39,11 +39,7 @@ namespace IfInjectorTest
 		{
 			MyTestResolverReplaceDependency dep = new MyTestResolverReplaceDependency ();
 
-			injector.Bind<MyTestResolverReplace, MyTestResolverReplace> (() => new MyTestResolverReplace(dep));
-
-			// TODO - Fix test; is this OK?
-            //var resolverExpression = Injector.InternalResolver<MyTestResolverReplace>.ResolverExpression;
-            //Assert.IsTrue(resolverExpression.ToString().Contains("Invoke(InternalResolver`1.Resolve"));
+			injector.Bind<MyTestResolverReplace>().SetFactory(() => new MyTestResolverReplace(dep));
 
 			var result = injector.Resolve<MyTestResolverReplace>();
 			Assert.IsTrue (object.ReferenceEquals(dep, result.dependency));

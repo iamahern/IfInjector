@@ -71,42 +71,19 @@ namespace IfInjector
 		/// <returns>The resolver.</returns>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TConcreteType">The 2nd type parameter.</typeparam>
-		public abstract IfInjectorTypes.IInjectorBinding<TConcreteType> Bind<T, TConcreteType> ()
-			where T : class
-			where TConcreteType : class, T;
+		public abstract IfInjectorTypes.IInjectorBinding<CType> Bind<BType, CType> ()
+			where BType : class
+			where CType : class, BType;
 
 		/// <summary>
 		/// Sets the resolver.
 		/// </summary>
 		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
-		public IfInjectorTypes.IInjectorBinding<TConcreteType> Bind<TConcreteType> ()
-			where TConcreteType : class
+		public IfInjectorTypes.IInjectorBinding<CType> Bind<CType> ()
+			where CType : class
 		{
-			return Bind<TConcreteType, TConcreteType> ();
+			return Bind<CType, CType> ();
 		}
-
-		/// <summary>
-		/// Bind the specified factoryExpression.
-		/// </summary>
-		/// <param name="factoryExpression">Factory expression.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		/// <typeparam name="CT">The 2nd type parameter. This parameter is required to allow for auto-injection of factory provided object.</typeparam>
-		public IfInjectorTypes.IInjectorBinding<CT> Bind<T,CT> (Expression<Func<CT>> factoryExpression)
-			where T : class
-			where CT : class, T
-		{
-			return Bind<T,CT> (factoryExpression as LambdaExpression);
-		}
-		
-		/// <summary>
-		/// Bind the specified factoryExpression.
-		/// </summary>
-		/// <param name="factoryExpression">Factory expression.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		/// <typeparam name="CT">The 2nd type parameter.</typeparam>
-		protected abstract IfInjectorTypes.IInjectorBinding<CT> Bind<T,CT> (LambdaExpression factoryExpression)
-			where T : class
-			where CT : class, T;
 
 		/// <summary>
 		/// Injects the properties of an instance.
@@ -116,65 +93,50 @@ namespace IfInjector
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		public abstract T InjectProperties<T> (T instance)
 			where T : class;
-
-		/// <summary>
-		/// Binds the lambda factory. Do not use thid directly, but instead create extension methods that take N-input Func<> methods.
-		/// </summary>
-		/// <returns>The lambda factory.</returns>
-		/// <param name="injector">Injector.</param>
-		/// <param name="factoryExpression">Factory expression.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		/// <typeparam name="CT">The 2nd type parameter.</typeparam>
-		public static IfInjectorTypes.IInjectorBinding<CT> BindFactory<T,CT> (Injector injector, LambdaExpression factoryExpression) 
-			where T : class
-			where CT : class, T
-		{
-			return injector.Bind<T,CT> (factoryExpression);
-		}
 	}
 
-	namespace IfInjectorExtensions {
-		/// <summary>
-		/// Provide extension methods up to Func<P1..P4,CT>
-		/// </summary>
-		public static class InjectorBindingExtensions {
-			public static IfInjectorTypes.IInjectorBinding<CT> Bind<T,P1,CT>(this Injector injector, Expression<Func<P1,CT>> factoryExpression) 
-				where T : class
-				where CT : class, T
-				where P1 : class
-			{
-				return Injector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
-			}
+	/// <summary>
+	/// Provide extension methods for Func<P1..P4,CT>
+	/// </summary>
+	public static class InjectorBindingExtensions {
+		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<CT>> factoryExpression) 
+			where CT : class
+		{
+			return binding.SetFactoryLambda (factoryExpression);
+		}
 
-			public static IfInjectorTypes.IInjectorBinding<CT> Bind<T,P1,P2,CT>(this Injector injector, Expression<Func<P1,P2,CT>> factoryExpression) 
-				where T : class
-				where CT : class, T
-				where P1 : class
-				where P2 : class
-			{
-				return Injector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
-			}
+		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,CT>> factoryExpression) 
+			where CT : class
+			where P1 : class
+		{
+			return binding.SetFactoryLambda (factoryExpression);
+		}
 
-			public static IfInjectorTypes.IInjectorBinding<CT> Bind<T,P1,P2,P3,CT>(this Injector injector, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
-				where T : class
-				where CT : class, T
-				where P1 : class
-				where P2 : class
-				where P3 : class
-			{
-				return Injector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
-			}
+		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,P2,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
+			where CT : class
+			where P1 : class
+			where P2 : class
+		{
+			return binding.SetFactoryLambda (factoryExpression);
+		}
 
-			public static IfInjectorTypes.IInjectorBinding<CT> Bind<T,P1,P2,P3,P4,CT>(this Injector injector, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
-				where T : class
-				where CT : class, T
-				where P1 : class
-				where P2 : class
-				where P3 : class
-				where P4 : class
-			{
-				return Injector.BindFactory<T,CT> (injector, factoryExpression as LambdaExpression);
-			}
+		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,P2,P3,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
+			where CT : class
+			where P1 : class
+			where P2 : class
+			where P3 : class
+		{
+			return binding.SetFactoryLambda (factoryExpression);
+		}
+
+		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,P2,P3,P4,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
+			where CT : class
+			where P1 : class
+			where P2 : class
+			where P3 : class
+			where P4 : class
+		{
+			return binding.SetFactoryLambda (factoryExpression);
 		}
 	}
 
@@ -215,6 +177,7 @@ namespace IfInjector
 			public static readonly InjectorError ErrorMustContainMemberExpression = new InjectorError(3, "Must contain a MemberExpression");
 			public static readonly InjectorError ErrorAmbiguousBinding =  new InjectorError(4, "Multiple implicit bindings exist for type: {0}. Please disambiguate by adding an explicit binding for this type.");
 			public static readonly InjectorError ErrorUnableToBindNonClassFieldsProperties = new InjectorError(5, "Autoinjection is only supported on single instance 'class' fields. Please define a manual binding for the field or property '{0}' on class '{1}'.");
+			public static readonly InjectorError ErrorNoAppropriateConstructor = new InjectorError (6, "No appropriate constructor for type: {0}.");
 		}
 
 		/// <summary>
@@ -238,14 +201,16 @@ namespace IfInjector
 		/// The fluent class is really only important to give the extension methods the type for T. 
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		public interface IInjectorBinding<T> where T : class
+		public interface IInjectorBinding<CType> where CType : class
 		{
-			IInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression) 
+			IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression);
+
+			IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
 				where TPropertyType : class;
 
-			IInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
+			IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
 
-			IInjectorBinding<T> AsSingleton (bool singlton = true);
+			IInjectorBinding<CType> AsSingleton (bool singlton = true);
 		}
 	}
 }

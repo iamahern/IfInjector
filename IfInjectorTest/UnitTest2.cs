@@ -106,5 +106,22 @@ namespace IfInjectorTest
 			Assert.AreEqual (string.Format (InjectorErrors.ErrorAmbiguousBinding.MessageTemplate, random), ex.Message);
 			Assert.AreEqual ("IF0004", InjectorErrors.ErrorAmbiguousBinding.MessageCode);
 		}
+
+		class NoProperConstructor {
+			private NoProperConstructor() {}
+		}
+
+		[Test]
+		public void NoProperConstructorTest() {
+			var injector = Injector.NewInstance ();
+			var ex1 = InjectorErrors.ErrorNoAppropriateConstructor.FormatEx (typeof(NoProperConstructor).FullName);
+
+			try { 
+				injector.Resolve<NoProperConstructor>();
+				Assert.Fail();
+			} catch (InjectorException ex) {
+				Assert.AreEqual (ex1.ErrorType.MessageCode, ex.ErrorType.MessageCode);
+			}
+		}
     }
 }

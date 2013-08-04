@@ -11,61 +11,32 @@ namespace IfInjector
 {
 	internal abstract class InjectorInternal
 	{
-		protected internal interface IRegistration {
-			bool IsSingleton { get; }
+		protected internal interface IResolver {
 			void ConditionalClearResolver (Type touched);
-
 			object DoResolve ();
 			Expression GetResolveExpr (HashSet<Type> callerDeps);
 		}
-
-		protected internal class InjectorTypeConstruct {
-			public IRegistration MyRegistration { get; set; }
-			public bool IsRecursionTestPending { get; set; }
-			public bool IsInternalResolverPending { get; set; }
-
-			public ISet<Type> ImplicitTypes { get; private set; }
-
-			public InjectorTypeConstruct() {
-				IsInternalResolverPending = true;
-			}
-		}
-
-		/// <summary>
-		/// Gets the implicit types.
-		/// </summary>
-		/// <returns>The implicit types.</returns>
-		/// <param name="boundType">Bound type.</param>
-		protected internal static ISet<Type> GetImplicitTypes(Type boundType) {
-			var implicitTypes = new HashSet<Type>();
-
-			foreach (Type iFace in boundType.GetInterfaces()) {
-				implicitTypes.Add(iFace);
-			}
-
-			Type wTypeChain = boundType;
-			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-				implicitTypes.Add(wTypeChain);
-			}
-
-			return implicitTypes;
-		}
-
+		
 		/// <summary>
 		/// The actual injector implementation.
 		/// </summary>
 		internal class InjectorImpl : Injector
 		{		
-			// Thread safety via lock (internalResolvers) 
 			private readonly object syncLock = new object();
-			private readonly SafeDictionary<Type, InjectorTypeConstruct> allTypeConstructs;
+			private readonly MethodInfo createResolverInstanceGeneric;
+
+			private readonly SafeDictionary<Type, IResolver> allTypeConstructs;
 			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
 
 			public InjectorImpl() 
 			{
 				// Init dictionaries
-				allTypeConstructs = new SafeDictionary<Type, InjectorTypeConstruct>(syncLock);
+				allTypeConstructs = new SafeDictionary<Type, IResolver>(syncLock);
 				implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> (syncLock);
+
+				// Init resolver
+				Expression<Action> tmpExpr = () => CreateResolverInstanceGeneric<Exception, Exception>();
+				createResolverInstanceGeneric = ((MethodCallExpression)tmpExpr.Body).Method.GetGenericMethodDefinition();
 			}
 
 			public override object Resolve(Type type)
@@ -75,16 +46,16 @@ namespace IfInjector
 
 			public override T InjectProperties<T> (T instance)
 			{
-				return ((Registration<T>)ResolveResolver (typeof(T))).DoInject (instance);
+				return ((Resolver<T>)ResolveResolver (typeof(T))).DoInject (instance);
 			}
 
-			protected internal IRegistration ResolveResolver(Type type)
+			protected internal IResolver ResolveResolver(Type type)
 			{
 				ISet<Type> lookup;
-				InjectorTypeConstruct typeInfo;
+				IResolver resolver;
 
-				if (allTypeConstructs.UnsyncedTryGetValue (type, out typeInfo) && typeInfo.MyRegistration != null) {
-					return typeInfo.MyRegistration;
+				if (allTypeConstructs.UnsyncedTryGetValue (type, out resolver)) {
+					return resolver;
 				} else if (implicitTypeLookup.UnsyncedTryGetValue (type, out lookup) && lookup.Count > 0) {
 					if (lookup.Count == 1) {
 						return ResolveResolver (lookup.First());
@@ -96,67 +67,54 @@ namespace IfInjector
 				}
 			}
 
-			public override IInjectorBinding<TConcreteType> Bind<T, TConcreteType>()
+			public override IInjectorBinding<CType> Bind<BType, CType>()
 			{
-				var iResolver = BindExplicit<T, TConcreteType> ();
-				return new InjectorFluent<TConcreteType>(iResolver);
+				var iResolver = BindExplicit<BType, CType> ();
+				return new InjectorBinding<CType>(iResolver);
 			}
 
-			protected override IfInjectorTypes.IInjectorBinding<CT> Bind<T,CT> (LambdaExpression factoryExpression)
-			{
-				var iResolver = BindExplicit<T, CT> (factoryExpression);
-				return new InjectorFluent<CT>(iResolver);
-			}
-
-			private Registration<CType> BindExplicit<BType, CType>(LambdaExpression factoryExpression = null)
+			private Resolver<CType> BindExplicit<BType, CType>()
 				where BType : class
 				where CType : class, BType
 			{
 				lock (syncLock) {
 					Type bindType = typeof(BType);
-					InjectorTypeConstruct typeConstruct = new InjectorTypeConstruct ();
 
 					implicitTypeLookup.Remove (bindType);
 					allTypeConstructs.Remove (bindType);
-					allTypeConstructs.Add (bindType, typeConstruct);
+
+					// Add after create resolver
+					var resolver = CreateResolverInstanceGeneric<BType, CType> ();
 					AddImplicitTypes (bindType, GetImplicitTypes(bindType));
 
-					CreateInternalResolverInstance (bindType, typeof(CType), typeConstruct, factoryExpression);
+					ClearDependentResolvers (bindType);
 
-					ClearResolver (bindType);
-
-					return (Registration<CType>) typeConstruct.MyRegistration;
+					return (Resolver<CType>) resolver;
 				}
 			}
 
-			private IRegistration BindImplicit(Type bindType) {
+			private IResolver BindImplicit(Type bindType) {
 				lock (syncLock) {
-					InjectorTypeConstruct typeConstruct;
-					if (allTypeConstructs.TryGetValue (bindType, out typeConstruct)) {
-						if (typeConstruct.IsInternalResolverPending) {
-							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(bindType.Name);
-						}
-						return typeConstruct.MyRegistration;
+					IResolver resolver;
+					if (allTypeConstructs.TryGetValue (bindType, out resolver)) {
+						return resolver;
 					}
-
-					typeConstruct = new InjectorTypeConstruct ();
-					allTypeConstructs.Add (bindType, typeConstruct);
 
 					// Handle implementedBy
 					var implType = GetIfImplementedBy (bindType);
 					if (implType != null) {
-						CreateInternalResolverInstance (bindType, implType, typeConstruct);
+						resolver = CreateResolverInstance (bindType, implType);
 					} else {
-						CreateInternalResolverInstance (bindType, bindType, typeConstruct);
+						resolver = CreateResolverInstance (bindType, bindType);
 					}
 
-					ClearResolver (bindType);
+					ClearDependentResolvers (bindType);
 
-					return typeConstruct.MyRegistration;
+					return resolver;
 				}
 			}
 
-			protected internal Type GetIfImplementedBy(Type type) {
+			private Type GetIfImplementedBy(Type type) {
 				var implTypeAttrs = type.GetCustomAttributes(typeof(ImplementedByAttribute), false);
 				if (implTypeAttrs.Length > 0) {
 					return (implTypeAttrs[0] as ImplementedByAttribute).Implementor;
@@ -164,17 +122,25 @@ namespace IfInjector
 				return null;
 			}
 
-			private void CreateInternalResolverInstance(Type keyType, Type implType, InjectorTypeConstruct typeConstruct, LambdaExpression factoryExpression = null) {
+			private IResolver CreateResolverInstance(Type keyType, Type implType) {
 				try {
-					Type iResolverType = typeof(Registration<>);
-					Type genericType = iResolverType.MakeGenericType(new Type[] { implType });
-					typeConstruct.MyRegistration = (IRegistration) Activator.CreateInstance(genericType, this, typeConstruct, keyType, syncLock, factoryExpression);
-					typeConstruct.IsInternalResolverPending = false;
-
-					SetupImplicitPropResolvers (typeConstruct.MyRegistration, implType);
+					return (IResolver) createResolverInstanceGeneric.MakeGenericMethod(keyType, implType).Invoke(this, new object[]{});
 				} catch (TargetInvocationException ex) {
 					throw ex.InnerException;
 				}
+			}
+
+			private Resolver<CType> CreateResolverInstanceGeneric<BType, CType>() 
+				where BType : class
+				where CType : class, BType
+			{
+				var bindType = typeof(BType);
+				var resolver = new Resolver<CType> (this, bindType, syncLock);
+
+				allTypeConstructs.Add (bindType, resolver);
+				SetupImplicitPropResolvers<CType> (resolver);
+
+				return resolver;
 			}
 
 			private void AddImplicitTypes(Type boundType, ISet<Type> implicitTypes) {
@@ -199,23 +165,28 @@ namespace IfInjector
 				}
 			}
 
-			protected internal void ClearResolver(Type keyType) {
+			/// <summary>
+			/// Clears the dependent resolvers.
+			/// </summary>
+			/// <param name="keyType">Key type.</param>
+			protected internal void ClearDependentResolvers(Type keyType) {
 				lock (syncLock) {
-					foreach (var constructs in allTypeConstructs.Values.Where(c => c.MyRegistration != null)) {
-						constructs.MyRegistration.ConditionalClearResolver (keyType);
+					foreach (var resolver in allTypeConstructs.Values) {
+						resolver.ConditionalClearResolver (keyType);
 					}
 				}
 			}
 		}
 
-		protected internal class Registration<T> : IRegistration 
-			where T : class 
+		protected internal class Resolver<CType> : IResolver 
+			where CType : class 
 		{
-			private readonly Type typeofT = typeof(T);
+			private readonly Type cType = typeof(CType);
 			private readonly Type keyType;
 
 			private readonly object syncLock;
 
+			private bool singleton;
 			private readonly Dictionary<PropertyInfo, SetterExpression> propertyInjectors;
 			private readonly Dictionary<FieldInfo, SetterExpression> fieldInjectors;
 
@@ -223,43 +194,36 @@ namespace IfInjector
 			private ConstructorInfo MyConstructor { get; set; }
 
 			private bool isVerifiedNotRecursive;
+			private bool IsRecursionTestPending { get; set; }
 
-			private Expression<Func<T>> resolverExpression;
-			private Func<T> resolverExpressionCompiled;
+			private Expression<Func<CType>> resolverExpression;
+			private Func<CType> resolverExpressionCompiled;
 
-			private Func<T> resolve;
-			private Action<T> resolveProperties;
+			private Func<CType> resolve;
+			private Action<CType> resolveProperties;
 
 			private readonly HashSet<Type> dependencies = new HashSet<Type>();
 
 			private readonly InjectorImpl injector;
-			private readonly InjectorTypeConstruct typeConstruct;
 
-			public bool IsSingleton { get; private set; }
-
-			public Registration(InjectorImpl injector, InjectorTypeConstruct typeConstruct, Type keyType, object syncLock, LambdaExpression factoryExpression)
+			public Resolver(InjectorImpl injector, Type keyType, object syncLock)
 			{
 				this.keyType = keyType;
 				this.syncLock = syncLock;
 
 				this.injector = injector;
-				this.typeConstruct = typeConstruct;
 
 				this.propertyInjectors = new Dictionary<PropertyInfo, SetterExpression>();
 				this.fieldInjectors = new Dictionary<FieldInfo, SetterExpression>();
 
-				if (factoryExpression == null) {
-					InitInitialResolver();
-				} else {
-					ResolverFactoryExpression = factoryExpression;
-				}
+				InitInitialResolver();
 			}
 
 			public object DoResolve() {
 				return DoResolveTyped ();
 			}
 
-			private T DoResolveTyped() {
+			private CType DoResolveTyped() {
 				if (!IsResolved()) {
 					CompileResolver ();
 				}
@@ -267,7 +231,7 @@ namespace IfInjector
 				return resolve ();
 			}
 
-			public T DoInject(T instance) {
+			public CType DoInject(CType instance) {
 				if (instance != null) {
 					if (resolveProperties == null) {
 						lock (this) {
@@ -283,8 +247,8 @@ namespace IfInjector
 
 			public Expression GetResolveExpr (HashSet<Type> callerDeps) {
 				lock (syncLock) {
-					Expression<Func<T>> expr;
-					if (IsSingleton) {
+					Expression<Func<CType>> expr;
+					if (singleton) {
 						var instance = DoResolveTyped ();
 						expr = () => instance;
 					} else {
@@ -303,49 +267,61 @@ namespace IfInjector
 
 			private void InitInitialResolver()
 			{
-				if (typeofT.IsInterface || typeofT.IsAbstract)
+				if (cType.IsInterface || cType.IsAbstract)
 				{
 					// if we can not instantiate, set the resolver to throw an exception.
-					Expression<Func<T>> throwEx = () => ThrowInterfaceException ();
+					Expression<Func<CType>> throwEx = () => ThrowInterfaceException ();
 					ResolverFactoryExpression = throwEx;
 				}
 				else
 				{
 					// try to find the default constructor and create a default resolver from it
-					var constructor = typeofT.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(InjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
+					var constructor = cType.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(InjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
 
 					if (constructor != null) {
 						MyConstructor = constructor;
+					} else {
+						Expression<Func<CType>> throwEx = () => ThrowConstructorException ();
+						ResolverFactoryExpression = throwEx;
 					}
-
-					// TODO: error?
 				}
 			}
 
-			private T ThrowInterfaceException()
-			{
-				throw InjectorErrors.ErrorUnableToResultInterface.FormatEx(typeof(T).FullName);
+			private CType ThrowConstructorException() {
+				throw InjectorErrors.ErrorNoAppropriateConstructor.FormatEx (cType.FullName);
 			}
 
-			public void AddPropertySetter(PropertyInfo propertyInfo, LambdaExpression setter)
+			private CType ThrowInterfaceException() {
+				throw InjectorErrors.ErrorUnableToResultInterface.FormatEx(cType.FullName);
+			}
+
+			protected internal void AddMethodInfoSetter(MemberInfo methodInfo, LambdaExpression setter)
 			{
 				lock (syncLock) {
-					propertyInjectors [propertyInfo] = new SetterExpression { Info = propertyInfo, MemberType = propertyInfo.PropertyType, Setter = setter };
+					if (methodInfo is PropertyInfo) {
+						var propertyInfo = methodInfo as PropertyInfo;
+						propertyInjectors [propertyInfo] = new SetterExpression { Info = propertyInfo, MemberType = propertyInfo.PropertyType, Setter = setter };
+					} else if (methodInfo is FieldInfo) {
+						var fieldInfo = methodInfo as FieldInfo;
+						fieldInjectors [fieldInfo] = new SetterExpression { Info = fieldInfo, MemberType = fieldInfo.FieldType, Setter = setter };
+					} else {
+						throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
+					}
 					ClearResolverAndDependents ();
 				}
 			}
 
-			public void AddFieldSetter(FieldInfo fieldInfo, LambdaExpression setter)
+			public void SetFactory(LambdaExpression factoryExpression)
 			{
 				lock (syncLock) {
-					fieldInjectors [fieldInfo] = new SetterExpression { Info = fieldInfo, MemberType = fieldInfo.FieldType, Setter = setter };
+					ResolverFactoryExpression = factoryExpression;
 					ClearResolverAndDependents ();
 				}
 			}
 
 			public void AsSingleton(bool singleton) {
 				lock (syncLock) {
-					this.IsSingleton = singleton;
+					this.singleton = singleton;
 					ClearResolverAndDependents ();
 				}
 			}
@@ -360,7 +336,7 @@ namespace IfInjector
 
 			private void ClearResolverAndDependents() {
 				lock (syncLock) {
-					injector.ClearResolver (keyType);
+					injector.ClearDependentResolvers (keyType);
 					ClearResolver ();
 				}
 			}
@@ -378,32 +354,23 @@ namespace IfInjector
 				}
 			}
 
-			private bool IsRecursionTestPending {
-				get {
-					return typeConstruct.IsRecursionTestPending;
-				}
-				set {
-					typeConstruct.IsRecursionTestPending = value;
-				}
-			}
-
-			private T ResolveWithRecursionCheck()
+			private CType ResolveWithRecursionCheck()
 			{
 				// Lock until executed once; we will compile this away once verified
 				lock (syncLock) {
 					if (!isVerifiedNotRecursive) {
 						if (IsRecursionTestPending) {
-							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
+							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
 						}
 						IsRecursionTestPending = true;
 					}
 
-					T retval = resolverExpressionCompiled();
+					CType retval = resolverExpressionCompiled();
 
 					isVerifiedNotRecursive = true;
 					IsRecursionTestPending = false;
 
-					if (this.IsSingleton) {
+					if (this.singleton) {
 						resolve = () => retval;
 					} else {
 						resolve = resolverExpressionCompiled;
@@ -417,14 +384,14 @@ namespace IfInjector
 					if (!IsResolved()) {
 						// START: Handle compile loop
 						if (IsRecursionTestPending) {
-							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(typeofT.Name);
+							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
 						}
 						IsRecursionTestPending = true; 
 
 						var constructorExpr = CompileConstructorExpr ();
 
 						if (fieldInjectors.Any() || propertyInjectors.Any()) {
-							var instanceVar = Expression.Variable(typeofT);
+							var instanceVar = Expression.Variable(cType);
 							var assignExpression = Expression.Assign(instanceVar, constructorExpr.Body);
 
 							var blockExpression = new List<Expression>();
@@ -437,7 +404,7 @@ namespace IfInjector
 							blockExpression.Add(instanceVar); 
 
 							var expressionFunc = Expression.Block(new ParameterExpression[] { instanceVar }, blockExpression);
-							resolverExpression = (Expression<Func<T>>)Expression.Lambda(expressionFunc, constructorExpr.Parameters);
+							resolverExpression = (Expression<Func<CType>>)Expression.Lambda(expressionFunc, constructorExpr.Parameters);
 
 						} else {
 							resolverExpression = constructorExpr;
@@ -455,11 +422,11 @@ namespace IfInjector
 				return resolve != null;
 			}
 
-			public Action<T> CompilePropertiesResolver() {
+			public Action<CType> CompilePropertiesResolver() {
 				lock (syncLock) {
 					if (fieldInjectors.Any() || propertyInjectors.Any()) {
-						var instance = Expression.Parameter (typeof(T), "instance");
-						var instanceVar = Expression.Variable(typeofT);
+						var instance = Expression.Parameter (typeof(CType), "instance");
+						var instanceVar = Expression.Variable(cType);
 
 						var assignExpression = Expression.Assign(instanceVar, instance);
 
@@ -469,23 +436,23 @@ namespace IfInjector
 
 						var expression = Expression.Block(new [] { instanceVar }, blockExpression);
 
-						return Expression.Lambda<Action<T>>(expression, instance).Compile();
+						return Expression.Lambda<Action<CType>>(expression, instance).Compile();
 					} else {
-						return (T x) => {};
+						return (CType x) => {};
 					}
 				}
 			}
 
-			private Expression<Func<T>> CompileConstructorExpr()
+			private Expression<Func<CType>> CompileConstructorExpr()
 			{
 				if (ResolverFactoryExpression != null) {
 					var arguments = CompileArgumentListExprs(ResolverFactoryExpression.Parameters.Select (x => x.Type));
 					var callLambdaExpression = Expression.Invoke (ResolverFactoryExpression, arguments.ToArray());
-					return ((Expression<Func<T>>)Expression.Lambda(callLambdaExpression));
+					return ((Expression<Func<CType>>)Expression.Lambda(callLambdaExpression));
 				} else {
 					var arguments = CompileArgumentListExprs(MyConstructor.GetParameters().Select(v => v.ParameterType));
 					Expression createInstanceExpression = Expression.New(MyConstructor, arguments);
-					return ((Expression<Func<T>>)Expression.Lambda(createInstanceExpression));
+					return ((Expression<Func<CType>>)Expression.Lambda(createInstanceExpression));
 				}
 			}
 
@@ -531,45 +498,45 @@ namespace IfInjector
 			}
 		}
 
-		protected internal class InjectorFluent<T> : IInjectorBinding<T>
-			where T : class 
+		protected internal class InjectorBinding<CType> : IInjectorBinding<CType>
+			where CType : class 
 		{ 
-			private readonly Registration<T> resolver;
+			private readonly Resolver<CType> resolver;
 
-			protected internal InjectorFluent(Registration<T> resolver) {
+			protected internal InjectorBinding(Resolver<CType> resolver) {
 				this.resolver = resolver;
 			}
 
-			public IInjectorBinding<T> AddPropertyInjector<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression)
+			public IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression) 
+			{
+				resolver.SetFactory (factoryExpression);
+				return this;
+			}
+
+			public IInjectorBinding<CType> AddPropertyInjector<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression)
 				where TPropertyType : class
 			{
 				return AddPropertyInjectorInner (propertyExpression, null);
 			}
 
-			public IInjectorBinding<T> AddPropertyInjector<TPropertyType> (Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+			public IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
 			{
 				return AddPropertyInjectorInner (propertyExpression, setter);
 			}
 
-			private IInjectorBinding<T> AddPropertyInjectorInner<TPropertyType>(Expression<Func<T, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
+			private IInjectorBinding<CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
 				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
 				if (propertyMemberExpression == null) {
 					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
 				}
 
 				var member = propertyMemberExpression.Member;
-				if (member is PropertyInfo) {
-					resolver.AddPropertySetter (member as PropertyInfo, setter);
-				} else if (member is FieldInfo) {
-					resolver.AddFieldSetter (member as FieldInfo, setter);
-				} else {
-					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
-				}
+				resolver.AddMethodInfoSetter (member, setter);
 
 				return this;
 			}
 
-			public IInjectorBinding<T> AsSingleton (bool singlton = true) {
+			public IInjectorBinding<CType> AsSingleton (bool singlton = true) {
 				resolver.AsSingleton (singlton);
 				return this;
 			}
@@ -627,19 +594,8 @@ namespace IfInjector
 		////////////////////////////////////////////////////////////////////////////////
 		#region ImplicitBindingsHelpers
 
-		private static readonly MethodInfo GenericSetupImplicitPropResolvers;
-
-		static InjectorInternal() {
-			Expression<Action<Registration<Exception>>> TmpBindingExpression = (r) => SetupImplicitPropResolvers<Exception>(r);
-			GenericSetupImplicitPropResolvers = ((MethodCallExpression)TmpBindingExpression.Body).Method.GetGenericMethodDefinition();
-		}			
-
-		protected internal static void SetupImplicitPropResolvers(IRegistration resolver, Type implType) {
-			GenericSetupImplicitPropResolvers.MakeGenericMethod (implType).Invoke (null, new object[]{resolver});
-		}
-
-		protected internal static void SetupImplicitPropResolvers<T>(Registration<T> resolver) where T : class {
-			Type typeT = typeof(T);
+		protected internal static void SetupImplicitPropResolvers<CType>(Resolver<CType> resolver) where CType : class {
+			Type typeT = typeof(CType);
 			do {
 				var props = from p in typeT.GetProperties (BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
 							select new { Info = p as MemberInfo, MemType = p.PropertyType };
@@ -651,31 +607,48 @@ namespace IfInjector
 						.Where (pf => pf.Info.DeclaringType == typeT);
 
 				foreach (var pf in propsAndFields) {
-					InvokeSetupImplicitPropResolvers<T> (pf.Info, pf.MemType, pf.Info.Name, resolver);
+					InvokeSetupImplicitPropResolvers<CType> (pf.Info, pf.MemType, pf.Info.Name, resolver);
 				}
 			} while ((typeT = typeT.BaseType) != null && typeT != typeof(object));
 
 			// setup singleton
-			if (typeof(T).GetCustomAttributes (typeof(SingletonAttribute), false).Length > 0) {
+			if (typeof(CType).GetCustomAttributes (typeof(SingletonAttribute), false).Length > 0) {
 				resolver.AsSingleton (true);
 			}
 		}
 
-		private static void InvokeSetupImplicitPropResolvers<T>(MemberInfo memberInfo, Type memberType, string memberName, Registration<T> resolver) 
-			where T : class 
+		private static void InvokeSetupImplicitPropResolvers<CType>(MemberInfo memberInfo, Type memberType, string memberName, Resolver<CType> resolver) 
+			where CType : class 
 		{
 			if (!memberType.IsClass && !memberType.IsInterface) {
-				throw InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.FormatEx(memberName, typeof(T).Name);
+				throw InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.FormatEx(memberName, typeof(CType).FullName);
 			}
 
-			if (memberInfo is PropertyInfo) {
-				resolver.AddPropertySetter (memberInfo as PropertyInfo, null);
-			} else {
-				resolver.AddFieldSetter (memberInfo as FieldInfo, null);
-			}
+			resolver.AddMethodInfoSetter (memberInfo, null);
 		}
 
 		#endregion // ImplicitBindingsHelpers
 		////////////////////////////////////////////////////////////////////////////////
+
+		/// <summary>
+		/// Gets the implicit types.
+		/// </summary>
+		/// <returns>The implicit types.</returns>
+		/// <param name="boundType">Bound type.</param>
+		protected internal static ISet<Type> GetImplicitTypes(Type boundType) {
+			var implicitTypes = new HashSet<Type>();
+
+			foreach (Type iFace in boundType.GetInterfaces()) {
+				implicitTypes.Add(iFace);
+			}
+
+			Type wTypeChain = boundType;
+			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
+				implicitTypes.Add(wTypeChain);
+			}
+
+			return implicitTypes;
+		}
+
 	}
 }
