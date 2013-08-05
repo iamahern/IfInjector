@@ -239,6 +239,10 @@ namespace IfInjector
 					foreach (var resolver in allResolvers.Values) {
 						resolver.ConditionalClearResolver (keyType);
 					}
+
+					foreach (var resolver in allImplicitResolvers.Values) {
+						resolver.ConditionalClearResolver (keyType);
+					}
 				}
 			}
 		}
