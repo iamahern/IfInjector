@@ -10,7 +10,7 @@ namespace IfInjectorTest
 	public class PropertyInjectionTest
 	{
 		[Test()]
-		public void InjectMembers ()
+		public void InjectMembersImplicit ()
 		{
 			var injector = Injector.NewInstance ();
 			injector.Bind<MyClass>()
@@ -23,12 +23,32 @@ namespace IfInjectorTest
 
 			// Explicit Binding should not affect test
 			Assert.AreNotEqual (10, instance.Age);
-			Assert.AreNotSame ("Mike", instance.Name);
+			Assert.AreNotEqual ("Mike", instance.Name);
 
 			// Only implicit bindings should be considered
 			Assert.IsNotNull (instance.MyOtherClass);
 		}
 
+		[Test()]
+		public void InjectMembersExplicit ()
+		{
+			var injector = Injector.NewInstance ();
+			injector.Bind<MyClass>()
+				.AddPropertyInjector<int>((x) => x.Age, () => 10)
+					.AddPropertyInjector((x) => x.Name, () => "Mike");
+
+			var instance = new MyClass ();
+
+			Assert.IsTrue (object.ReferenceEquals(instance, injector.InjectProperties(instance, true)));
+
+			// Explicit Binding should not affect test
+			Assert.AreEqual (10, instance.Age);
+			Assert.AreEqual ("Mike", instance.Name);
+
+			// Only implicit bindings should be considered
+			Assert.IsNotNull (instance.MyOtherClass);
+		}
+		
 		[Test, Timeout(100)]
 		public void TestResolverWithPropertyLooping()
 		{

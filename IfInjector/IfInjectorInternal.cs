@@ -18,9 +18,24 @@ namespace IfInjector
 			/// <param name="touched">The type that has been modified.</param>
 			void ConditionalClearResolver (Type touched);
 
+			/// <summary>
+			/// Resolves the object.
+			/// </summary>
+			/// <returns>The resolve.</returns>
 			object DoResolve ();
 
-			Expression GetResolveExpr (HashSet<Type> callerDeps);
+			/// <summary>
+			/// Injects the properties.
+			/// </summary>
+			/// <param name="instance">Instance.</param>
+			void DoInject (object instance);
+
+			/// <summary>
+			/// Gets the resolve expression.
+			/// </summary>
+			/// <returns>The resolve expression.</returns>
+			/// <param name="callerDeps">HashSet of the 'callers' dependencies. IResolver adds itself and its depdendencies to the set.</param>
+			Expression GetResolveExpression (HashSet<Type> callerDeps);
 		}
 		
 		/// <summary>
@@ -52,9 +67,11 @@ namespace IfInjector
 				return ResolveResolver (type).DoResolve ();
 			}
 
-			public override T InjectProperties<T> (T instance)
+			public override T InjectProperties<T> (T instance, bool useExplicitBinding = false)
 			{
-				return ((Resolver<T>)ResolveImplicitOnlyResolver(typeof(T))).DoInject (instance);
+				var iResolver = useExplicitBinding ? ResolveResolver (typeof(T)) : ResolveImplicitOnlyResolver (typeof(T));
+				iResolver.DoInject (instance);
+				return instance;
 			}
 
 			private IResolver ResolveImplicitOnlyResolver(Type type)
@@ -279,7 +296,7 @@ namespace IfInjector
 				return resolve ();
 			}
 
-			public CType DoInject(CType instance) {
+			public void DoInject(object instance) {
 				if (instance != null) {
 					if (resolveProperties == null) {
 						lock (this) {
@@ -287,13 +304,11 @@ namespace IfInjector
 						}
 					}
 
-					resolveProperties (instance);
+					resolveProperties (instance as CType);
 				}
-
-				return instance;
 			}
 
-			public Expression GetResolveExpr (HashSet<Type> callerDeps) {
+			public Expression GetResolveExpression (HashSet<Type> callerDeps) {
 				lock (syncLock) {
 					Expression<Func<CType>> expr;
 					if (singleton) {
@@ -531,7 +546,7 @@ namespace IfInjector
 			}
 
 			private Expression GetResolverInvocationExpressionForType(Type parameterType) {
-				return injector.ResolveResolver (parameterType).GetResolveExpr(dependencies);
+				return injector.ResolveResolver (parameterType).GetResolveExpression(dependencies);
 			}
 
 			private class SetterExpression

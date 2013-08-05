@@ -86,12 +86,13 @@ namespace IfInjector
 		}
 
 		/// <summary>
-		/// Injects the properties of an instance.
+		/// Injects the properties of an instance. By default, this will only inject 'implicitly' bound properties (ones bound by annotation).
 		/// </summary>
 		/// <returns>The properties.</returns>
 		/// <param name="instance">Instance.</param>
+		/// <param name="useExplicitBinding">If set to <c>true</c> use explicit binding.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract T InjectProperties<T> (T instance)
+		public abstract T InjectProperties<T> (T instance, bool useExplicitBinding = false)
 			where T : class;
 
 		/// <summary>
