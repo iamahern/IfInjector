@@ -12,8 +12,14 @@ namespace IfInjector
 	internal abstract class InjectorInternal
 	{
 		protected internal interface IResolver {
+			/// <summary>
+			/// Checks if the 'touched' type is in the dependency list for the current resolver. If it is, clear the resolver.
+			/// </summary>
+			/// <param name="touched">The type that has been modified.</param>
 			void ConditionalClearResolver (Type touched);
+
 			object DoResolve ();
+
 			Expression GetResolveExpr (HashSet<Type> callerDeps);
 		}
 		
@@ -25,17 +31,19 @@ namespace IfInjector
 			private readonly object syncLock = new object();
 			private readonly MethodInfo createResolverInstanceGeneric;
 
-			private readonly SafeDictionary<Type, IResolver> allTypeConstructs;
+			private readonly SafeDictionary<Type, IResolver> allResolvers;
+			private readonly SafeDictionary<Type, IResolver> allImplicitResolvers;
 			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
 
 			public InjectorImpl() 
 			{
 				// Init dictionaries
-				allTypeConstructs = new SafeDictionary<Type, IResolver>(syncLock);
+				allResolvers = new SafeDictionary<Type, IResolver>(syncLock);
+				allImplicitResolvers = new SafeDictionary<Type, IResolver>(syncLock);
 				implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> (syncLock);
 
 				// Init resolver
-				Expression<Action> tmpExpr = () => CreateResolverInstanceGeneric<Exception, Exception>();
+				Expression<Action> tmpExpr = () => CreateResolverInstanceGeneric<Exception, Exception>(true);
 				createResolverInstanceGeneric = ((MethodCallExpression)tmpExpr.Body).Method.GetGenericMethodDefinition();
 			}
 
@@ -46,7 +54,17 @@ namespace IfInjector
 
 			public override T InjectProperties<T> (T instance)
 			{
-				return ((Resolver<T>)ResolveResolver (typeof(T))).DoInject (instance);
+				return ((Resolver<T>)ResolveImplicitOnlyResolver(typeof(T))).DoInject (instance);
+			}
+
+			private IResolver ResolveImplicitOnlyResolver(Type type)
+			{
+				IResolver resolver;
+				if (allImplicitResolvers.UnsyncedTryGetValue (type, out resolver)) {
+					return resolver;
+				} else {
+					return BindImplicitOnly (type);
+				}
 			}
 
 			protected internal IResolver ResolveResolver(Type type)
@@ -54,7 +72,7 @@ namespace IfInjector
 				ISet<Type> lookup;
 				IResolver resolver;
 
-				if (allTypeConstructs.UnsyncedTryGetValue (type, out resolver)) {
+				if (allResolvers.UnsyncedTryGetValue (type, out resolver)) {
 					return resolver;
 				} else if (implicitTypeLookup.UnsyncedTryGetValue (type, out lookup) && lookup.Count > 0) {
 					if (lookup.Count == 1) {
@@ -62,15 +80,24 @@ namespace IfInjector
 					} else {
 						throw InjectorErrors.ErrorAmbiguousBinding.FormatEx(type.Name);
 					}
-				} else {
-					return BindImplicit (type);
-				}
+				} 
+
+				return BindImplicit (type);
 			}
 
 			public override IInjectorBinding<CType> Bind<BType, CType>()
 			{
 				var iResolver = BindExplicit<BType, CType> ();
 				return new InjectorBinding<CType>(iResolver);
+			}
+
+			public override void Verify()
+			{
+				lock (syncLock) {
+					foreach (var resolver in allResolvers.Values) {
+						resolver.DoResolve ();
+					}
+				}
 			}
 
 			private Resolver<CType> BindExplicit<BType, CType>()
@@ -81,10 +108,10 @@ namespace IfInjector
 					Type bindType = typeof(BType);
 
 					implicitTypeLookup.Remove (bindType);
-					allTypeConstructs.Remove (bindType);
+					allResolvers.Remove (bindType);
 
 					// Add after create resolver
-					var resolver = CreateResolverInstanceGeneric<BType, CType> ();
+					var resolver = CreateResolverInstanceGeneric<BType, CType> (false);
 					AddImplicitTypes (bindType, GetImplicitTypes(bindType));
 
 					ClearDependentResolvers (bindType);
@@ -96,21 +123,34 @@ namespace IfInjector
 			private IResolver BindImplicit(Type bindType) {
 				lock (syncLock) {
 					IResolver resolver;
-					if (allTypeConstructs.TryGetValue (bindType, out resolver)) {
+					if (allResolvers.TryGetValue (bindType, out resolver)) {
 						return resolver;
 					}
 
 					// Handle implementedBy
 					var implType = GetIfImplementedBy (bindType);
 					if (implType != null) {
-						resolver = CreateResolverInstance (bindType, implType);
+						resolver = CreateResolverInstance (bindType, implType, true);
 					} else {
-						resolver = CreateResolverInstance (bindType, bindType);
+						resolver = CreateResolverInstance (bindType, bindType, true);
 					}
 
+					// NOTE: In theory, implicit bindings should never change the object graph;
+					// ... TODO EDGE Case - dynamically created assemblies; clearing as below should prevent issues, need test
 					ClearDependentResolvers (bindType);
 
 					return resolver;
+				}
+			}
+
+			private IResolver BindImplicitOnly(Type bindType) {
+				lock (syncLock) {
+					IResolver resolver;
+					if (allImplicitResolvers.TryGetValue (bindType, out resolver)) {
+						return resolver;
+					}
+
+					return CreateResolverInstance (bindType, bindType, true);
 				}
 			}
 
@@ -122,22 +162,30 @@ namespace IfInjector
 				return null;
 			}
 
-			private IResolver CreateResolverInstance(Type keyType, Type implType) {
+			private IResolver CreateResolverInstance(Type keyType, Type implType, bool isImplicitBinding) {
 				try {
-					return (IResolver) createResolverInstanceGeneric.MakeGenericMethod(keyType, implType).Invoke(this, new object[]{});
+					return (IResolver) createResolverInstanceGeneric.MakeGenericMethod(keyType, implType).Invoke(this, new object[]{isImplicitBinding});
 				} catch (TargetInvocationException ex) {
 					throw ex.InnerException;
 				}
 			}
 
-			private Resolver<CType> CreateResolverInstanceGeneric<BType, CType>() 
+			private Resolver<CType> CreateResolverInstanceGeneric<BType, CType>(bool isImplicitBinding) 
 				where BType : class
 				where CType : class, BType
 			{
 				var bindType = typeof(BType);
 				var resolver = new Resolver<CType> (this, bindType, syncLock);
-
-				allTypeConstructs.Add (bindType, resolver);
+				
+				if (isImplicitBinding) {
+					allImplicitResolvers.Add (bindType, resolver);
+					if (!allResolvers.ContainsKey (bindType)) {
+						allResolvers.Add (bindType, resolver);
+					}
+				} else {
+					allResolvers.Add (bindType, resolver);
+				}
+				
 				SetupImplicitPropResolvers<CType> (resolver);
 
 				return resolver;
@@ -171,7 +219,7 @@ namespace IfInjector
 			/// <param name="keyType">Key type.</param>
 			protected internal void ClearDependentResolvers(Type keyType) {
 				lock (syncLock) {
-					foreach (var resolver in allTypeConstructs.Values) {
+					foreach (var resolver in allResolvers.Values) {
 						resolver.ConditionalClearResolver (keyType);
 					}
 				}
@@ -569,6 +617,12 @@ namespace IfInjector
 
 			public bool UnsyncedTryGetValue(TKey key, out TValue value) {
 				return unsyncDict.TryGetValue (key, out value);
+			}
+
+			public bool ContainsKey(TKey key) {
+				lock (syncLock) {
+					return dict.ContainsKey(key);
+				}
 			}
 
 			public IEnumerable<TValue> Values {

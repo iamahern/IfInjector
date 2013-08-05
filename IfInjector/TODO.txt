@@ -1,14 +1,22 @@
 
-- Need for IDisposable???
+- RESEARCH:
+	- Need for IDisposable???
 
 - DEFECT:
-	- InjectProperties() uses Bind<> rather than implicit binding
-		- Add test case
+	- EDGE Cases:
+		- How should singleton or (when we have them) custom lifecycles be handled?
+		- If modification of a dependent type occurs, should we clear the resolver or throw an exception...
+			- This probably requires a config setting for the behavior
+		- If an assembly creates new types, how should this be handled for implicit types???
+			- Think have correct behavior: TODO: test case
 		
 - MISSING FEATURES:
 	- InjectStatic()
-	- Add Verify()
+	
+- TESTING:
+	- Add platform tests for Android, iPhone
 
 - WISH LIST:
 	- Generics
 	- Custom LifeCycles
+	- Extension feature to allow for 

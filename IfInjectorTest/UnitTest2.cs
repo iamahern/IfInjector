@@ -123,5 +123,19 @@ namespace IfInjectorTest
 				Assert.AreEqual (ex1.ErrorType.MessageCode, ex.ErrorType.MessageCode);
 			}
 		}
+
+		[Test]
+		public void TestVerify() {
+			var injector = Injector.NewInstance ();
+			injector.Bind<NoProperConstructor> ();
+
+			try { 
+				injector.Verify();
+				Assert.Fail();
+			} catch (InjectorException ex) {
+				var ex1 = InjectorErrors.ErrorNoAppropriateConstructor.FormatEx (typeof(NoProperConstructor).FullName);
+				Assert.AreEqual (ex1.ErrorType.MessageCode, ex.ErrorType.MessageCode);
+			}
+		}
     }
 }

@@ -93,6 +93,11 @@ namespace IfInjector
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		public abstract T InjectProperties<T> (T instance)
 			where T : class;
+
+		/// <summary>
+		/// Verify that all bindings all valid.
+		/// </summary>
+		public abstract void Verify ();
 	}
 
 	/// <summary>

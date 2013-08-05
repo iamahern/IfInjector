@@ -20,18 +20,19 @@ namespace IfInjectorTest
 			var instance = new MyClass ();
 
 			Assert.IsTrue (object.ReferenceEquals(instance, injector.InjectProperties(instance)));
-			Assert.AreEqual (10, instance.Age);
-			Assert.AreSame ("Mike", instance.Name);
+
+			// Explicit Binding should not affect test
+			Assert.AreNotEqual (10, instance.Age);
+			Assert.AreNotSame ("Mike", instance.Name);
+
+			// Only implicit bindings should be considered
+			Assert.IsNotNull (instance.MyOtherClass);
 		}
 
 		[Test, Timeout(100)]
 		public void TestResolverWithPropertyLooping()
 		{
 			var injector = Injector.NewInstance ();
-			injector.Bind<ConcretePropertyLoop>()
-				.AddPropertyInjector<ConcretePropertyLoop> (v => v.MyTestProperty);
-
-			//fFastInjector.Injector.InternalResolver<ConcretePropertyLoop>.AddPropertySetter(v => v.MyTestProperty);//, () => Injector.Resolve<ConcretePropertyLoop>());
 
 			InjectorException exception = null;
 			var expectedErrorMessage = string.Format(InjectorErrors.ErrorResolutionRecursionDetected.MessageTemplate, typeof(ConcretePropertyLoop).Name);
@@ -85,10 +86,16 @@ namespace IfInjectorTest
 		class MyClass {
 			public int Age { get; set; }
 			public string Name { get; set; }
+
+			[Inject]
+			public MyOtherClass MyOtherClass { get; private set; }
 		}
+
+		class MyOtherClass {}
 
 		class ConcretePropertyLoop
 		{
+			[Inject]
 			public ConcretePropertyLoop MyTestProperty { get; set; }
 		}
 	}
