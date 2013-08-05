@@ -179,9 +179,9 @@ namespace IfInjector
 				return null;
 			}
 
-			private IResolver CreateResolverInstance(Type keyType, Type implType, bool isImplicitBinding) {
+			private IResolver CreateResolverInstance(Type bindType, Type implType, bool isImplicitBinding) {
 				try {
-					return (IResolver) createResolverInstanceGeneric.MakeGenericMethod(keyType, implType).Invoke(this, new object[]{isImplicitBinding});
+					return (IResolver) createResolverInstanceGeneric.MakeGenericMethod(bindType, implType).Invoke(this, new object[]{isImplicitBinding});
 				} catch (TargetInvocationException ex) {
 					throw ex.InnerException;
 				}
@@ -233,15 +233,15 @@ namespace IfInjector
 			/// <summary>
 			/// Clears the dependent resolvers.
 			/// </summary>
-			/// <param name="keyType">Key type.</param>
-			protected internal void ClearDependentResolvers(Type keyType) {
+			/// <param name="bindType">Key type.</param>
+			protected internal void ClearDependentResolvers(Type bindType) {
 				lock (syncLock) {
 					foreach (var resolver in allResolvers.Values) {
-						resolver.ConditionalClearResolver (keyType);
+						resolver.ConditionalClearResolver (bindType);
 					}
 
 					foreach (var resolver in allImplicitResolvers.Values) {
-						resolver.ConditionalClearResolver (keyType);
+						resolver.ConditionalClearResolver (bindType);
 					}
 				}
 			}
@@ -251,7 +251,7 @@ namespace IfInjector
 			where CType : class 
 		{
 			private readonly Type cType = typeof(CType);
-			private readonly Type keyType;
+			private readonly Type bindType;
 
 			private readonly object syncLock;
 
@@ -259,11 +259,11 @@ namespace IfInjector
 			private readonly Dictionary<PropertyInfo, SetterExpression> propertyInjectors;
 			private readonly Dictionary<FieldInfo, SetterExpression> fieldInjectors;
 
-			private LambdaExpression ResolverFactoryExpression { get; set; }
-			private ConstructorInfo MyConstructor { get; set; }
+			private LambdaExpression resolverFactoryExpression;
+			private ConstructorInfo myConstructor;
 
 			private bool isVerifiedNotRecursive;
-			private bool IsRecursionTestPending { get; set; }
+			private bool isRecursionTestPending;
 
 			private Expression<Func<CType>> resolverExpression;
 			private Func<CType> resolverExpressionCompiled;
@@ -275,9 +275,9 @@ namespace IfInjector
 
 			private readonly InjectorImpl injector;
 
-			public Resolver(InjectorImpl injector, Type keyType, object syncLock)
+			public Resolver(InjectorImpl injector, Type bindType, object syncLock)
 			{
-				this.keyType = keyType;
+				this.bindType = bindType;
 				this.syncLock = syncLock;
 
 				this.injector = injector;
@@ -326,7 +326,7 @@ namespace IfInjector
 					}
 
 					callerDeps.UnionWith (dependencies);
-					callerDeps.Add (keyType);
+					callerDeps.Add (bindType);
 
 					return expr.Body;
 				}
@@ -338,7 +338,7 @@ namespace IfInjector
 				{
 					// if we can not instantiate, set the resolver to throw an exception.
 					Expression<Func<CType>> throwEx = () => ThrowInterfaceException ();
-					ResolverFactoryExpression = throwEx;
+					resolverFactoryExpression = throwEx;
 				}
 				else
 				{
@@ -346,10 +346,10 @@ namespace IfInjector
 					var constructor = cType.GetConstructors().Where(v => Attribute.IsDefined(v, typeof(IgnoreConstructorAttribute)) == false).OrderBy(v => Attribute.IsDefined(v, typeof(InjectAttribute)) ? 0 : 1).ThenBy(v => v.GetParameters().Count()).FirstOrDefault();
 
 					if (constructor != null) {
-						MyConstructor = constructor;
+						myConstructor = constructor;
 					} else {
 						Expression<Func<CType>> throwEx = () => ThrowConstructorException ();
-						ResolverFactoryExpression = throwEx;
+						resolverFactoryExpression = throwEx;
 					}
 				}
 			}
@@ -381,7 +381,7 @@ namespace IfInjector
 			public void SetFactory(LambdaExpression factoryExpression)
 			{
 				lock (syncLock) {
-					ResolverFactoryExpression = factoryExpression;
+					resolverFactoryExpression = factoryExpression;
 					ClearResolverAndDependents ();
 				}
 			}
@@ -403,14 +403,14 @@ namespace IfInjector
 
 			private void ClearResolverAndDependents() {
 				lock (syncLock) {
-					injector.ClearDependentResolvers (keyType);
+					injector.ClearDependentResolvers (bindType);
 					ClearResolver ();
 				}
 			}
 
 			private void ClearResolver() {
 				lock (syncLock) {
-					IsRecursionTestPending = false;
+					isRecursionTestPending = false;
 					isVerifiedNotRecursive = false;
 
 					dependencies.Clear ();
@@ -426,16 +426,16 @@ namespace IfInjector
 				// Lock until executed once; we will compile this away once verified
 				lock (syncLock) {
 					if (!isVerifiedNotRecursive) {
-						if (IsRecursionTestPending) {
+						if (isRecursionTestPending) {
 							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
 						}
-						IsRecursionTestPending = true;
+						isRecursionTestPending = true;
 					}
 
 					CType retval = resolverExpressionCompiled();
 
 					isVerifiedNotRecursive = true;
-					IsRecursionTestPending = false;
+					isRecursionTestPending = false;
 
 					if (this.singleton) {
 						resolve = () => retval;
@@ -450,10 +450,10 @@ namespace IfInjector
 				lock (syncLock) {
 					if (!IsResolved()) {
 						// START: Handle compile loop
-						if (IsRecursionTestPending) {
+						if (isRecursionTestPending) {
 							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
 						}
-						IsRecursionTestPending = true; 
+						isRecursionTestPending = true; 
 
 						var constructorExpr = CompileConstructorExpr ();
 
@@ -480,7 +480,7 @@ namespace IfInjector
 						resolverExpressionCompiled = resolverExpression.Compile ();
 						resolve = ResolveWithRecursionCheck;
 
-						IsRecursionTestPending = false; // END: Handle compile loop
+						isRecursionTestPending = false; // END: Handle compile loop
 					}
 				}
 			}
@@ -512,13 +512,13 @@ namespace IfInjector
 
 			private Expression<Func<CType>> CompileConstructorExpr()
 			{
-				if (ResolverFactoryExpression != null) {
-					var arguments = CompileArgumentListExprs(ResolverFactoryExpression.Parameters.Select (x => x.Type));
-					var callLambdaExpression = Expression.Invoke (ResolverFactoryExpression, arguments.ToArray());
+				if (resolverFactoryExpression != null) {
+					var arguments = CompileArgumentListExprs(resolverFactoryExpression.Parameters.Select (x => x.Type));
+					var callLambdaExpression = Expression.Invoke (resolverFactoryExpression, arguments.ToArray());
 					return ((Expression<Func<CType>>)Expression.Lambda(callLambdaExpression));
 				} else {
-					var arguments = CompileArgumentListExprs(MyConstructor.GetParameters().Select(v => v.ParameterType));
-					Expression createInstanceExpression = Expression.New(MyConstructor, arguments);
+					var arguments = CompileArgumentListExprs(myConstructor.GetParameters().Select(v => v.ParameterType));
+					Expression createInstanceExpression = Expression.New(myConstructor, arguments);
 					return ((Expression<Func<CType>>)Expression.Lambda(createInstanceExpression));
 				}
 			}
