@@ -5,6 +5,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		LICENSE.txt = LICENSE.txt
 		README.md = README.md
+		CHANGES.txt = CHANGES.txt
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IfInjector", "IfInjector\IfInjector.csproj", "{E223D620-7563-4C59-8361-B10A7C398723}"
@@ -37,6 +38,6 @@ Global
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = IfInjector\IfInjector.csproj
 		description = IfInjector is a high performance mobile IoC container.
-		version = 0.4
+		version = 0.5
 	EndGlobalSection
 EndGlobal

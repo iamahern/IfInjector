@@ -1,8 +1,8 @@
-# IfInjector v0.3
+# IfInjector v0.5
 
 This project is a fork of the https://ffastinjector.codeplex.com/ library by David Walker (https://plus.google.com/109602553530284384616/).
 
-The goal of the project is to provide a featureful high performance micro-IoC container suitable for use in mobile environments.
+The goal of the project is to provide a featureful high performance micro-IoC container suitable for use in mobile environments. The key distinguishing feature in relation to other Micro containers is support for annotation based configuration.
 
 # Key Features
 
@@ -11,7 +11,7 @@ The goal of the project is to provide a featureful high performance micro-IoC co
 * Configuration through code
 * Configuration through annotations
 * Fast (top performer on [IoC Container Shootout](www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison)) 
-* Small (under 1200 lines of code)
+* Small (under 1500 lines of code)
 
 # Documentations
 
@@ -21,12 +21,13 @@ https://github.com/iamahern/IfFastInjector/wiki
 
 ## Source Code
 
-The implementation consists of two files:
+The implementation consists of 3 files:
 
-IfInjector.cs
-IfInjectorInternal.cs
+* IfInjector.cs (Interfaces and API definition)
+* IfInjectorInternal.cs (The core implementation)
+* IfInjectorPlatform.cs (Shims to support Windows Phone 7.5)
 
-Simply include these in your project.
+Simply include these in your project or use the nuget package (https://www.nuget.org/packages/IfInjector).
 
 ## Example Usage
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -9,7 +10,7 @@ using IfInjector.IfInjectorTypes;
 
 namespace IfInjector
 {
-	internal abstract class InjectorInternal
+	internal partial class InjectorInternal
 	{
 		protected internal interface IResolver {
 			/// <summary>
@@ -34,8 +35,8 @@ namespace IfInjector
 			/// Gets the resolve expression.
 			/// </summary>
 			/// <returns>The resolve expression.</returns>
-			/// <param name="callerDeps">HashSet of the 'callers' dependencies. IResolver adds itself and its depdendencies to the set.</param>
-			Expression GetResolveExpression (HashSet<Type> callerDeps);
+			/// <param name="callerDeps">SetShim of the 'callers' dependencies. IResolver adds itself and its depdendencies to the set.</param>
+			Expression GetResolveExpression (SetShim<Type> callerDeps);
 		}
 		
 		/// <summary>
@@ -48,14 +49,14 @@ namespace IfInjector
 
 			private readonly SafeDictionary<Type, IResolver> allResolvers;
 			private readonly SafeDictionary<Type, IResolver> allImplicitResolvers;
-			private readonly SafeDictionary<Type, ISet<Type>> implicitTypeLookup;
+			private readonly SafeDictionary<Type, SetShim<Type>> implicitTypeLookup;
 
 			public InjectorImpl() 
 			{
 				// Init dictionaries
 				allResolvers = new SafeDictionary<Type, IResolver>(syncLock);
 				allImplicitResolvers = new SafeDictionary<Type, IResolver>(syncLock);
-				implicitTypeLookup = new SafeDictionary<Type, ISet<Type>> (syncLock);
+				implicitTypeLookup = new SafeDictionary<Type, SetShim<Type>> (syncLock);
 
 				// Init resolver
 				Expression<Action> tmpExpr = () => CreateResolverInstanceGeneric<Exception, Exception>(true);
@@ -86,7 +87,7 @@ namespace IfInjector
 
 			protected internal IResolver ResolveResolver(Type type)
 			{
-				ISet<Type> lookup;
+				SetShim<Type> lookup;
 				IResolver resolver;
 
 				if (allResolvers.UnsyncedTryGetValue (type, out resolver)) {
@@ -208,17 +209,17 @@ namespace IfInjector
 				return resolver;
 			}
 
-			private void AddImplicitTypes(Type boundType, ISet<Type> implicitTypes) {
+			private void AddImplicitTypes(Type boundType, SetShim<Type> implicitTypes) {
 				lock (syncLock) {
 					foreach(Type implicitType in implicitTypes) {
 						if (GetIfImplementedBy (implicitType) == null) {
-							ISet<Type> newSet, oldSet;
+							SetShim<Type> newSet, oldSet;
 
 							if (implicitTypeLookup.TryGetValue (implicitType, out oldSet)) {
 								implicitTypeLookup.Remove (implicitType);
-								newSet = new HashSet<Type> (oldSet);
+								newSet = new SetShim<Type> (oldSet);
 							} else {
-								newSet = new HashSet<Type> ();
+								newSet = new SetShim<Type> ();
 							}
 
 							newSet.Add (boundType);
@@ -247,7 +248,7 @@ namespace IfInjector
 			}
 		}
 
-		protected internal class Resolver<CType> : IResolver 
+		protected internal partial class Resolver<CType> : IResolver 
 			where CType : class 
 		{
 			private readonly Type cType = typeof(CType);
@@ -269,9 +270,9 @@ namespace IfInjector
 			private Func<CType> resolverExpressionCompiled;
 
 			private Func<CType> resolve;
-			private Action<CType> resolveProperties;
+			private Func<CType,CType> resolveProperties;
 
-			private readonly HashSet<Type> dependencies = new HashSet<Type>();
+			private readonly SetShim<Type> dependencies = new SetShim<Type>();
 
 			private readonly InjectorImpl injector;
 
@@ -285,6 +286,7 @@ namespace IfInjector
 				this.propertyInjectors = new Dictionary<PropertyInfo, SetterExpression>();
 				this.fieldInjectors = new Dictionary<FieldInfo, SetterExpression>();
 
+				InitPlatformSupport();
 				InitInitialResolver();
 			}
 
@@ -312,7 +314,7 @@ namespace IfInjector
 				}
 			}
 
-			public Expression GetResolveExpression (HashSet<Type> callerDeps) {
+			public Expression GetResolveExpression (SetShim<Type> callerDeps) {
 				lock (syncLock) {
 					Expression<Func<CType>> expr;
 					if (singleton) {
@@ -374,6 +376,7 @@ namespace IfInjector
 					} else {
 						throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx("propertyExpression");
 					}
+
 					ClearResolverAndDependents ();
 				}
 			}
@@ -449,32 +452,22 @@ namespace IfInjector
 			private void CompileResolver() {
 				lock (syncLock) {
 					if (!IsResolved()) {
-						// START: Handle compile loop
+						// Handle compile loop
 						if (isRecursionTestPending) {
 							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
 						}
 						isRecursionTestPending = true; 
 
-						var constructorExpr = CompileConstructorExpr ();
+						if (resolverFactoryExpression != null) {
+							var factoryExpr = CompileFactoryExpr ();
 
-						if (fieldInjectors.Any() || propertyInjectors.Any()) {
-							var instanceVar = Expression.Variable(cType);
-							var assignExpression = Expression.Assign(instanceVar, constructorExpr.Body);
-
-							var blockExpression = new List<Expression>();
-							blockExpression.Add(assignExpression);
-
-							// setters
-							AddPropertySetterExpressions (instanceVar, blockExpression);
-
-							// return value + Func<T>
-							blockExpression.Add(instanceVar); 
-
-							var expressionFunc = Expression.Block(new ParameterExpression[] { instanceVar }, blockExpression);
-							resolverExpression = (Expression<Func<CType>>)Expression.Lambda(expressionFunc, constructorExpr.Parameters);
-
+							if (fieldInjectors.Any () || propertyInjectors.Any ()) {
+								resolverExpression = CompileFactoryExprSetters (factoryExpr);
+							} else {
+								resolverExpression = factoryExpr;
+							}
 						} else {
-							resolverExpression = constructorExpr;
+							resolverExpression = CompileConstructorExpr ();
 						}
 
 						resolverExpressionCompiled = resolverExpression.Compile ();
@@ -489,36 +482,34 @@ namespace IfInjector
 				return resolve != null;
 			}
 
-			public Action<CType> CompilePropertiesResolver() {
-				lock (syncLock) {
-					if (fieldInjectors.Any() || propertyInjectors.Any()) {
-						var instance = Expression.Parameter (typeof(CType), "instance");
-						var instanceVar = Expression.Variable(cType);
-
-						var assignExpression = Expression.Assign(instanceVar, instance);
-
-						var blockExpression = new List<Expression> ();
-						blockExpression.Add(assignExpression);
-						AddPropertySetterExpressions (instanceVar, blockExpression);
-
-						var expression = Expression.Block(new [] { instanceVar }, blockExpression);
-
-						return Expression.Lambda<Action<CType>>(expression, instance).Compile();
-					} else {
-						return (CType x) => {};
-					}
-				}
+			private Expression<Func<CType>> CompileFactoryExpr()
+			{
+				var arguments = CompileArgumentListExprs(resolverFactoryExpression.Parameters.Select (x => x.Type));
+				var callLambdaExpression = Expression.Invoke (resolverFactoryExpression, arguments.ToArray());
+				return ((Expression<Func<CType>>)Expression.Lambda(callLambdaExpression));
 			}
 
 			private Expression<Func<CType>> CompileConstructorExpr()
 			{
-				if (resolverFactoryExpression != null) {
-					var arguments = CompileArgumentListExprs(resolverFactoryExpression.Parameters.Select (x => x.Type));
-					var callLambdaExpression = Expression.Invoke (resolverFactoryExpression, arguments.ToArray());
-					return ((Expression<Func<CType>>)Expression.Lambda(callLambdaExpression));
+				var arguments = CompileArgumentListExprs(myConstructor.GetParameters().Select(v => v.ParameterType));
+				var createInstanceExpression = Expression.New(myConstructor, arguments);
+
+				if (fieldInjectors.Any () || propertyInjectors.Any ()) {
+					var initBody = new List<MemberBinding>();
+
+					var fields = from kv in fieldInjectors select new { Info = kv.Key as MemberInfo, Setter = kv.Value };
+					var props = from kv in propertyInjectors select new { Info = kv.Key as MemberInfo, Setter = kv.Value };
+
+					foreach (var pf in fields.Union(props))
+					{
+						var valueExpr = pf.Setter.IsResolve() ? 
+							GetResolverInvocationExpressionForType(pf.Setter.MemberType) : pf.Setter.Setter.Body;
+						initBody.Add(Expression.Bind (pf.Info, valueExpr));
+					}
+
+					var fullInit = Expression.MemberInit (createInstanceExpression, initBody);
+					return ((Expression<Func<CType>>)Expression.Lambda(fullInit));
 				} else {
-					var arguments = CompileArgumentListExprs(myConstructor.GetParameters().Select(v => v.ParameterType));
-					Expression createInstanceExpression = Expression.New(myConstructor, arguments);
 					return ((Expression<Func<CType>>)Expression.Lambda(createInstanceExpression));
 				}
 			}
@@ -534,18 +525,17 @@ namespace IfInjector
 				return argumentsOut;
 			}
 
-			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpressions) {
-				var fields = from kv in fieldInjectors 
-					select new { pfExpr = Expression.Field (instanceVar, kv.Key) as MemberExpression, setter = kv.Value };
-				var props = from kv in propertyInjectors
-					select new { pfExpr = Expression.Property (instanceVar, kv.Key) as MemberExpression, setter = kv.Value };
+			private Expression<Func<CType>> CompileFactoryExprSetters(Expression<Func<CType>> factoryExpr)
+			{
+				return Expression.Lambda<Func<CType>>(Expression.Invoke(CompilePropertiesResolverExpr(), factoryExpr));
+			}
 
-				foreach (var pf in fields.Union(props))
-				{
-					var valueExpr = pf.setter.IsResolve() ? 
-						GetResolverInvocationExpressionForType(pf.setter.MemberType) : pf.setter.Setter.Body;
-					var propOrFieldExpr = Expression.Assign (pf.pfExpr, valueExpr);
-					blockExpressions.Add (propOrFieldExpr);
+			private Func<CType,CType> CompilePropertiesResolver()
+			{
+				if (fieldInjectors.Any() || propertyInjectors.Any()) {
+					return CompilePropertiesResolverExpr ().Compile ();
+				} else {
+					return (CType x) => { return x; };
 				}
 			}
 
@@ -708,8 +698,8 @@ namespace IfInjector
 		/// </summary>
 		/// <returns>The implicit types.</returns>
 		/// <param name="boundType">Bound type.</param>
-		protected internal static ISet<Type> GetImplicitTypes(Type boundType) {
-			var implicitTypes = new HashSet<Type>();
+		protected internal static SetShim<Type> GetImplicitTypes(Type boundType) {
+			var implicitTypes = new SetShim<Type>();
 
 			foreach (Type iFace in boundType.GetInterfaces()) {
 				implicitTypes.Add(iFace);

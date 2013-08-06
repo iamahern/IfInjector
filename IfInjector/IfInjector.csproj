@@ -8,11 +8,11 @@
     <ProjectGuid>{E223D620-7563-4C59-8361-B10A7C398723}</ProjectGuid>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
-    <RootNamespace>FastInjectorMx</RootNamespace>
-    <AssemblyName>FastInjectorMx</AssemblyName>
+    <RootNamespace>IfInjector</RootNamespace>
+    <AssemblyName>IfInjector</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Profile37</TargetFrameworkProfile>
-    <ReleaseVersion>0.4</ReleaseVersion>
+    <TargetFrameworkProfile>Profile104</TargetFrameworkProfile>
+    <ReleaseVersion>0.5</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -38,11 +38,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="IfInjector.cs" />
-    <Compile Include="IfInjectorInternal.cs" />
+    <Compile Include="source\IfInjector.cs" />
+    <Compile Include="source\IfInjectorInternal.cs" />
+    <Compile Include="source\IfInjectorPlatform.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>
     <None Include="TODO.txt" />
+    <None Include="IfInjector.0.5.nupkg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="source\" />
   </ItemGroup>
 </Project>

@@ -27,6 +27,7 @@ namespace IfInjectorTest
 
 			// Only implicit bindings should be considered
 			Assert.IsNotNull (instance.MyOtherClass);
+			Assert.IsNotNull (instance.GetMyOtherClass2 ());
 		}
 
 		[Test()]
@@ -47,6 +48,7 @@ namespace IfInjectorTest
 
 			// Only implicit bindings should be considered
 			Assert.IsNotNull (instance.MyOtherClass);
+			Assert.IsNotNull (instance.GetMyOtherClass2 ());
 		}
 		
 		[Test, Timeout(100)]
@@ -109,6 +111,13 @@ namespace IfInjectorTest
 
 			[Inject]
 			public MyOtherClass MyOtherClass { get; private set; }
+
+			[Inject]
+			private MyOtherClass MyOtherClass2 = null;
+
+			public MyOtherClass GetMyOtherClass2() {
+				return MyOtherClass2;
+			}
 		}
 
 		class MyOtherClass {}
