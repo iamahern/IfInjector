@@ -66,9 +66,9 @@ namespace IfInjector
 		protected internal partial class Resolver<CType> : IResolver 
 			where CType : class 
 		{
-			private MethodInfo compileFieldSetterExpressionGeneric;
+			private static readonly MethodInfo compileFieldSetterExpressionGeneric;
 
-			private void InitPlatformSupport() {
+			static Resolver() {
 				Expression<Action> val = () => CompileFieldSetterExpressionGeneric<Exception> (null, null, null);
 				compileFieldSetterExpressionGeneric = ((MethodCallExpression)val.Body).Method.GetGenericMethodDefinition();
 			}
@@ -90,7 +90,16 @@ namespace IfInjector
 				return setSettersExpr;
 			}
 
-			private CType CallSetterList(CType instance, List<Action<CType>> setters) {
+			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpressions) {
+				foreach (var prop in propertyInjectors) {
+					var valueExpr =  GetSetterValueExpression (prop.Value);
+					var setMethod = prop.Key.GetSetMethod(true);
+					var propAssignExpr = Expression.Call(instanceVar, setMethod, valueExpr);
+					blockExpressions.Add (propAssignExpr);
+				}
+			}
+
+			private static CType CallSetterList(CType instance, List<Action<CType>> setters) {
 				foreach (var setter in setters) {
 					setter (instance);
 				}
@@ -106,38 +115,21 @@ namespace IfInjector
 				}
 			}
 
-			private Expression CompileFieldSetterExpression(ParameterExpression instanceVar, FieldInfo fieldInfo, Expression valueExpr)
+			private static Expression CompileFieldSetterExpression(ParameterExpression instanceVar, FieldInfo fieldInfo, Expression valueExpr)
 			{
-				return (Expression) compileFieldSetterExpressionGeneric.MakeGenericMethod (fieldInfo.FieldType).Invoke (this, new object[]{instanceVar, fieldInfo, valueExpr});
+				return (Expression) compileFieldSetterExpressionGeneric.MakeGenericMethod (fieldInfo.FieldType).Invoke (null, new object[]{instanceVar, fieldInfo, valueExpr});
 			}
 
-			private Expression CompileFieldSetterExpressionGeneric<TPropertyType>(ParameterExpression instanceVar, FieldInfo fieldInfo, Expression valueExpr)
+			private static Expression CompileFieldSetterExpressionGeneric<TPropertyType>(ParameterExpression instanceVar, FieldInfo fieldInfo, Expression valueExpr)
 			{
 				var valueFunc = Expression.Lambda<Func<TPropertyType>> (valueExpr).Compile();
 				Expression<Action<CType>> setValueExpr = inst => CallSetField<TPropertyType>(inst, fieldInfo, valueFunc);
 				return Expression.Invoke(setValueExpr, instanceVar);
 			}
 
-			private void CallSetField<TPropertyType>(CType instance, FieldInfo fieldInfo, Func<TPropertyType> propValue)
+			private static void CallSetField<TPropertyType>(CType instance, FieldInfo fieldInfo, Func<TPropertyType> propValue)
 			{
 				fieldInfo.SetValue (instance, propValue());
-			}
-
-			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpressions) {
-				foreach (var prop in propertyInjectors) {
-					var valueExpr =  GetSetterValueExpression (prop.Value);
-					var setMethod = prop.Key.GetSetMethod(true);
-					var propAssignExpr = Expression.Call(instanceVar, setMethod, valueExpr);
-					blockExpressions.Add (propAssignExpr);
-				}
-			}
-
-			private Expression GetSetterValueExpression(SetterExpression setter) {
-				if (setter.IsResolve ()) {
-					return GetResolverInvocationExpressionForType (setter.MemberType);
-				} else {
-					return setter.Setter.Body;
-				}
 			}
 		}
 	}

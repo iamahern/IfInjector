@@ -286,7 +286,6 @@ namespace IfInjector
 				this.propertyInjectors = new Dictionary<PropertyInfo, SetterExpression>();
 				this.fieldInjectors = new Dictionary<FieldInfo, SetterExpression>();
 
-				InitPlatformSupport();
 				InitInitialResolver();
 			}
 
@@ -495,19 +494,10 @@ namespace IfInjector
 				var createInstanceExpression = Expression.New(myConstructor, arguments);
 
 				if (fieldInjectors.Any () || propertyInjectors.Any ()) {
-					var initBody = new List<MemberBinding>();
+					var fields = from kv in fieldInjectors select Expression.Bind (kv.Key, GetSetterValueExpression(kv.Value));
+					var props = from kv in propertyInjectors select Expression.Bind (kv.Key, GetSetterValueExpression(kv.Value));
+					var fullInit = Expression.MemberInit (createInstanceExpression, fields.Union(props).ToArray());
 
-					var fields = from kv in fieldInjectors select new { Info = kv.Key as MemberInfo, Setter = kv.Value };
-					var props = from kv in propertyInjectors select new { Info = kv.Key as MemberInfo, Setter = kv.Value };
-
-					foreach (var pf in fields.Union(props))
-					{
-						var valueExpr = pf.Setter.IsResolve() ? 
-							GetResolverInvocationExpressionForType(pf.Setter.MemberType) : pf.Setter.Setter.Body;
-						initBody.Add(Expression.Bind (pf.Info, valueExpr));
-					}
-
-					var fullInit = Expression.MemberInit (createInstanceExpression, initBody);
 					return ((Expression<Func<CType>>)Expression.Lambda(fullInit));
 				} else {
 					return ((Expression<Func<CType>>)Expression.Lambda(createInstanceExpression));
@@ -536,6 +526,15 @@ namespace IfInjector
 					return CompilePropertiesResolverExpr ().Compile ();
 				} else {
 					return (CType x) => { return x; };
+				}
+			}
+
+			
+			private Expression GetSetterValueExpression(SetterExpression setter) {
+				if (setter.IsResolve ()) {
+					return GetResolverInvocationExpressionForType (setter.MemberType);
+				} else {
+					return setter.Setter.Body;
 				}
 			}
 
