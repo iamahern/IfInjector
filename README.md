@@ -15,7 +15,7 @@ The goal of the project is to provide a featureful high performance micro-IoC co
 
 # Documentations
 
-https://github.com/iamahern/IfFastInjector/wiki
+https://github.com/iamahern/IfInjector/wiki
 
 # Example Usage and Quickstart
 
