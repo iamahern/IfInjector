@@ -10,12 +10,12 @@ The goal of the project is to provide a featureful high performance micro-IoC co
 * Auto-Registration
 * Configuration through code
 * Configuration through annotations
-* Fast (top performer on [IoC Container Shootout](www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison)) 
+* Fast (top performer on [IoC Container Shootout](http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison)) 
 * Small (under 1500 lines of code)
 
 # Documentations
 
-https://github.com/iamahern/IfFastInjector/wiki
+https://github.com/iamahern/IfInjector/wiki
 
 # Example Usage and Quickstart
 
