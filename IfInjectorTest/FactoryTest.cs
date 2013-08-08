@@ -13,7 +13,9 @@ namespace IfInjectorTest
 		class A3 {}
 		class A4 {}
 
-		class B{
+		interface IB {}
+
+		class B : IB {
 			public readonly A1 Ma1;
 			public readonly A2 Ma2;
 			public readonly A3 Ma3;
@@ -40,7 +42,16 @@ namespace IfInjectorTest
 			public B(A1 a1) {
 				Ma1 = a1;
 			}
+
+			public B() {}
+
+			public C C { get; private set; }
+
+			public D MyD = null;
 		};
+
+		class C {}
+		class D {}
 		
 		[Test]
 		public void TestFunc1 ()
@@ -88,6 +99,21 @@ namespace IfInjectorTest
 			Assert.IsNotNull (b.Ma2);
 			Assert.IsNotNull (b.Ma3);
 			Assert.IsNotNull (b.Ma4);
+		}
+
+		[Test]
+		public void TestSingltonInterfaceFactoryWithProperty() {
+			var injector = Injector.NewInstance ();
+			injector.Bind<IB, B> ().SetFactory (() => new B ())
+				.AddPropertyInjector (ist => ist.C)
+				.AddPropertyInjector (ist => ist.MyD);
+			var b = injector.Resolve<IB> () as B;
+			Assert.IsNull (b.Ma1);
+			Assert.IsNull (b.Ma2);
+			Assert.IsNull (b.Ma3);
+			Assert.IsNull (b.Ma4);
+			Assert.IsNotNull (b.C);
+			Assert.IsNotNull (b.MyD);
 		}
 	}
 }

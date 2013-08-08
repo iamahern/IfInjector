@@ -3,6 +3,8 @@
 	- Need for IDisposable???
 
 - DEFECT:
+	- Property injection broken for factories
+
 	- EDGE Cases:
 		- How should singleton or (when we have them) custom lifecycles be handled?
 		- If modification of a dependent type occurs, should we clear the resolver or throw an exception...
@@ -12,12 +14,15 @@
 		
 - MISSING FEATURES:
 	- InjectStatic()
+	- Need a provider type
 	
 - TESTING:
 	- Add platform tests for Android, iPhone
 	- Clean up unit tests
 	- White box testing of resolver loop checking??
 	- Ensure clear of implicit resolver if set explicit
+
+	- Need to ensure tests also run on factories
 
 - WISH LIST:
 	- Generics

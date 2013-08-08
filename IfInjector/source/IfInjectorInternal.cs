@@ -348,6 +348,10 @@ namespace IfInjector
 			}
 
 			public void DoInject(object instance) {
+				DoInjectTyped (instance as CType);
+			}
+
+			private CType DoInjectTyped(CType instance) {
 				if (instance != null) {
 					if (resolveProperties == null) {
 						lock (this) {
@@ -355,8 +359,10 @@ namespace IfInjector
 						}
 					}
 
-					resolveProperties (instance as CType);
+					resolveProperties (instance);
 				}
+
+				return instance;
 			}
 
 			public Expression GetResolveExpression (SetShim<Type> callerDeps) {
@@ -570,7 +576,9 @@ namespace IfInjector
 
 			private Expression<Func<CType>> CompileFactoryExprSetters(Expression<Func<CType>> factoryExpr)
 			{
-				return Expression.Lambda<Func<CType>>(Expression.Invoke(CompilePropertiesResolverExpr(), factoryExpr));
+				Func<CType> factory = factoryExpr.Compile ();
+				Expression<Func<CType>> func = () => DoInjectTyped(factory());
+				return func;
 			}
 
 			private Func<CType,CType> CompilePropertiesResolver()

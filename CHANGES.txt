@@ -24,6 +24,8 @@ Version 0.5+ (not released)
 ----------------
 
 Major
+- Property injection with factories was broken
+
 - Changed dependency chain clearing logic to maintain type=>Set(IResolvers) map
 	- This ensures that clearing a type only modifies types that depend on the given type
 	- The practical reason for this is if you have 1000+ objects I was looping over all of them each time you changed a binding
