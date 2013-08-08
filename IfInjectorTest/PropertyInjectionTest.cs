@@ -14,7 +14,7 @@ namespace IfInjectorTest
 		{
 			var injector = Injector.NewInstance ();
 			injector.Bind<MyClass>()
-				.AddPropertyInjector<int>((x) => x.Age, () => 10)
+				.AddPropertyInjector((x) => x.Age, () => 10)
 				.AddPropertyInjector((x) => x.Name, () => "Mike");
 
 			var instance = new MyClass ();
@@ -35,8 +35,8 @@ namespace IfInjectorTest
 		{
 			var injector = Injector.NewInstance ();
 			injector.Bind<MyClass>()
-				.AddPropertyInjector<int>((x) => x.Age, () => 10)
-					.AddPropertyInjector((x) => x.Name, () => "Mike");
+				.AddPropertyInjector((x) => x.Age, () => 10)
+				.AddPropertyInjector((x) => x.Name, () => "Mike");
 
 			var instance = new MyClass ();
 

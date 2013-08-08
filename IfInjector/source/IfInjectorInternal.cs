@@ -37,6 +37,12 @@ namespace IfInjector
 			/// <returns>The resolve expression.</returns>
 			/// <param name="callerDeps">SetShim of the 'callers' dependencies. IResolver adds itself and its depdendencies to the set.</param>
 			Expression GetResolveExpression (SetShim<Type> callerDeps);
+
+			/// <summary>
+			/// Gets the dependencies of this resolver.
+			/// </summary>
+			/// <value>The dependencies.</value>
+			SetShim<Type> Dependencies { get; }
 		}
 		
 		/// <summary>
@@ -50,6 +56,8 @@ namespace IfInjector
 			private readonly SafeDictionary<Type, IResolver> allResolvers;
 			private readonly SafeDictionary<Type, IResolver> allImplicitResolvers;
 			private readonly SafeDictionary<Type, SetShim<Type>> implicitTypeLookup;
+
+			private readonly Dictionary<Type, SetShim<IResolver>> resolverDeps = new Dictionary<Type, SetShim<IResolver>>();
 
 			public InjectorImpl() 
 			{
@@ -124,9 +132,15 @@ namespace IfInjector
 			{
 				lock (syncLock) {
 					Type bindType = typeof(BType);
+					IResolver oldResolver, implicitResolver;					
 
 					implicitTypeLookup.Remove (bindType);
-					allResolvers.Remove (bindType);
+					if (allResolvers.TryGetValue (bindType, out oldResolver)) {
+						allResolvers.Remove (bindType);
+						if (!allImplicitResolvers.TryGetValue (bindType, out implicitResolver) || !object.ReferenceEquals (oldResolver, implicitResolver)) {
+							ClearDependencies (oldResolver);
+						}
+					}
 
 					// Add after create resolver
 					var resolver = CreateResolverInstanceGeneric<BType, CType> (false);
@@ -231,21 +245,52 @@ namespace IfInjector
 				}
 			}
 
+			///////// Code to ensure 'fast' (minimal) clearing of complex resolver chains
+			/// The reason for doing this, is (p
+			#region ResolverDependencies
+
+			protected internal void SetDependencies(IResolver resolver) {
+				lock (syncLock) {
+					foreach (Type t in resolver.Dependencies) {
+						SetShim<IResolver> resolvers;
+						if (!resolverDeps.TryGetValue (t, out resolvers)) {
+							resolvers = new SetShim<IResolver> ();
+							resolverDeps.Add (t, resolvers);
+						}
+						resolvers.Add (resolver);
+					}
+				}
+			}
+
+			protected internal void ClearDependencies(IResolver resolver) {
+				lock (syncLock) {
+					// ensure operating on copy to avoid modification inside of loop
+					foreach (Type t in resolver.Dependencies.ToArray()) {
+						SetShim<IResolver> resolvers;
+						if (resolverDeps.TryGetValue (t, out resolvers)) {
+							resolvers.Remove (resolver);
+						}
+					}
+				}
+			}
+
 			/// <summary>
 			/// Clears the dependent resolvers.
 			/// </summary>
 			/// <param name="bindType">Key type.</param>
 			protected internal void ClearDependentResolvers(Type bindType) {
 				lock (syncLock) {
-					foreach (var resolver in allResolvers.Values) {
-						resolver.ConditionalClearResolver (bindType);
-					}
-
-					foreach (var resolver in allImplicitResolvers.Values) {
-						resolver.ConditionalClearResolver (bindType);
+					SetShim<IResolver> resolvers;
+					if (resolverDeps.TryGetValue (bindType, out resolvers)) {
+						foreach (var resolver in resolvers) {
+							resolver.ConditionalClearResolver (bindType);
+						}
 					}
 				}
 			}
+
+			#endregion ResolverDependencies
+			////////////
 		}
 
 		protected internal partial class Resolver<CType> : IResolver 
@@ -273,6 +318,7 @@ namespace IfInjector
 			private Func<CType,CType> resolveProperties;
 
 			private readonly SetShim<Type> dependencies = new SetShim<Type>();
+			public SetShim<Type> Dependencies { get { return dependencies; } }
 
 			private readonly InjectorImpl injector;
 
@@ -416,6 +462,7 @@ namespace IfInjector
 					isVerifiedNotRecursive = false;
 
 					dependencies.Clear ();
+					injector.ClearDependencies (this);
 
 					resolve = null;
 					resolverExpressionCompiled = null;
@@ -432,19 +479,25 @@ namespace IfInjector
 							throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
 						}
 						isRecursionTestPending = true;
+
+						CType retval = resolverExpressionCompiled();
+
+						isVerifiedNotRecursive = true;
+						isRecursionTestPending = false;
+
+						injector.SetDependencies (this);
+
+						if (this.singleton) {
+							resolve = () => retval;
+						} else {
+							resolve = resolverExpressionCompiled;
+						}
+
+						return retval;
 					}
 
-					CType retval = resolverExpressionCompiled();
-
-					isVerifiedNotRecursive = true;
-					isRecursionTestPending = false;
-
-					if (this.singleton) {
-						resolve = () => retval;
-					} else {
-						resolve = resolverExpressionCompiled;
-					}
-					return retval;
+					// else was verified by other thread
+					return resolve();
 				}
 			}
 

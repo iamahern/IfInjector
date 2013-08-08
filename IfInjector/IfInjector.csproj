@@ -45,7 +45,6 @@
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>
     <None Include="TODO.txt" />
-    <None Include="IfInjector.0.5.nupkg" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="source\" />

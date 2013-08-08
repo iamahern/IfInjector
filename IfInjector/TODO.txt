@@ -15,8 +15,11 @@
 	
 - TESTING:
 	- Add platform tests for Android, iPhone
+	- Clean up unit tests
+	- White box testing of resolver loop checking??
+	- Ensure clear of implicit resolver if set explicit
 
 - WISH LIST:
 	- Generics
 	- Custom LifeCycles
-	- Extension feature to allow for 
+	- Extension feature to allow for interceptors

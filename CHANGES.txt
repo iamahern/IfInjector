@@ -1,0 +1,37 @@
+Version 0.5
+----------------
+
+Added support for WF7.5.  For 'factory' based construction there are some performance degredations - most of which are neglibible if you only use 'property injection'. For 'field' injection, the changes forced the use of reflection.
+
+To give a very concrete example, this is the only thing that requires heavy reflections:
+
+class MyType {}
+class MyOtherType {
+	[IfInject]					// Could also be .AddPropertyInjector() style binding
+	public MyType MyType;		// public vs private does not matter here, just that it is a 'field' rather than a property
+	
+	[IfInject]
+	public MyType MyTypeProp { get; private set; } 	// This will cause NO issues
+}
+
+injector.Bind<MyOtherType>().SetFactory(() => return new MyOtherType());
+
+// NOTE: the following will not suffer, as I am able to leverage a more performant LINQ expression for constructors.
+injector.Bind<MyOtherType>(); // NOTE: no factory
+
+
+Version 0.5+ (not released)
+----------------
+
+Major
+- Changed dependency chain clearing logic to maintain type=>Set(IResolvers) map
+	- This ensures that clearing a type only modifies types that depend on the given type
+	- The practical reason for this is if you have 1000+ objects I was looping over all of them each time you changed a binding
+	- With the change, I only clear the the dependencies and which removes them from the type=>Set(IResolver) list
+		- Thus, if you have 5+ dependencies, I only tell each of them to clear themselves once
+
+- Fixed edge condition where 2 concurrent threads cause double initialization of singleton
+
+Minor
+- Code Hygene
+

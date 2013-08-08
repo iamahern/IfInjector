@@ -26,6 +26,10 @@ namespace IfInjector
 				data [item] = true;
 			}
 
+			public bool Remove(T item) {
+				return data.Remove (item);
+			}
+
 			public void Clear() {
 				data.Clear();
 			}
