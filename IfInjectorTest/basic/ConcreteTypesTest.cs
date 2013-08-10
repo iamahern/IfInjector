@@ -6,18 +6,17 @@ using IfInjector;
 namespace IfInjectorTest
 {
 	[TestFixture()]
-	public class ConcreteTypesTest
+	public class ConcreteTypesTest : Base2WayTest
 	{
 		[Test()]
 		public void TestCanSetConcreteOnlyProperties ()
 		{
 			string expectX = "foobar";
 
-			var injector = Injector.NewInstance ();
-			injector.Bind<Foo, Bar> ()
+			Bind<Foo, Bar> ()
 				.AddPropertyInjector (v => v.X, () => expectX);
 
-			Bar b = (Bar)injector.Resolve<Foo> ();
+			Bar b = (Bar)Injector.Resolve<Foo> ();
 
 			Assert.AreEqual (expectX, b.X);
 		}
@@ -25,11 +24,10 @@ namespace IfInjectorTest
 		[Test()]
 		public void TestTypeSingletonsForInterfaceBindings ()
 		{
-			var injector = Injector.NewInstance ();
-			injector.Bind<Foo, Bar> ().AsSingleton();
+			Bind<Foo, Bar> ().AsSingleton();
 
-			Foo a = injector.Resolve<Foo> ();
-			Foo b = injector.Resolve<Foo> ();
+			Foo a = Injector.Resolve<Foo> ();
+			Foo b = Injector.Resolve<Foo> ();
 
 			Assert.IsTrue(object.ReferenceEquals(a, b));
 		}

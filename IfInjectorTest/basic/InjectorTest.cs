@@ -5,15 +5,14 @@ using IfInjector;
 namespace IfInjectorTest
 {
     [TestFixture]
-    public class InjectorTest
+    public class InjectorTest : Base2WayTest
     {
         [Test]
         public void ResolveInterface()
         {
-			Injector injector = Injector.NewInstance();
-			injector.Bind<MyInterface, MyTestClass>();
+			Bind<MyInterface, MyTestClass>();
 
-			var result = injector.Resolve<MyInterface>();
+			var result = Injector.Resolve<MyInterface>();
 
 			Assert.IsInstanceOf<MyTestClass>(result);
         }
@@ -21,37 +20,33 @@ namespace IfInjectorTest
         [Test]
         public void ResolveDefaultConcrete()
         {
-			Injector injector = Injector.NewInstance();
-			var result = injector.Resolve<MyTestClass>();
+			var result = Injector.Resolve<MyTestClass>();
             Assert.IsInstanceOf<MyTestClass>(result);
         }
 
 		[Test]
 		public void ResolveConcreteTypeSame() {
-			Injector injector = Injector.NewInstance();
-			injector.Bind<MyTestClass, MyTestClass>();
-			var result = injector.Resolve<MyTestClass>();
+			Bind<MyTestClass, MyTestClass>();
+			var result = Injector.Resolve<MyTestClass>();
 			Assert.IsInstanceOf<MyTestClass>(result);
 		}
 
 		[Test]
 		public void BindConcreteType() {
-			var injector = Injector.NewInstance();
-			injector.Bind<MyTestClass>();
-			var result = injector.Resolve<MyTestClass>();
+			Bind<MyTestClass>();
+			var result = Injector.Resolve<MyTestClass>();
 			Assert.IsInstanceOf<MyTestClass>(result);
 		}
 
         [Test]
         public void InjectProperty()
         {
-			var injector = Injector.NewInstance();
-			injector
+			Injector
                 .Bind<MyInterface, MyTestClass>()
              	.AddPropertyInjector(v => v.MyProperty)
                 .AddPropertyInjector(v => v.MyOtherProperty, () => new MyPropertyClass());
 
-			var result = injector.Resolve<MyTestClass>();
+			var result = Injector.Resolve<MyTestClass>();
 
             Assert.IsInstanceOf<MyTestClass>(result);
         }
@@ -92,10 +87,9 @@ namespace IfInjectorTest
         [Test]
         public void TestSelectConstructorByAttribute()
         {
-			var injector = Injector.NewInstance();
-			injector.Bind<TestSelectConstructorByAttributeTestClass.IMyOtherInterface, TestSelectConstructorByAttributeTestClass.MyOtherInterfaceClass>();
+			Bind<TestSelectConstructorByAttributeTestClass.IMyOtherInterface, TestSelectConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
-			var result = injector.Resolve<TestSelectConstructorByAttributeTestClass>();
+			var result = Injector.Resolve<TestSelectConstructorByAttributeTestClass>();
 
 			Assert.IsInstanceOf<TestSelectConstructorByAttributeTestClass>(result);
             Assert.IsTrue(result.CorrectConstructorWasUsed);
@@ -123,10 +117,9 @@ namespace IfInjectorTest
         [Test]
         public void TestSelectConstructorByIgnoreAttribute()
         {
-			var injector = Injector.NewInstance();
-			injector.Bind<TestIgnoreConstructorByAttributeTestClass.IMyOtherInterface, TestIgnoreConstructorByAttributeTestClass.MyOtherInterfaceClass>();
+			Bind<TestIgnoreConstructorByAttributeTestClass.IMyOtherInterface, TestIgnoreConstructorByAttributeTestClass.MyOtherInterfaceClass>();
 
-			var result = injector.Resolve<TestIgnoreConstructorByAttributeTestClass>();
+			var result = Injector.Resolve<TestIgnoreConstructorByAttributeTestClass>();
 
 			Assert.IsInstanceOf<TestIgnoreConstructorByAttributeTestClass>(result);
             Assert.IsTrue(result.CorrectConstructorWasUsed);

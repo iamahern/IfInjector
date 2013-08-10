@@ -7,10 +7,13 @@ using System.Linq.Expressions;
 
 namespace IfInjectorTest
 {
+	/// <summary>
+	/// This class implements a series of tests for exercising [Inject] annotation based injection.
+	/// </summary>
     [TestFixture]
-    public class BindingAttributeTest
+	public class BindingAttributeTest : Base2WayTest
     {
-		class Parent {
+		protected class Parent {
 			[Inject]
 			public Inner ParentInner { get; set; }
 
@@ -27,7 +30,7 @@ namespace IfInjectorTest
 			public Inner ShadowProp { get; set; }
 		}
 
-		class Outer : Parent
+		protected class Outer : Parent
 		{
 			[Inject]
 			public Inner MyInner { get; private set; }
@@ -54,66 +57,64 @@ namespace IfInjectorTest
 			public new Inner ShadowProp { get; set; }
 		}
 
-		class Inner
+		protected class Inner
 		{
 		}
 
-		Injector injector = Injector.NewInstance ();
-
-		public BindingAttributeTest() {
-			injector.Bind<Inner> ().AsSingleton ();
-			injector.Bind<Outer> ().AsSingleton ();
+		[NUnit.Framework.SetUp]
+		public void BindingAttributeTestSetup() {
+			Bind<Inner> ().AsSingleton ();
+			Bind<Outer> ().AsSingleton ();
 		}
 
 		[Test]
         public void ImplicitBindPublicProperty ()
 		{
-			var res = injector.Resolve<Outer> ();
+			var res = Injector.Resolve<Outer> ();
 			Assert.IsNotNull (res.MyInner);
 		}
 
 		[Test]
 		public void ImplicitBindPrivateProperty ()
 		{
-			var res = injector.Resolve<Outer> ();
+			var res = Injector.Resolve<Outer> ();
 			Assert.IsNotNull (res.GetMyInnerPrivateProp());
 		}
 
 		[Test]
 		public void ImplicitBindPrivateField ()
 		{
-			var res = injector.Resolve<Outer> ();
+			var res = Injector.Resolve<Outer> ();
 			Assert.IsNotNull (res.GetMyInnerPrivateField());
 		}
 
 		[Test]
 		public void ImplicitBindDerivedProperty()
 		{
-			var res = injector.Resolve<Outer> ();
+			var res = Injector.Resolve<Outer> ();
 			Assert.IsNotNull (res.ParentInner);
 		}
 
 		[Test]
 		public void ImplicitBindDerivedField()
 		{
-			var res = injector.Resolve<Outer> ();
+			var res = Injector.Resolve<Outer> ();
 			Assert.IsNotNull (res.GetMyParentInner());
 		}
 
 		[Test]
 		public void FactoryConstructorAutoBinding()
 		{
-			var mInjector = Injector.NewInstance ();
-			mInjector.Bind<Parent, Outer> ().SetFactory(() => new Outer()).AsSingleton();
-			mInjector.Bind<Inner> ().AsSingleton ();
+			Injector.Bind<Parent, Outer> ().SetFactory(() => new Outer()).AsSingleton();
+			Injector.Bind<Inner> ().AsSingleton ();
 
-			var res = injector.Resolve<Parent> ();
+			var res = Injector.Resolve<Parent> ();
 			Assert.IsNotNull (res.FactoryParentInner);
 		}
 
 		[Test]
 		public void ShadowProperties() {
-			var res = injector.Resolve<Outer> ();
+			var res = Injector.Resolve<Outer> ();
 			Assert.IsNull (res.ShadowProp);
 
 			Parent resPar = res as Parent;
@@ -174,13 +175,12 @@ namespace IfInjectorTest
 
 		[Test]
 		public void CheckImplementedBy() {
-			var mInjector = Injector.NewInstance ();
-			var res = mInjector.Resolve<MyIFace> ();
+			var res = Injector.Resolve<MyIFace> ();
 
 			Assert.IsNotNull (res);
 			Assert.IsInstanceOf<MyIFaceImpl> (res);
 
-			var res2 = mInjector.Resolve<MyIFaceBaseImpl> ();
+			var res2 = Injector.Resolve<MyIFaceBaseImpl> ();
 
 			Assert.IsNotNull (res2);
 			Assert.IsInstanceOf<MyIFaceImpl> (res2);
@@ -188,24 +188,22 @@ namespace IfInjectorTest
 
 		[Test]
 		public void CheckImplementedByOverrideAndAmbiguity() {
-			var mInjector = Injector.NewInstance ();
-
 			// Check - ambiguous situation where Resolve<XXX> may be for type with an @IfImplementedBy; but the user explicitly Bind<YYY> where YYY : XXX.
-			mInjector.Bind<MyIFace, MyIFaceImpl>().AsSingleton();
-			mInjector.Bind<MyIFaceImpl>().AsSingleton();
+			Bind<MyIFace, MyIFaceImpl>().AsSingleton();
+			Bind<MyIFaceImpl>().AsSingleton();
 
-			var res1 = mInjector.Resolve<MyIFaceBaseImpl> ();
-			var res2 = mInjector.Resolve<MyIFaceBaseImpl> ();
+			var res1 = Injector.Resolve<MyIFaceBaseImpl> ();
+			var res2 = Injector.Resolve<MyIFaceBaseImpl> ();
 			Assert.IsNotNull (res1);
 			Assert.IsInstanceOf<MyIFaceImpl> (res1);
 			Assert.IsFalse (object.ReferenceEquals(res1, res2)); // This should use the IfImplementedBy, not the bind statement
 
-			var res3 = mInjector.Resolve<MyIFace> ();
-			var res4 = mInjector.Resolve<MyIFace> ();
+			var res3 = Injector.Resolve<MyIFace> ();
+			var res4 = Injector.Resolve<MyIFace> ();
 			Assert.IsNotNull (res3);
 			Assert.IsTrue (object.ReferenceEquals(res3, res4));
 
-			var res5 = mInjector.Resolve<MyIFaceBaseImpl> ();
+			var res5 = Injector.Resolve<MyIFaceBaseImpl> ();
 			Assert.IsNotNull (res5);
 			Assert.IsFalse (object.ReferenceEquals(res4, res5));
 			Assert.IsFalse (object.ReferenceEquals(res1, res5));
@@ -217,26 +215,23 @@ namespace IfInjectorTest
 
 		[Test]
 		public void CheckSingletonBehavior() {
-			var mInjector = Injector.NewInstance ();
-
-			var res1 = mInjector.Resolve<MyNonSingletonDerived> ();
-			var res2 = mInjector.Resolve<MyNonSingletonDerived> ();
+			var res1 = Injector.Resolve<MyNonSingletonDerived> ();
+			var res2 = Injector.Resolve<MyNonSingletonDerived> ();
 			Assert.IsNotNull (res1);
 			Assert.IsFalse (object.ReferenceEquals(res1, res2));
 
-			var res3 = mInjector.Resolve<MySingletonBase> ();
-			var res4 = mInjector.Resolve<MySingletonBase> ();
+			var res3 = Injector.Resolve<MySingletonBase> ();
+			var res4 = Injector.Resolve<MySingletonBase> ();
 			Assert.IsNotNull (res3);
 			Assert.IsTrue (object.ReferenceEquals(res3, res4));
 		}
 
 		[Test]
 		public void CheckOverrideSingletonBehavior() {
-			var mInjector = Injector.NewInstance ();
-			mInjector.Bind<MySingletonBase> ().AsSingleton (false);
+			Bind<MySingletonBase> ().AsSingleton (false);
 
-			var res1 = mInjector.Resolve<MySingletonBase> ();
-			var res2 = mInjector.Resolve<MySingletonBase> ();
+			var res1 = Injector.Resolve<MySingletonBase> ();
+			var res2 = Injector.Resolve<MySingletonBase> ();
 			Assert.IsNotNull (res1);
 			Assert.IsNotNull (res2);
 			Assert.IsFalse (object.ReferenceEquals(res1, res2));

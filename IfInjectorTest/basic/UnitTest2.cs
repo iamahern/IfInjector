@@ -6,10 +6,8 @@ using IfInjector.IfInjectorTypes;
 namespace IfInjectorTest
 {
     [TestFixture]
-    public class UnitTest2
+    public class UnitTest2 : Base2WayTest
     {
-		private Injector injector = Injector.NewInstance();
-
         class TestClassSetResolverByConstructorInfoTest
         {
             public TestClassSetResolverByConstructorInfoTest() { }
@@ -23,9 +21,9 @@ namespace IfInjectorTest
         public void ResolveByTypeObjectTest()
         {
             // resolve at least twice to execute both code paths
-			var myObject = injector.Resolve(typeof(TestClassTestResolveByTypeObject));
-			myObject = injector.Resolve(typeof(TestClassTestResolveByTypeObject));
-			myObject = injector.Resolve(typeof(TestClassTestResolveByTypeObject));
+			var myObject = Injector.Resolve(typeof(TestClassTestResolveByTypeObject));
+			myObject = Injector.Resolve(typeof(TestClassTestResolveByTypeObject));
+			myObject = Injector.Resolve(typeof(TestClassTestResolveByTypeObject));
         }
 
         class TestClassTestResolveByTypeObject { }
@@ -33,11 +31,11 @@ namespace IfInjectorTest
         [Test]
         public void AddPropertyInjectorTest()
         {
-			var binding = injector.Bind<TestClassAddPropertyInjectorTest> ();
+			var binding = Bind<TestClassAddPropertyInjectorTest> ();
 			binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.Other);
 			binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger");
 
-			var result = injector.Resolve<TestClassAddPropertyInjectorTest>();
+			var result = Injector.Resolve<TestClassAddPropertyInjectorTest>();
 
             Assert.AreEqual("Goldfinger", result.MyStringProperty);
             Assert.AreEqual(7, result.Other.Id);
@@ -57,7 +55,7 @@ namespace IfInjectorTest
 			InjectorException exception = null;
             try
             {
-				injector.Resolve<IInterfaceExceptionTest>();
+				Injector.Resolve<IInterfaceExceptionTest>();
             }
 			catch (InjectorException ex)
             {
@@ -72,7 +70,7 @@ namespace IfInjectorTest
         [Test]
         public void AddPropertySetterNotMemberExpression()
         {
-			var binding = injector.Bind<TestClassAddPropertyInjectorTest>();
+			var binding = Bind<TestClassAddPropertyInjectorTest>();
 
 			InjectorException exception = null;
             try
@@ -113,11 +111,10 @@ namespace IfInjectorTest
 
 		[Test]
 		public void NoProperConstructorTest() {
-			var injector = Injector.NewInstance ();
 			var ex1 = InjectorErrors.ErrorNoAppropriateConstructor.FormatEx (typeof(NoProperConstructor).FullName);
 
 			try { 
-				injector.Resolve<NoProperConstructor>();
+				Injector.Resolve<NoProperConstructor>();
 				Assert.Fail();
 			} catch (InjectorException ex) {
 				Assert.AreEqual (ex1.ErrorType.MessageCode, ex.ErrorType.MessageCode);
@@ -126,11 +123,10 @@ namespace IfInjectorTest
 
 		[Test]
 		public void TestVerify() {
-			var injector = Injector.NewInstance ();
-			injector.Bind<NoProperConstructor> ();
+			Injector.Bind<NoProperConstructor> ();
 
 			try { 
-				injector.Verify();
+				Injector.Verify();
 				Assert.Fail();
 			} catch (InjectorException ex) {
 				var ex1 = InjectorErrors.ErrorNoAppropriateConstructor.FormatEx (typeof(NoProperConstructor).FullName);

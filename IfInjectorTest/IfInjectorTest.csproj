@@ -38,23 +38,37 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <Compile Include="InjectorTest.cs" />
-    <Compile Include="ResolverLoopTest.cs" />
-    <Compile Include="UnitTest1.cs" />
-    <Compile Include="UnitTest2.cs" />
-    <Compile Include="MultipleInjectorsTest.cs" />
-    <Compile Include="SingletonsTest.cs" />
-    <Compile Include="ImplicitTypeTest.cs" />
-    <Compile Include="ConcreteTypesTest.cs" />
-    <Compile Include="PropertyInjectionTest.cs" />
-    <Compile Include="BindingAttributeTest.cs" />
-    <Compile Include="RecompilationTests.cs" />
     <Compile Include="FactoryTest.cs" />
+    <Compile Include="Base2WayTest.cs" />
+    <Compile Include="basic\BindingAttributeTest.cs" />
+    <Compile Include="basic\ConcreteTypesTest.cs" />
+    <Compile Include="basic\ImplicitTypeTest.cs" />
+    <Compile Include="basic\InjectorTest.cs" />
+    <Compile Include="basic\PropertyInjectionTest.cs" />
+    <Compile Include="basic\ResolverLoopTest.cs" />
+    <Compile Include="basic\UnitTest2.cs" />
+    <Compile Include="basic\SingletonsTest.cs" />
+    <Compile Include="factory\BindingAttributeTest.cs" />
+    <Compile Include="basic\RecompilationTest.cs" />
+    <Compile Include="factory\ImplicitTypeTest.cs" />
+    <Compile Include="factory\ConcreteTypesTest.cs" />
+    <Compile Include="factory\InjectorTest.cs" />
+    <Compile Include="factory\PropertyInjectionTest.cs" />
+    <Compile Include="factory\RecompilationTest.cs" />
+    <Compile Include="MultipleInjectorsTest.cs" />
+    <Compile Include="factory\ResolverLoopTest.cs" />
+    <Compile Include="factory\SingletonsTest.cs" />
+    <Compile Include="factory\UnitTest2.cs" />
+    <Compile Include="UnitTest1.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfInjector\IfInjector.csproj">
       <Project>{E223D620-7563-4C59-8361-B10A7C398723}</Project>
       <Name>IfInjector</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="basic\" />
+    <Folder Include="factory\" />
   </ItemGroup>
 </Project>

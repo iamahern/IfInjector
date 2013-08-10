@@ -6,17 +6,15 @@ using IfInjector;
 namespace IfInjectorTest
 {
 	[TestFixture()]
-	public class SingletonsTest
+	public class SingletonsTest : Base2WayTest
 	{
 		[Test()]
 		public void TestSingletonWithSetResolver ()
 		{
-			var injector = Injector.NewInstance ();
+			Bind<MyIFace, MyClass> ().AsSingleton ();
 
-			injector.Bind<MyIFace, MyClass> ().AsSingleton ();
-
-			MyIFace inst1 = injector.Resolve<MyIFace> ();
-			MyIFace inst2 = injector.Resolve<MyIFace> ();
+			MyIFace inst1 = Injector.Resolve<MyIFace> ();
+			MyIFace inst2 = Injector.Resolve<MyIFace> ();
 
 			Assert.IsTrue(object.ReferenceEquals(inst1, inst2));
 		}
@@ -24,12 +22,10 @@ namespace IfInjectorTest
 		[Test()]
 		public void TestSingletonWithForConcreteType ()
 		{
-			var injector = Injector.NewInstance ();
+			Bind<MyClass> ().AsSingleton ();
 
-			injector.Bind<MyClass> ().AsSingleton ();
-
-			MyClass inst1 = injector.Resolve<MyClass> ();
-			MyClass inst2 = injector.Resolve<MyClass> ();
+			MyClass inst1 = Injector.Resolve<MyClass> ();
+			MyClass inst2 = Injector.Resolve<MyClass> ();
 
 			Assert.IsTrue(object.ReferenceEquals(inst1, inst2));
 		}

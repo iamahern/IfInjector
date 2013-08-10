@@ -6,10 +6,15 @@ using IfInjector.IfInjectorTypes;
 namespace IfInjectorTest
 {
     [TestFixture]
-    public class ResolverLoopTest
+    public class ResolverLoopTest : Base2WayTest
     {
-		protected internal static Injector injector = Injector.NewInstance();
-		
+		static IfInjector.Injector SInjector { get; set; }
+
+		[SetUp]
+		public void SetupSInjector() {
+			SInjector = Injector;
+		}
+
        	[Test, Timeout(400)]
         public void TestResolverWithLoopingTypes1()
         {
@@ -18,7 +23,7 @@ namespace IfInjectorTest
 
             try
             {
-				var concrete = injector.Resolve<ConcreteSomething>();
+				var concrete = Injector.Resolve<ConcreteSomething>();
             }
 			catch (InjectorException ex)
             {
@@ -37,7 +42,7 @@ namespace IfInjectorTest
 
             try
             {
-                var concrete = injector.Resolve<ConcreteSecretLoop>();
+                var concrete = Injector.Resolve<ConcreteSecretLoop>();
             }
 			catch (InjectorException ex)
             {
@@ -51,7 +56,7 @@ namespace IfInjectorTest
 		[Test, Timeout(100)]
         public void TestResolverWithPropertyLooping()
         {
-			injector.Bind<ConcretePropertyLoop>()
+			Bind<ConcretePropertyLoop>()
 				.AddPropertyInjector<ConcretePropertyLoop> (v => v.MyTestProperty);
             
 			//fFastInjector.Injector.InternalResolver<ConcretePropertyLoop>.AddPropertySetter(v => v.MyTestProperty);//, () => Injector.Resolve<ConcretePropertyLoop>());
@@ -61,7 +66,7 @@ namespace IfInjectorTest
 
             try
             {
-                var concrete = injector.Resolve<ConcretePropertyLoop>();
+                var concrete = Injector.Resolve<ConcretePropertyLoop>();
             }
 			catch (InjectorException ex)
             {
@@ -100,7 +105,7 @@ namespace IfInjectorTest
         {
             public ConcreteSecretLoop()
             {
-                var other = injector.Resolve<ConcreteSecretLoop2>();
+                var other = SInjector.Resolve<ConcreteSecretLoop2>();
             }
         }
 
@@ -108,7 +113,7 @@ namespace IfInjectorTest
         {
             public ConcreteSecretLoop2()
             {
-                var other = injector.Resolve<ConcreteSecretLoop>();
+				var other = SInjector.Resolve<ConcreteSecretLoop>();
             }
         }
 
