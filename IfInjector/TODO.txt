@@ -27,3 +27,6 @@
 	- Generics
 	- Custom LifeCycles
 	- Extension feature to allow for interceptors
+	
+CHEAT SHEET:
+	http://www.infoq.com/news/2011/04/nuget-debug-sources

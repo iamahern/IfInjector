@@ -1,3 +1,25 @@
+----------------
+Version 0.5.1
+----------------
+
+Major
+- Property injection with factories were broken
+
+- Changed dependency chain clearing logic to maintain type=>Set(IResolvers) map
+	- This ensures that clearing a type only modifies types that depend on the given type
+	- The practical reason for this is if you have 1000+ objects I was looping over all of them each time you changed a binding
+	- With the change, I only clear the the dependencies and which removes them from the type=>Set(IResolver) list
+		- Thus, if you have 5+ dependencies, I only tell each of them to clear themselves once
+
+- Fixed edge condition where 2 concurrent threads cause double initialization of singleton
+
+- Refactored unit tests and increased coverage of factores to help avoid repeat.
+
+Minor
+- Code Hygene
+
+
+----------------
 Version 0.5
 ----------------
 
@@ -18,22 +40,3 @@ injector.Bind<MyOtherType>().SetFactory(() => return new MyOtherType());
 
 // NOTE: the following will not suffer, as I am able to leverage a more performant LINQ expression for constructors.
 injector.Bind<MyOtherType>(); // NOTE: no factory
-
-
-Version 0.5+ (not released)
-----------------
-
-Major
-- Property injection with factories was broken
-
-- Changed dependency chain clearing logic to maintain type=>Set(IResolvers) map
-	- This ensures that clearing a type only modifies types that depend on the given type
-	- The practical reason for this is if you have 1000+ objects I was looping over all of them each time you changed a binding
-	- With the change, I only clear the the dependencies and which removes them from the type=>Set(IResolver) list
-		- Thus, if you have 5+ dependencies, I only tell each of them to clear themselves once
-
-- Fixed edge condition where 2 concurrent threads cause double initialization of singleton
-
-Minor
-- Code Hygene
-
