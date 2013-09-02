@@ -1,12 +1,12 @@
 using NUnit.Framework;
 using System;
 
-using IfInjectorTest;
+using IfInjectorTest.Basic;
 
 namespace IfInjectorTest.Factory
 {
 	[TestFixture()]
-	public class ConcreteTypesTest : IfInjectorTest.ConcreteTypesTest
+	public class ConcreteTypesTest : IfInjectorTest.Basic.ConcreteTypesTest
 	{
 		public ConcreteTypesTest() {
 			IsFactory = true;

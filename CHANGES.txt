@@ -1,4 +1,30 @@
 ----------------
+Version 0.6
+----------------
+
+DEPRECATED
+	OLD WAY:
+		Injector injector = Injector.NewInstance();
+	
+	NEW WAY:
+		Injector injector = new Injector();
+
+CHANGES
+
+Major:
+- Providers:
+	- Decide on use of injector.Resolve<>() for provider
+	- You may now do the following to inject a copy of the injector into your class
+		class MyClass {
+			[Inject]
+			private Injector injector;
+		}
+- The internal packaging structure has been completely refactored to break the . This is to ready the code 
+
+Minor:
+- Clean up of units
+
+----------------
 Version 0.5.1
 ----------------
 
@@ -9,7 +35,7 @@ Major
 	- This ensures that clearing a type only modifies types that depend on the given type
 	- The practical reason for this is if you have 1000+ objects I was looping over all of them each time you changed a binding
 	- With the change, I only clear the the dependencies and which removes them from the type=>Set(IResolver) list
-		- Thus, if you have 5+ dependencies, I only tell each of them to clear themselves once
+		- Thus, if you have  5+ dependencies, I only tell each of them to clear themselves once
 
 - Fixed edge condition where 2 concurrent threads cause double initialization of singleton
 

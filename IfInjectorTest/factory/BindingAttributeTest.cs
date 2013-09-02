@@ -4,7 +4,7 @@ using System;
 namespace IfInjectorTest.Factory
 {
 	[TestFixture()]
-	public class BindingAttributeTest : IfInjectorTest.BindingAttributeTest
+	public class BindingAttributeTest : IfInjectorTest.Basic.BindingAttributeTest
 	{
 		public BindingAttributeTest() {
 			IsFactory = true;

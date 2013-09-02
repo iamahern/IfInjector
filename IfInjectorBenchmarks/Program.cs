@@ -16,7 +16,7 @@ namespace IfInjectorMain
 		interface MyTestInterface { }
 		class MyTestClass : MyTestInterface { }
 
-		static Injector injector = Injector.NewInstance();
+		static Injector injector = new Injector();
 
 		public static void Main (string[] args)
 		{

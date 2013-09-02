@@ -8,8 +8,8 @@ namespace IfInjectorTest
     [TestFixture]
     public class MultipleInjectorsTest
     {
-		private Injector injector1 = Injector.NewInstance();
-		private Injector injector2 = Injector.NewInstance();
+		private Injector injector1 = new Injector();
+		private Injector injector2 = new Injector();
 
         [Test]
         public void RegisterMethodToResolveInterfaceTest()

@@ -1,9 +1,10 @@
 ﻿using System;
 using NUnit.Framework;
 using IfInjector;
-using IfInjector.IfInjectorTypes;
+using IfInjector.IfCore;
+using IfInjectorTest;
 
-namespace IfInjectorTest
+namespace IfInjectorTest.Basic
 {
     [TestFixture]
     public class ResolverLoopTest : Base2WayTest

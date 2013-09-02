@@ -2,9 +2,10 @@ using NUnit.Framework;
 using System;
 
 using IfInjector;
-using IfInjector.IfInjectorTypes;
+using IfInjector.IfCore;
+using IfInjectorTest;
 
-namespace IfInjectorTest
+namespace IfInjectorTest.Basic
 {
 	[TestFixture()]
 	public class PropertyInjectionTest : Base2WayTest

@@ -1,4 +1,4 @@
-# IfInjector v0.5
+# IfInjector v0.6
 
 This project is a fork of the https://ffastinjector.codeplex.com/ library by David Walker (https://plus.google.com/109602553530284384616/).
 
@@ -7,11 +7,10 @@ The goal of the project is to provide a featureful high performance micro-IoC co
 # Key Features
 
 * Auto-Wiring
-* Auto-Registration
 * Configuration through code
 * Configuration through annotations
 * Fast (top performer on [IoC Container Shootout](http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison)) 
-* Small (under 1500 lines of code)
+* Small (<35 KB)
 
 # Documentations
 
@@ -24,8 +23,8 @@ https://github.com/iamahern/IfInjector/wiki
 The implementation consists of 3 files:
 
 * IfInjector.cs (Interfaces and API definition)
-* IfInjectorInternal.cs (The core implementation)
-* IfInjectorPlatform.cs (Shims to support Windows Phone 7.5)
+* IfInjector.Injector.cs (The injector implementation)
+* IfInjector.IfCore.cs (Core binding, platform & expression builder utilities.)
 
 Simply include these in your project or use the nuget package (https://www.nuget.org/packages/IfInjector).
 
@@ -47,7 +46,7 @@ class MyType : IMyType {}
 // =================================
 // Usage
 // =================================
-var injector = Injector.NewInstance();
+var injector = new Injector();
 
 IMyType obj = injector.Resolve<IMyType>();
 

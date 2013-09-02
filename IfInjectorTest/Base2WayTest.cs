@@ -1,6 +1,6 @@
 using System;
 using IfInjector;
-using IfInjector.IfInjectorTypes;
+using IfInjector.IfCore;
 using NUnit;
 using NUnit.Framework;
 
@@ -17,7 +17,7 @@ namespace IfInjectorTest
 
 		[SetUp]
 		public void SetUpInjector() {
-			Injector = Injector.NewInstance ();
+			Injector = new Injector ();
 		}
 
 		[TearDown]

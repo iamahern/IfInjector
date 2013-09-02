@@ -2,8 +2,9 @@ using NUnit.Framework;
 using System;
 
 using IfInjector;
+using IfInjectorTest;
 
-namespace IfInjectorTest
+namespace IfInjectorTest.Basic
 {
 	[TestFixture()]
 	public class RecompilationTest : Base2WayTest
@@ -48,7 +49,7 @@ namespace IfInjectorTest
 		[Test]
 		public void TestPropertyDependency ()
 		{
-			var injector = Injector.NewInstance();
+			var injector = new Injector();
 
 			Bind<C> ().AddPropertyInjector (c => c.MyAProp);
 			var before = Injector.Resolve<C> ();

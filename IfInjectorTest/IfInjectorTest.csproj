@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>IfInjectorTest</RootNamespace>
     <AssemblyName>IfInjectorMxTest</AssemblyName>
-    <ReleaseVersion>0.5.1</ReleaseVersion>
+    <ReleaseVersion>0.6</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -55,11 +55,13 @@
     <Compile Include="factory\InjectorTest.cs" />
     <Compile Include="factory\PropertyInjectionTest.cs" />
     <Compile Include="factory\RecompilationTest.cs" />
-    <Compile Include="MultipleInjectorsTest.cs" />
     <Compile Include="factory\ResolverLoopTest.cs" />
     <Compile Include="factory\SingletonsTest.cs" />
     <Compile Include="factory\UnitTest2.cs" />
     <Compile Include="UnitTest1.cs" />
+    <Compile Include="MultipleInjectorsTest.cs" />
+    <Compile Include="factory\ProvidesTest.cs" />
+    <Compile Include="basic\ProvidersTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfInjector\IfInjector.csproj">

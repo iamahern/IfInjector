@@ -4,9 +4,9 @@ using System;
 namespace IfInjectorTest.Factory
 {
 	[TestFixture()]
-	public class ImplicitTypeTest : IfInjectorTest.Basic.ImplicitTypeTest
+	public class ProvidesTest : IfInjectorTest.Basic.ProvidersTest
 	{
-		public ImplicitTypeTest() {
+		public ProvidesTest() {
 			IsFactory = true;
 		}
 	}

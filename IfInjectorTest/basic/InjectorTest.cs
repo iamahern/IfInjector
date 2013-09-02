@@ -2,7 +2,7 @@
 using NUnit.Framework;
 using IfInjector;
 
-namespace IfInjectorTest
+namespace IfInjectorTest.Basic
 {
     [TestFixture]
     public class InjectorTest : Base2WayTest

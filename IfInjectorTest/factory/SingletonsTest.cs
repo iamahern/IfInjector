@@ -6,7 +6,7 @@ using IfInjector;
 namespace IfInjectorTest.Factory
 {
 	[TestFixture()]
-	public class SingletonsTest : IfInjectorTest.SingletonsTest
+	public class SingletonsTest : IfInjectorTest.Basic.SingletonsTest
 	{
 		public SingletonsTest() {
 			IsFactory = true;

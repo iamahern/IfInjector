@@ -9,24 +9,22 @@
 			- This probably requires a config setting for the behavior
 		- If an assembly creates new types, how should this be handled for implicit types???
 			- Think have correct behavior: TODO: test case
-
-- Refactor
-	- Split Injector from Resolver into seperatate files; use namespace for internals rather than static class ??
 		
 - MISSING FEATURES:
 	- InjectStatic()
-	- Need a provider type
 	
 - TESTING:
 	- Add platform tests for Android, iPhone
-	- Clean up unit tests
-	- White box testing of resolver loop checking??
 	- Ensure clear of implicit resolver if set explicit
 
 - WISH LIST:
 	- Generics
 	- Custom LifeCycles
 	- Extension feature to allow for interceptors
+	- Take a look at covariance handlers:
+		- http://simpleinjector.codeplex.com/wikipage?title=Advanced-scenarios&referringTitle=Documentation
+		- Better to give user control than force feature
+	- Seperate 'scanning' function to allow for user defined attributes
 	
 CHEAT SHEET:
 	http://www.infoq.com/news/2011/04/nuget-debug-sources

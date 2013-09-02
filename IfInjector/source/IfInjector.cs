@@ -34,44 +34,42 @@ namespace IfInjector
 	/// <summary>
 	/// Singleton attribute.
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Class)]
+	[AttributeUsage(AttributeTargets.Class, Inherited=true)]
 	public class SingletonAttribute : Attribute {}
 
 	/// <summary>
-	/// Injector.
+	/// Injector Interface.
 	/// </summary>
-	public abstract class Injector
-	{
-		/// <summary>
-		/// News the instance.
-		/// </summary>
-		/// <returns>The instance.</returns>
-		public static Injector NewInstance ()
-		{
-			return new InjectorInternal.InjectorImpl ();
-		}
-
+	public interface IInjector {
 		/// <summary>
 		/// Resolve this instance.
 		/// </summary>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public T Resolve<T> () where T : class {
-			return (T) Resolve(typeof(T));
-		}
+		T Resolve<T> () where T : class; 
 
 		/// <summary>
 		/// Resolve the specified type.
 		/// </summary>
 		/// <param name="type">Type.</param>
-		public abstract object Resolve (Type type);
+		object Resolve (Type type);
 
+		/// <summary>
+		/// Injects the properties of an instance. By default, this will only inject 'implicitly' bound properties (ones bound by annotation). You may choose to allow this to use explicit bindings if desired.
+		/// </summary>
+		/// <returns>The properties.</returns>
+		/// <param name="instance">Instance.</param>
+		/// <param name="useExplicitBinding">If set to <c>true</c> use explicit binding.</param>
+		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		T InjectProperties<T> (T instance, bool useExplicitBinding = false)
+			where T : class;
+		
 		/// <summary>
 		/// Sets the resolver.
 		/// </summary>
 		/// <returns>The resolver.</returns>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TConcreteType">The 2nd type parameter.</typeparam>
-		public abstract IfInjectorTypes.IInjectorBinding<CType> Bind<BType, CType> ()
+		IfCore.IInjectorBinding<CType> Bind<BType, CType> ()
 			where BType : class
 			where CType : class, BType;
 
@@ -79,46 +77,49 @@ namespace IfInjector
 		/// Sets the resolver.
 		/// </summary>
 		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
-		public IfInjectorTypes.IInjectorBinding<CType> Bind<CType> ()
-			where CType : class
-		{
-			return Bind<CType, CType> ();
-		}
-
-		/// <summary>
-		/// Injects the properties of an instance. By default, this will only inject 'implicitly' bound properties (ones bound by annotation).
-		/// </summary>
-		/// <returns>The properties.</returns>
-		/// <param name="instance">Instance.</param>
-		/// <param name="useExplicitBinding">If set to <c>true</c> use explicit binding.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public abstract T InjectProperties<T> (T instance, bool useExplicitBinding = false)
-			where T : class;
+		IfCore.IInjectorBinding<CType> Bind<CType> ()
+			where CType : class;
 
 		/// <summary>
 		/// Verify that all bindings all valid.
 		/// </summary>
-		public abstract void Verify ();
+		void Verify ();
+	}
+
+	/// <summary>
+	/// Injector implementation.
+	/// </summary>
+ 	public partial class Injector : IInjector
+	{
+		/// <summary>
+		/// News the instance.
+		/// </summary>
+		/// <returns>The instance.</returns>
+		[Obsolete("use new Injector()", false)]
+		public static Injector NewInstance ()
+		{
+			return new Injector ();
+		}
 	}
 
 	/// <summary>
 	/// Provide extension methods for Func<P1..P4,CT>
 	/// </summary>
 	public static class InjectorBindingExtensions {
-		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<CT>> factoryExpression) 
+		public static IfCore.IInjectorBinding<CT> SetFactory<CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<CT>> factoryExpression) 
 			where CT : class
 		{
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,CT>> factoryExpression) 
+		public static IfCore.IInjectorBinding<CT> SetFactory<P1,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 		{
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,P2,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
+		public static IfCore.IInjectorBinding<CT> SetFactory<P1,P2,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 			where P2 : class
@@ -126,7 +127,7 @@ namespace IfInjector
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,P2,P3,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
+		public static IfCore.IInjectorBinding<CT> SetFactory<P1,P2,P3,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 			where P2 : class
@@ -135,7 +136,7 @@ namespace IfInjector
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfInjectorTypes.IInjectorBinding<CT> SetFactory<P1,P2,P3,P4,CT>(this IfInjectorTypes.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
+		public static IfCore.IInjectorBinding<CT> SetFactory<P1,P2,P3,P4,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 			where P2 : class
@@ -147,9 +148,12 @@ namespace IfInjector
 	}
 
 	/// <summary>
-	/// Holder of secondary IfInjector types and interfaces. Most API users will not need to access these types directly.
+	/// Holder of secondary IfInjector types and interfaces. This namespace contains error types and binding interfaces.
+	/// 
+	/// Most API users will not need to access these types directly.
 	/// </summary>
-	namespace IfInjectorTypes {
+	namespace IfCore {
+
 		/// <summary>
 		/// Represents an error code constant.
 		/// </summary>
@@ -184,6 +188,7 @@ namespace IfInjector
 			public static readonly InjectorError ErrorAmbiguousBinding =  new InjectorError(4, "Multiple implicit bindings exist for type: {0}. Please disambiguate by adding an explicit binding for this type.");
 			public static readonly InjectorError ErrorUnableToBindNonClassFieldsProperties = new InjectorError(5, "Autoinjection is only supported on single instance 'class' fields. Please define a manual binding for the field or property '{0}' on class '{1}'.");
 			public static readonly InjectorError ErrorNoAppropriateConstructor = new InjectorError (6, "No appropriate constructor for type: {0}.");
+			public static readonly InjectorError ErrorMayNotBindInjector = new InjectorError (7, "Binding 'Injector' types is not permitted.");
 		}
 
 		/// <summary>
@@ -202,7 +207,7 @@ namespace IfInjector
 
 			public InjectorError ErrorType { get; private set; }
 		}
-				
+
 		/// <summary>
 		/// The fluent class is really only important to give the extension methods the type for T. 
 		/// </summary>

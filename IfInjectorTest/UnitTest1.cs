@@ -8,7 +8,7 @@ namespace IfInjectorTest
     [TestFixture]
     public class UnitTest1
     {
-		private Injector injector = Injector.NewInstance();
+		private Injector injector = new Injector();
 
         [Test]
         public void RegisterMethodToResolveInterfaceTest()

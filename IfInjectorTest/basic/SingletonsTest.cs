@@ -2,8 +2,9 @@ using NUnit.Framework;
 using System;
 
 using IfInjector;
+using IfInjectorTest;
 
-namespace IfInjectorTest
+namespace IfInjectorTest.Basic
 {
 	[TestFixture()]
 	public class SingletonsTest : Base2WayTest
