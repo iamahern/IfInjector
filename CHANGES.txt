@@ -24,6 +24,9 @@ Major:
 Minor:
 - Clean up of units
 
+Open Issues
+- 30-40% performance degredation as compared with V0.5.1
+
 ----------------
 Version 0.5.1
 ----------------
