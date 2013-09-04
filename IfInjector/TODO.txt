@@ -2,15 +2,6 @@
 - RESEARCH:
 	- Need for IDisposable???
 
-- PERFORMANCE:
-	- Degredation in performance vs 0.5.1
-
-Name            Singleton       Transient       Combined        Complex         Property
-No              131             145             163             190             214
-IfInjector      263             280             308             383             522
-SimpleInjector  210             207             233             270             353
-Done.
-
 - DEFECT:
 	- EDGE Cases:
 		- How should singleton or (when we have them) custom lifecycles be handled?

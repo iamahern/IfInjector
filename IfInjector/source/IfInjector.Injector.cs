@@ -12,7 +12,7 @@ using IfInjector.IfCore.IfExpression;
 using IfInjector.IfCore.IfPlatform;
 
 namespace IfInjector
-{
+{	
 	/// <summary>
 	/// Internal resolver interface.
 	/// </summary>
@@ -54,12 +54,12 @@ namespace IfInjector
 		/// <value>The dependencies.</value>
 		SetShim<Type> Dependencies { get; }
 	}
-	
+
 	/// <summary>
 	/// The actual injector implementation.
 	/// </summary>
 	public partial class Injector : IInjector
-	{		
+	{	
 		private readonly object syncLock = new object();
 		private readonly MethodInfo createResolverInstanceGeneric;
 
@@ -181,7 +181,7 @@ namespace IfInjector
 
 				// Add after create resolver
 				var resolver = CreateResolverInstanceGeneric<BType, CType> (false);
-				AddImplicitTypes (bindType, TempHolder.GetImplicitTypes(bindType));
+				AddImplicitTypes (bindType, ImplicitTypeUtilities.GetImplicitTypes(bindType));
 
 				ClearDependentResolvers (bindType);
 
@@ -255,7 +255,7 @@ namespace IfInjector
 				allResolvers.Add (bindType, resolver);
 			}
 			
-			TempHolder.SetupImplicitPropResolvers<CType> (resolver.BindingConfig);
+			ImplicitTypeUtilities.SetupImplicitPropResolvers<CType> (resolver.BindingConfig);
 
 			return resolver;
 		}
@@ -279,6 +279,12 @@ namespace IfInjector
 						BindImplicit (implicitType);
 					}
 				}
+			}
+		}
+		
+		private void CheckBindingType(Type bindType) {
+			if (typeof(Injector) == bindType) {
+				throw InjectorErrors.ErrorMayNotBindInjector.FormatEx ();
 			}
 		}
 
@@ -329,9 +335,120 @@ namespace IfInjector
 		#endregion ResolverDependencies
 		////////////
 
-		private void CheckBindingType(Type bindType) {
-			if (typeof(Injector) == bindType) {
-				throw InjectorErrors.ErrorMayNotBindInjector.FormatEx ();
+		/// <summary>
+		/// Implicit type helper utilities
+		/// </summary>
+		private static class ImplicitTypeUtilities {
+			private static readonly Type ObjectType = typeof(object);
+
+			internal static void SetupImplicitPropResolvers<CType>(IBindingConfig bindingConfig) where CType : class {
+				var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+				Type cType = typeof(CType); 
+
+				do {
+					foreach (var prop in FilterMemberInfo<PropertyInfo>(cType, cType.GetProperties (bindingFlags))) {
+						bindingConfig.SetPropertyInfoSetter(prop, null);
+					}
+
+					foreach (var field in FilterMemberInfo<FieldInfo>(cType, cType.GetFields (bindingFlags))) {
+						bindingConfig.SetFieldInfoSetter(field, null);
+					}
+				} while ((cType = cType.BaseType) != null && cType != ObjectType);
+
+				if (typeof(CType).GetCustomAttributes (typeof(SingletonAttribute), false).Length > 0) {
+					bindingConfig.Singleton = true;
+				}
+			}
+
+			private static IEnumerable<MInfo> FilterMemberInfo<MInfo>(Type cType, IEnumerable<MInfo> propsOrFields) 
+				where MInfo : MemberInfo 
+			{
+				return from p in propsOrFields 
+					where p.GetCustomAttributes(typeof(InjectAttribute), false).Length != 0
+						select p;
+			}
+
+			/// <summary>
+			/// Gets the implicit types.
+			/// </summary>
+			/// <returns>The implicit types.</returns>
+			/// <param name="boundType">Bound type.</param>
+			internal static SetShim<Type> GetImplicitTypes(Type boundType) {
+				var implicitTypes = new SetShim<Type>();
+
+				foreach (Type iFace in boundType.GetInterfaces()) {
+					implicitTypes.Add(iFace);
+				}
+
+				Type wTypeChain = boundType;
+				while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
+					implicitTypes.Add(wTypeChain);
+				}
+
+				return implicitTypes;
+			}
+		}
+
+		/// <summary>
+		/// Injector binding implementation.
+		/// </summary>
+		private class InjectorBinding<CType> : IInjectorBinding<CType>
+			where CType : class 
+		{ 
+			private readonly object syncLock;
+			private readonly IBindingConfig bindingConfig;
+
+			internal InjectorBinding(object syncLock, IBindingConfig bindingConfig) {
+				this.syncLock = syncLock;
+				this.bindingConfig = bindingConfig;
+			}
+
+			public IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression) 
+			{
+				lock (syncLock) {
+					bindingConfig.FactoryExpression = factoryExpression;
+				}
+				return this;
+			}
+
+			public IInjectorBinding<CType> AddPropertyInjector<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression)
+				where TPropertyType : class
+			{
+				return AddPropertyInjectorInner (propertyExpression, null);
+			}
+
+			public IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+			{
+				return AddPropertyInjectorInner (propertyExpression, setter);
+			}
+
+			private IInjectorBinding<CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
+				lock (syncLock) {
+					var propertyMemberExpression = propertyExpression.Body as MemberExpression;
+					if (propertyMemberExpression == null) {
+						throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+					}
+
+					var member = propertyMemberExpression.Member;
+					if (member is PropertyInfo) {
+						bindingConfig.SetPropertyInfoSetter (member as PropertyInfo, setter);
+					} else if (member is FieldInfo) {
+						bindingConfig.SetFieldInfoSetter (member as FieldInfo, setter);
+					} else {
+						// Should not be reachable.
+						throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+					}
+				}
+
+				return this;
+			}
+
+			public IInjectorBinding<CType> AsSingleton (bool singlton = true) {
+				lock (syncLock) {
+					bindingConfig.Singleton = singlton;
+				}
+
+				return this;
 			}
 		}
 	}
@@ -503,128 +620,6 @@ namespace IfInjector
 				// else was verified by other thread
 				return resolve();
 			}
-		}
-	}
-
-	/// <summary>
-	/// Injector binding implementation.
-	/// </summary>
-	internal class InjectorBinding<CType> : IInjectorBinding<CType>
-		where CType : class 
-	{ 
-		private readonly object syncLock;
-		private readonly IBindingConfig bindingConfig;
-
-		internal InjectorBinding(object syncLock, IBindingConfig bindingConfig) {
-			this.syncLock = syncLock;
-			this.bindingConfig = bindingConfig;
-		}
-
-		public IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression) 
-		{
-			lock (syncLock) {
-				bindingConfig.FactoryExpression = factoryExpression;
-			}
-			return this;
-		}
-
-		public IInjectorBinding<CType> AddPropertyInjector<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression)
-			where TPropertyType : class
-		{
-			return AddPropertyInjectorInner (propertyExpression, null);
-		}
-
-		public IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-		{
-			return AddPropertyInjectorInner (propertyExpression, setter);
-		}
-
-		private IInjectorBinding<CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
-			lock (syncLock) {
-				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
-				if (propertyMemberExpression == null) {
-					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
-				}
-
-				var member = propertyMemberExpression.Member;
-				if (member is PropertyInfo) {
-					bindingConfig.SetPropertyInfoSetter (member as PropertyInfo, setter);
-				} else if (member is FieldInfo) {
-					bindingConfig.SetFieldInfoSetter (member as FieldInfo, setter);
-				} else {
-					// Should not be reachable.
-					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
-				}
-			}
-
-			return this;
-		}
-
-		public IInjectorBinding<CType> AsSingleton (bool singlton = true) {
-			lock (syncLock) {
-				bindingConfig.Singleton = singlton;
-			}
-
-			return this;
-		}
-	}
-
-
-	////////////////////////////////////////////////////////////////////////////////
-	#region ImplicitBindingsHelpers
-
-	internal static class TempHolder {
-		private static readonly Type ObjectType = typeof(object);
-
-		internal static void SetupImplicitPropResolvers<CType>(IBindingConfig bindingConfig) where CType : class {
-			var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-			Type cType = typeof(CType); 
-
-			do {
-				foreach (var prop in FilterMemberInfo<PropertyInfo>(cType, cType.GetProperties (bindingFlags))) {
-					bindingConfig.SetPropertyInfoSetter(prop, null);
-				}
-
-				foreach (var field in FilterMemberInfo<FieldInfo>(cType, cType.GetFields (bindingFlags))) {
-					bindingConfig.SetFieldInfoSetter(field, null);
-				}
-			} while ((cType = cType.BaseType) != null && cType != ObjectType);
-
-			if (typeof(CType).GetCustomAttributes (typeof(SingletonAttribute), false).Length > 0) {
-				bindingConfig.Singleton = true;
-			}
-		}
-
-		private static IEnumerable<MInfo> FilterMemberInfo<MInfo>(Type cType, IEnumerable<MInfo> propsOrFields) 
-			where MInfo : MemberInfo 
-		{
-			return from p in propsOrFields 
-				where p.GetCustomAttributes(typeof(InjectAttribute), false).Length != 0
-				select p;
-		}
-	
-
-		#endregion // ImplicitBindingsHelpers
-		////////////////////////////////////////////////////////////////////////////////
-
-		/// <summary>
-		/// Gets the implicit types.
-		/// </summary>
-		/// <returns>The implicit types.</returns>
-		/// <param name="boundType">Bound type.</param>
-		internal static SetShim<Type> GetImplicitTypes(Type boundType) {
-			var implicitTypes = new SetShim<Type>();
-
-			foreach (Type iFace in boundType.GetInterfaces()) {
-				implicitTypes.Add(iFace);
-			}
-
-			Type wTypeChain = boundType;
-			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-				implicitTypes.Add(wTypeChain);
-			}
-
-			return implicitTypes;
 		}
 	}
 }
