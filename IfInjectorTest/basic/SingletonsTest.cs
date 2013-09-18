@@ -28,11 +28,38 @@ namespace IfInjectorTest.Basic
 			MyClass inst1 = Injector.Resolve<MyClass> ();
 			MyClass inst2 = Injector.Resolve<MyClass> ();
 
-			Assert.IsTrue(object.ReferenceEquals(inst1, inst2));
+			Assert.AreSame(inst1, inst2);
+		}
+		
+		public void EnsureInnerSingletonIsSame1() {
+			Bind<MyClass> ().AsSingleton ();
+
+			MyClass inst1 = Injector.Resolve<MyClass> ();
+			MyClass inst2 = Injector.Resolve<MyTransient> ().MyClass;
+			MyClass inst3 = Injector.Resolve<MyTransient> ().MyClass;
+
+			Assert.AreSame (inst1, inst2);
+			Assert.AreSame (inst2, inst3);
+		}
+
+		public void EnsureInnerSingletonIsSame2() {
+			Bind<MyClass> ().AsSingleton ();
+
+			MyClass inst1 = Injector.Resolve<MyTransient> ().MyClass;
+			MyClass inst2 = Injector.Resolve<MyClass> ();
+			MyClass inst3 = Injector.Resolve<MyTransient> ().MyClass;
+
+			Assert.AreSame (inst1, inst2);
+			Assert.AreSame (inst2, inst3);
 		}
 
 		interface MyIFace {}
 		class MyClass : MyIFace { }
+
+		class MyTransient { 
+			[Inject]
+			public MyClass MyClass { get; set; }
+		}
 	}
 }
 

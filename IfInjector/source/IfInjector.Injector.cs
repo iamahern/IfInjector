@@ -9,6 +9,7 @@ using System.Text;
 using IfInjector.IfCore;
 using IfInjector.IfCore.IfBinding;
 using IfInjector.IfCore.IfExpression;
+using IfInjector.IfCore.IfLifestyle;
 using IfInjector.IfCore.IfPlatform;
 
 namespace IfInjector
@@ -84,7 +85,7 @@ namespace IfInjector
 			Expression<Func<Injector>> injectorFactoryExpr = () => this;
 			var injectorResolver = BindExplicit<Injector, Injector>();
 			injectorResolver.BindingConfig.FactoryExpression = injectorFactoryExpr;
-			injectorResolver.BindingConfig.Singleton = true;
+			injectorResolver.BindingConfig.Lifestyle = Lifestyle.Singleton;
 		}
 
 		public object Resolve(Type type)
@@ -255,7 +256,7 @@ namespace IfInjector
 				allResolvers.Add (bindType, resolver);
 			}
 			
-			ImplicitTypeUtilities.SetupImplicitPropResolvers<CType> (resolver.BindingConfig);
+			ImplicitTypeUtilities.SetupImplicitPropResolvers<CType> (resolver.BindingConfig, syncLock);
 
 			return resolver;
 		}
@@ -341,7 +342,7 @@ namespace IfInjector
 		private static class ImplicitTypeUtilities {
 			private static readonly Type ObjectType = typeof(object);
 
-			internal static void SetupImplicitPropResolvers<CType>(IBindingConfig bindingConfig) where CType : class {
+			internal static void SetupImplicitPropResolvers<CType>(IBindingConfig bindingConfig, object syncLock) where CType : class {
 				var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 				Type cType = typeof(CType); 
 
@@ -356,7 +357,7 @@ namespace IfInjector
 				} while ((cType = cType.BaseType) != null && cType != ObjectType);
 
 				if (typeof(CType).GetCustomAttributes (typeof(SingletonAttribute), false).Length > 0) {
-					bindingConfig.Singleton = true;
+					bindingConfig.Lifestyle =Lifestyle.Singleton;
 				}
 			}
 
@@ -443,9 +444,13 @@ namespace IfInjector
 				return this;
 			}
 
-			public IInjectorBinding<CType> AsSingleton (bool singlton = true) {
+			public IInjectorBinding<CType> AsSingleton (bool singleton = true) {
 				lock (syncLock) {
-					bindingConfig.Singleton = singlton;
+					if (singleton) {
+						bindingConfig.Lifestyle = Lifestyle.Singleton;
+					} else {
+						bindingConfig.Lifestyle = Lifestyle.Transient;
+					}
 				}
 
 				return this;
@@ -466,15 +471,11 @@ namespace IfInjector
 		private readonly IBindingConfig bindingConfig;
 		private readonly IExpressionCompiler<CType> expressionCompiler;
 
-		private bool isVerifiedNotRecursive;
 		private bool isRecursionTestPending;
 
-		private Expression<Func<CType>> resolverExpression;
-		private Func<CType> resolverExpressionCompiled;
-
-		private Func<CType> resolve;
+		private LifestyleResolver<CType> resolver;
 		private Func<CType,CType> resolveProperties;
-		
+
 		public SetShim<Type> Dependencies { 
 			get { 
 				lock (syncLock) {
@@ -500,33 +501,33 @@ namespace IfInjector
 		}
 
 		public object DoResolve() {
-			return DoResolveTyped ();
+			if (!IsResolved()) {
+				CompileResolver ();
+			}
+
+
+			return resolver.Resolve ();
 		}
 
 		public void DoInject(object instance) {
 			DoInjectTyped (instance as CType);
 		}
 
-		private CType DoResolveTyped() {
-			if (!IsResolved()) {
-				CompileResolver ();
-			}
-
-			return resolve ();
-		}
-
 		private void CompileResolver() {
 			lock (syncLock) {
 				if (!IsResolved()) {
-					// Handle compile loop
-					if (isRecursionTestPending) {
+					if (isRecursionTestPending) { // START: Handle compile loop
 						throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
 					}
 					isRecursionTestPending = true; 
 
-					resolverExpression = expressionCompiler.CompileResolverExpression ();
-					resolverExpressionCompiled = resolverExpression.Compile ();
-					resolve = ResolveWithRecursionCheck;
+					var resolverExpression = expressionCompiler.CompileResolverExpression ();
+					var resolverExpressionCompiled = resolverExpression.Compile ();
+					var testInstance = resolverExpressionCompiled ();
+
+					injector.SetDependencies (this);
+
+					resolver = bindingConfig.Lifestyle.GetLifestyleResolver<CType> (syncLock, resolverExpression, resolverExpressionCompiled, testInstance);
 
 					isRecursionTestPending = false; // END: Handle compile loop
 				}
@@ -548,7 +549,7 @@ namespace IfInjector
 		}
 
 		private bool IsResolved() {
-			return resolve != null;
+			return resolver != null;
 		}
 
 		private void OnBindingChanged(object sender, EventArgs e) {
@@ -561,64 +562,24 @@ namespace IfInjector
 		public void ClearResolver() {
 			lock (syncLock) {
 				isRecursionTestPending = false;
-				isVerifiedNotRecursive = false;
 
 				expressionCompiler.Dependencies.Clear ();
 				injector.ClearDependencies (this);
 
-				resolve = null;
-				resolverExpressionCompiled = null;
-				resolverExpression = null;
+				resolver = null;
 			}
 		}
 
 		public Expression GetResolveExpression (SetShim<Type> callerDeps) {
 			lock (syncLock) {
-				Expression expr;
-				if (BindingConfig.Singleton) {
-					expr = Expression.Constant (DoResolveTyped (), bindType);
-				} else {
-					if (!isVerifiedNotRecursive) {
-						DoResolveTyped ();
-					}
-					expr = resolverExpression.Body;
+				if (!IsResolved()) {
+					CompileResolver ();
 				}
 
 				callerDeps.UnionWith (expressionCompiler.Dependencies);
 				callerDeps.Add (bindType);
 
-				return expr;
-			}
-		}
-
-		private CType ResolveWithRecursionCheck()
-		{
-			// Lock until executed once; we will compile this away once verified
-			lock (syncLock) {
-				if (!isVerifiedNotRecursive) {
-					if (isRecursionTestPending) {
-						throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
-					}
-					isRecursionTestPending = true;
-
-					CType retval = resolverExpressionCompiled();
-
-					isVerifiedNotRecursive = true;
-					isRecursionTestPending = false;
-
-					injector.SetDependencies (this);
-
-					if (this.BindingConfig.Singleton) {
-						resolve = () => retval;
-					} else {
-						resolve = resolverExpressionCompiled;
-					}
-
-					return retval;
-				}
-
-				// else was verified by other thread
-				return resolve();
+				return resolver.ResolveExpression.Body;
 			}
 		}
 	}

@@ -221,7 +221,7 @@ namespace IfInjector
 
 			IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
 
-			IInjectorBinding<CType> AsSingleton (bool singlton = true);
+			IInjectorBinding<CType> AsSingleton (bool singleton = true);
 		}
 	}
 }

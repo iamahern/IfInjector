@@ -19,7 +19,7 @@ namespace IfInjectorTest.Basic
 
 			var instance = new MyClass ();
 
-			Assert.IsTrue (object.ReferenceEquals(instance, Injector.InjectProperties(instance)));
+			Assert.AreSame(instance, Injector.InjectProperties(instance));
 
 			// Explicit Binding should not affect test
 			Assert.AreNotEqual (10, instance.Age);
@@ -39,7 +39,7 @@ namespace IfInjectorTest.Basic
 
 			var instance = new MyClass ();
 
-			Assert.IsTrue (object.ReferenceEquals(instance, Injector.InjectProperties(instance, true)));
+			Assert.AreSame(instance, Injector.InjectProperties(instance, true));
 
 			// Explicit Binding should not affect test
 			Assert.AreEqual (10, instance.Age);

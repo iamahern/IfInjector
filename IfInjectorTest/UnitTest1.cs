@@ -42,7 +42,7 @@ namespace IfInjectorTest
 			injector.Bind<MyTestResolverReplace>().SetFactory(() => new MyTestResolverReplace(dep));
 
 			var result = injector.Resolve<MyTestResolverReplace>();
-			Assert.IsTrue (object.ReferenceEquals(dep, result.dependency));
+			Assert.AreSame(dep, result.dependency);
         }
 
         class MyTestResolverReplace

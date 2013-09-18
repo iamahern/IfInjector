@@ -31,6 +31,12 @@ namespace IfInjectorTest.Basic
 		[Singleton]
 		class E {}
 
+		[SetUp]
+		public void Setup() {
+			var console = new System.Diagnostics.ConsoleTraceListener ();
+			System.Diagnostics.Debug.Listeners.Add (console);
+			System.Diagnostics.Debug.AutoFlush = true;
+		}
 
 		[Test]
 		public void TestConstructDependency ()
@@ -42,8 +48,8 @@ namespace IfInjectorTest.Basic
 				Injector.Bind<B> ();
 			}
 			var after = Injector.Resolve<B> ();
-			Assert.IsFalse (object.ReferenceEquals(before, after));
-			Assert.IsTrue (object.ReferenceEquals(after, Injector.Resolve<B>()));
+			Assert.AreNotSame(before, after);
+			Assert.AreSame(after, Injector.Resolve<B>());
 		}
 
 		[Test]
@@ -57,8 +63,8 @@ namespace IfInjectorTest.Basic
 			Bind<A> ();
 			var after = Injector.Resolve<C> ();
 
-			Assert.IsFalse (object.ReferenceEquals(before, after));
-			Assert.IsTrue (object.ReferenceEquals(after, Injector.Resolve<C>()));
+			Assert.AreNotSame(before, after);
+			Assert.AreSame(after, Injector.Resolve<C>());
 		}
 
 		[Test]
@@ -70,12 +76,12 @@ namespace IfInjectorTest.Basic
 			Bind<A> ();
 			var after = Injector.Resolve<C> ();
 
-			Assert.IsFalse (object.ReferenceEquals(before, after));
-			Assert.IsTrue (object.ReferenceEquals(after, Injector.Resolve<C>()));
+			Assert.AreNotSame(before, after);
+			Assert.AreSame(after, Injector.Resolve<C>());
 		}
 
 		[Test]
-		public void TestDeepDependencyDependency ()
+		public void TestDeepDependency ()
 		{
 			Bind<C> ().AddPropertyInjector (c => c.MyAField);
 
@@ -85,8 +91,8 @@ namespace IfInjectorTest.Basic
 
 			var after = Injector.Resolve<D> ();
 
-			Assert.IsFalse (object.ReferenceEquals(before, after));
-			Assert.IsTrue (object.ReferenceEquals(after, Injector.Resolve<D>()));
+			Assert.AreNotSame(before, after);
+			Assert.AreSame(after, Injector.Resolve<D>());
 		}
 
 		[Test]
@@ -103,9 +109,9 @@ namespace IfInjectorTest.Basic
 			var afterD = Injector.Resolve<D> ();
 			var afterE = Injector.Resolve<E> ();
 
-			Assert.IsFalse (object.ReferenceEquals(beforeD, afterD));
-			Assert.IsTrue (object.ReferenceEquals(afterD, Injector.Resolve<D>()));
-			Assert.IsTrue (object.ReferenceEquals(beforeE, afterE));
+			Assert.AreNotSame(beforeD, afterD);
+			Assert.AreSame(afterD, Injector.Resolve<D>());
+			Assert.AreSame(beforeE, afterE);
 		}
 	}
 }

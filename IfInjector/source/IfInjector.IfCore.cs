@@ -128,12 +128,120 @@ namespace IfInjector.IfCore
 	}
 
 	/// <summary>
+	/// Binding types for lifestyles
+	/// </summary>
+	namespace IfLifestyle
+	{
+		/// <summary>
+		/// Lifestyle resolver.
+		/// </summary>
+		internal abstract class LifestyleResolver<CType> where CType : class {
+			private readonly Expression<Func<CType>> resolveExpression;
+
+			internal LifestyleResolver(Expression<Func<CType>> resolveExpression) {
+				this.resolveExpression = resolveExpression;
+			}
+
+			internal LifestyleResolver() {
+				this.resolveExpression = () => Resolve();
+			}
+
+			internal Expression<Func<CType>> ResolveExpression {
+				get {
+					return resolveExpression;
+				}
+			}
+
+			internal abstract CType Resolve();
+		}
+
+		/// <summary>
+		/// Base lifestyle class
+		/// </summary>
+		internal abstract class Lifestyle {
+			public static readonly Lifestyle Singleton = new SingletonLifestyle();
+			public static readonly Lifestyle Transient = new TransientLifestyle();
+
+			/// <summary>
+			/// Gets the lifestyle resolver.
+			/// </summary>
+			/// <returns>The lifestyle resolver.</returns>
+			/// <param name="syncLock">Sync lock.</param>
+			/// <param name="resolverExpression">Resolver expression.</param>
+			/// <param name="resolverExpressionCompiled">Resolver expression compiled.</param>
+			/// <param name="testInstance">Test instance.</param>
+			/// <typeparam name="CType">The 1st type parameter.</typeparam>
+			internal abstract LifestyleResolver<CType> GetLifestyleResolver<CType>(
+					object syncLock, 
+					Expression<Func<CType>> resolverExpression,
+					Func<CType> resolverExpressionCompiled,
+					CType testInstance) 
+				where CType : class;
+
+
+			/////////
+			// Internal impl for singleton
+			private class SingletonLifestyle : Lifestyle {
+				internal override LifestyleResolver<CType> GetLifestyleResolver<CType>(
+					object syncLock, 
+					Expression<Func<CType>> resolverExpression,
+					Func<CType> resolverExpressionCompiled,
+					CType testInstance)
+				{
+					return new SingletonLifestyleResolver<CType>(resolverExpression, testInstance);
+				}
+
+				private class SingletonLifestyleResolver<CType> : LifestyleResolver<CType> where CType : class {
+					private readonly CType instance;
+
+					internal SingletonLifestyleResolver(Expression<Func<CType>> resolveExpression, CType instance) :
+						base(resolveExpression)
+					{
+						this.instance = instance;
+					}
+
+					internal override CType Resolve() {
+						return instance;
+					}
+				}
+			}
+
+			/////////
+			// Internal impl for transient
+			private class TransientLifestyle : Lifestyle {
+				internal override LifestyleResolver<CType> GetLifestyleResolver<CType>(
+					object syncLock, 
+					Expression<Func<CType>> resolverExpression,
+					Func<CType> resolverExpressionCompiled,
+					CType testInstance)
+				{
+					return new TransientLifestyleResolver<CType>(resolverExpression, resolverExpressionCompiled);
+				}
+
+				private class TransientLifestyleResolver<CType> : LifestyleResolver<CType> where CType : class {
+					private readonly Func<CType> resolverExpressionCompiled;
+
+					internal TransientLifestyleResolver(Expression<Func<CType>> resolveExpression, Func<CType> resolverExpressionCompiled) : base(resolveExpression) {
+						this.resolverExpressionCompiled = resolverExpressionCompiled;
+					}
+
+					internal override CType Resolve() {
+						return resolverExpressionCompiled();
+					}
+				}
+			}
+		}
+	}
+
+	/// <summary>
 	/// Binding interfaces and core implementation.
 	/// 
 	/// At this point in time, these types are internal.
 	/// </summary>
 	namespace IfBinding
 	{
+		using IfLifestyle;
+
 		/// <summary>
 		/// Binding config setter expression.
 		/// </summary>
@@ -176,10 +284,10 @@ namespace IfInjector.IfCore
 			event BindingConfigEventHandler Changed;
 
 			/// <summary>
-			/// Gets or sets a value indicating whether this <see cref="IfInjector.IfPlatform.IBindingConfig"/> is singleton.
+			/// Gets or sets the lifestyle.
 			/// </summary>
-			/// <value><c>true</c> if singleton; otherwise, <c>false</c>.</value>
-			bool Singleton { get; set; }
+			/// <value>The lifestyle.</value>
+			Lifestyle Lifestyle { get; set; }
 
 			/// <summary>
 			/// Gets or sets the constructor.
@@ -247,7 +355,7 @@ namespace IfInjector.IfCore
 			// Fields
 			//
 			private readonly Type cType = typeof(CType);
-			private bool singleton;
+			private Lifestyle lifestyle = Lifestyle.Transient;
 			private ConstructorInfo constructor;
 			private LambdaExpression factoryExpression;
 
@@ -270,12 +378,12 @@ namespace IfInjector.IfCore
 			//
 			// Attributes and Methods
 			//
-			public bool Singleton { 
+			public Lifestyle Lifestyle { 
 				get { 
-					return singleton; 
+					return lifestyle; 
 				}
 				set {
-					this.singleton = value;
+					this.lifestyle = value;
 					OnChange ();
 				}
 			}

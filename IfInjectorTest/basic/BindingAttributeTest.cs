@@ -197,17 +197,17 @@ namespace IfInjectorTest.Basic
 			var res2 = Injector.Resolve<MyIFaceBaseImpl> ();
 			Assert.IsNotNull (res1);
 			Assert.IsInstanceOf<MyIFaceImpl> (res1);
-			Assert.IsFalse (object.ReferenceEquals(res1, res2)); // This should use the IfImplementedBy, not the bind statement
+			Assert.AreNotSame(res1, res2); // This should use the IfImplementedBy, not the bind statement
 
 			var res3 = Injector.Resolve<MyIFace> ();
 			var res4 = Injector.Resolve<MyIFace> ();
 			Assert.IsNotNull (res3);
-			Assert.IsTrue (object.ReferenceEquals(res3, res4));
+			Assert.AreSame(res3, res4);
 
 			var res5 = Injector.Resolve<MyIFaceBaseImpl> ();
 			Assert.IsNotNull (res5);
-			Assert.IsFalse (object.ReferenceEquals(res4, res5));
-			Assert.IsFalse (object.ReferenceEquals(res1, res5));
+			Assert.AreNotSame(res4, res5);
+			Assert.AreNotSame(res1, res5);
 		}
 
 		[Singleton]
@@ -219,12 +219,12 @@ namespace IfInjectorTest.Basic
 			//var res1 = Injector.Resolve<MyNonSingletonDerived> ();
 			//var res2 = Injector.Resolve<MyNonSingletonDerived> ();
 			//Assert.IsNotNull (res1);
-			//Assert.IsFalse (object.ReferenceEquals(res1, res2));
+			//Assert.AreNotSame(res1, res2));
 
 			var res3 = Injector.Resolve<MySingletonBase> ();
 			var res4 = Injector.Resolve<MySingletonBase> ();
 			//Assert.IsNotNull (res3);
-			Assert.IsTrue (object.ReferenceEquals(res3, res4));
+			Assert.AreSame(res3, res4);
 		}
 
 		[Test]
@@ -235,7 +235,7 @@ namespace IfInjectorTest.Basic
 			var res2 = Injector.Resolve<MySingletonBase> ();
 			Assert.IsNotNull (res1);
 			Assert.IsNotNull (res2);
-			Assert.IsFalse (object.ReferenceEquals(res1, res2));
+			Assert.AreNotSame(res1, res2);
 		}
 
     }
