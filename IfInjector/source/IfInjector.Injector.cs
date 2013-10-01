@@ -15,9 +15,19 @@ using IfInjector.IfCore.IfPlatform;
 namespace IfInjector
 {	
 	/// <summary>
+	/// Resolver changed event handler.
+	/// </summary>
+	internal delegate void ResolverChangedEventHandler(object sender, BindingKey bindingKey);
+
+	/// <summary>
 	/// Internal resolver interface.
 	/// </summary>
 	internal interface IResolver {
+		/// <summary>
+		/// Occurs when changed.
+		/// </summary>
+		event ResolverChangedEventHandler Changed;
+
 		/// <summary>
 		/// Gets the binding config.
 		/// </summary>
@@ -47,13 +57,13 @@ namespace IfInjector
 		/// </summary>
 		/// <returns>The resolve expression.</returns>
 		/// <param name="callerDeps">SetShim of the 'callers' dependencies. IResolver adds itself and its depdendencies to the set.</param>
-		Expression GetResolveExpression (SetShim<Type> callerDeps);
+		Expression GetResolveExpression (SetShim<BindingKey> callerDeps);
 
 		/// <summary>
 		/// Gets the dependencies of this resolver.
 		/// </summary>
 		/// <value>The dependencies.</value>
-		SetShim<Type> Dependencies { get; }
+		SetShim<BindingKey> Dependencies { get; }
 	}
 
 	/// <summary>
@@ -64,21 +74,19 @@ namespace IfInjector
 		private readonly object syncLock = new object();
 		private readonly MethodInfo createResolverInstanceGeneric;
 
-		private readonly SafeDictionary<Type, IResolver> allResolvers;
-		private readonly SafeDictionary<Type, IResolver> allImplicitResolvers;
+		private readonly SafeDictionary<BindingKey, IResolver> allResolvers;
 		private readonly SafeDictionary<Type, SetShim<Type>> implicitTypeLookup;
 
-		private readonly Dictionary<Type, SetShim<IResolver>> resolverDeps = new Dictionary<Type, SetShim<IResolver>>();
+		private readonly Dictionary<BindingKey, SetShim<IResolver>> resolverDeps = new Dictionary<BindingKey, SetShim<IResolver>>();
 
 		public Injector() 
 		{
 			// Init dictionaries
-			allResolvers = new SafeDictionary<Type, IResolver>(syncLock);
-			allImplicitResolvers = new SafeDictionary<Type, IResolver>(syncLock);
+			allResolvers = new SafeDictionary<BindingKey, IResolver>(syncLock);
 			implicitTypeLookup = new SafeDictionary<Type, SetShim<Type>> (syncLock);
 
 			// Init resolver
-			Expression<Action> tmpExpr = () => CreateResolverInstanceGeneric<Exception, Exception>(true);
+			Expression<Action> tmpExpr = () => CreateResolverInstanceGeneric<Exception, Exception, Resolver<Exception>>(true);
 			createResolverInstanceGeneric = ((MethodCallExpression)tmpExpr.Body).Method.GetGenericMethodDefinition();
 
 			// Implicitly resolvable
@@ -90,54 +98,59 @@ namespace IfInjector
 
 		public object Resolve(Type type)
 		{
-			return ResolveResolver (type).DoResolve ();
+			return ResolveResolver (BindingKey.Get(type)).DoResolve ();
 		}
 
 		public T Resolve<T>()
 			where T : class
 		{
-			return (T)Resolve (typeof(T));
+			return (T) ResolveResolver (BindingKey.Get<T>()).DoResolve ();
 		}
 
 		public T InjectProperties<T> (T instance, bool useExplicitBinding = false)
 			where T : class
 		{
-			var iResolver = useExplicitBinding ? ResolveResolver (typeof(T)) : ResolveImplicitOnlyResolver (typeof(T));
+			var iResolver = useExplicitBinding ? 
+				ResolveResolver (BindingKey.Get<T>()) : 
+				ResolveImplicitOnlyResolver (typeof(T));
+
 			iResolver.DoInject (instance);
 			return instance;
 		}
 
-		private IResolver ResolveImplicitOnlyResolver(Type type)
+		private IResolver ResolveImplicitOnlyResolver(Type bindingType)
 		{
+			var bindingKey = BindingKey.Get (typeof(MemberBindingType), true);
+
 			IResolver resolver;
-			if (allImplicitResolvers.UnsyncedTryGetValue (type, out resolver)) {
+			if (allResolvers.UnsyncedTryGetValue (bindingKey, out resolver)) {
 				return resolver;
 			} else {
-				return BindImplicitOnly (type);
+				return BindImplicitOnly (bindingType);
 			}
 		}
 
-		internal Expression ResolveResolverExpression(Type type, SetShim<Type> callerDependencies)
+		internal Expression ResolveResolverExpression(BindingKey bindingKey, SetShim<BindingKey> callerDependencies)
 		{
-			return ResolveResolver (type).GetResolveExpression (callerDependencies);
+			return ResolveResolver (bindingKey).GetResolveExpression (callerDependencies);
 		}
 
-		private IResolver ResolveResolver(Type type)
+		private IResolver ResolveResolver(BindingKey bindingKey)
 		{
 			SetShim<Type> lookup;
 			IResolver resolver;
 
-			if (allResolvers.UnsyncedTryGetValue (type, out resolver)) {
+			if (allResolvers.UnsyncedTryGetValue (bindingKey, out resolver)) {
 				return resolver;
-			} else if (implicitTypeLookup.UnsyncedTryGetValue (type, out lookup) && lookup.Count > 0) {
+			} else if (implicitTypeLookup.UnsyncedTryGetValue (bindingKey.BindingType, out lookup) && lookup.Count > 0) {
 				if (lookup.Count == 1) {
-					return ResolveResolver (lookup.First());
+					return ResolveResolver (BindingKey.Get(lookup.First()));
 				} else {
-					throw InjectorErrors.ErrorAmbiguousBinding.FormatEx(type.Name);
+					throw InjectorErrors.ErrorAmbiguousBinding.FormatEx(bindingKey.BindingType.Name);
 				}
 			} 
 
-			return BindImplicit (type);
+			return BindImplicit (bindingKey.BindingType);
 		}
 
 		public IInjectorBinding<CType> Bind<BType, CType>()
@@ -155,6 +168,13 @@ namespace IfInjector
 			return Bind<CType, CType> ();
 		}
 
+		public IDictionaryBinding<KeyType, BType> BindDictionary<KeyType, BType> ()
+			where BType : class
+		{
+			CheckBindingType (typeof(BType));
+			return BindExplicit<Dictionary<KeyType,BType>, Dictionary<KeyType,BType>, DictionaryResolver<KeyType, BType>>();
+		}
+
 		public void Verify()
 		{
 			lock (syncLock) {
@@ -164,36 +184,49 @@ namespace IfInjector
 			}
 		}
 
-		private Resolver<CType> BindExplicit<BType, CType>()
+		private IResolver BindExplicit<BType, CType>()
 			where BType : class
 			where CType : class, BType
 		{
+			return BindExplicit<BType, CType, Resolver<CType>> ();
+		}
+
+		private RType BindExplicit<BType, CType, RType>()
+			where BType : class
+			where CType : class, BType
+			where RType : IResolver
+		{
 			lock (syncLock) {
-				Type bindType = typeof(BType);
+				BindingKey bindingKey = BindingKey.Get<BType> ();
 				IResolver oldResolver, implicitResolver;					
 
-				implicitTypeLookup.Remove (bindType);
-				if (allResolvers.TryGetValue (bindType, out oldResolver)) {
-					allResolvers.Remove (bindType);
-					if (!allImplicitResolvers.TryGetValue (bindType, out implicitResolver) || !object.ReferenceEquals (oldResolver, implicitResolver)) {
+				implicitTypeLookup.Remove (bindingKey.BindingType);
+				if (allResolvers.TryGetValue (bindingKey, out oldResolver)) {
+					allResolvers.Remove (bindingKey);
+					// TODO - sketchy
+					var implicitBindingKey = BindingKey.Get<BType>(true);
+					if (!allResolvers.TryGetValue (implicitBindingKey, out implicitResolver) || !object.ReferenceEquals (oldResolver, implicitResolver)) {
 						ClearDependencies (oldResolver);
+						oldResolver.Changed -= ClearDependentResolvers;
 					}
 				}
 
 				// Add after create resolver
-				var resolver = CreateResolverInstanceGeneric<BType, CType> (false);
-				AddImplicitTypes (bindType, ImplicitTypeUtilities.GetImplicitTypes(bindType));
+				var resolver = CreateResolverInstanceGeneric<BType, CType, RType> (false);
+				// CreateResolverInstanceGeneric<BType, CType> (false);
+				AddImplicitTypes (bindingKey.BindingType, ImplicitTypeUtilities.GetImplicitTypes(bindingKey.BindingType));
 
-				ClearDependentResolvers (bindType);
+				ClearDependentResolvers (this, bindingKey);
 
-				return (Resolver<CType>) resolver;
+				return resolver;
 			}
 		}
 
 		private IResolver BindImplicit(Type bindType) {
+			var bindingKey = BindingKey.Get (bindType);
 			lock (syncLock) {
 				IResolver resolver;
-				if (allResolvers.TryGetValue (bindType, out resolver)) {
+				if (allResolvers.TryGetValue (bindingKey, out resolver)) {
 					return resolver;
 				}
 
@@ -206,8 +239,9 @@ namespace IfInjector
 				}
 
 				// NOTE: In theory, implicit bindings should never change the object graph;
-				// ... TODO EDGE Case - dynamically created assemblies; clearing as below should prevent issues, need test
-				ClearDependentResolvers (bindType);
+				// ... There are some edge cases around dynamically created assemblies - 
+				// but we do not care much about those in mobile environments that are targetted
+				ClearDependentResolvers (this, bindingKey);
 
 				return resolver;
 			}
@@ -215,8 +249,10 @@ namespace IfInjector
 
 		private IResolver BindImplicitOnly(Type bindType) {
 			lock (syncLock) {
+				var bindingKey = BindingKey.Get (bindType, true);
+
 				IResolver resolver;
-				if (allImplicitResolvers.TryGetValue (bindType, out resolver)) {
+				if (allResolvers.TryGetValue (bindingKey, out resolver)) {
 					return resolver;
 				}
 
@@ -234,29 +270,40 @@ namespace IfInjector
 
 		private IResolver CreateResolverInstance(Type bindType, Type implType, bool isImplicitBinding) {
 			try {
-				return (IResolver) createResolverInstanceGeneric.MakeGenericMethod(bindType, implType).Invoke(this, new object[]{isImplicitBinding});
+				var resolverType = typeof(Resolver<>).MakeGenericType(implType);
+				return (IResolver) createResolverInstanceGeneric.MakeGenericMethod(bindType, implType, resolverType).Invoke(this, new object[]{isImplicitBinding});
 			} catch (TargetInvocationException ex) {
 				throw ex.InnerException;
 			}
 		}
 
-		private Resolver<CType> CreateResolverInstanceGeneric<BType, CType>(bool isImplicitBinding) 
+		private RType CreateResolverInstanceGeneric<BType, CType, RType>(bool isImplicitBinding) 
 			where BType : class
 			where CType : class, BType
+			where RType : IResolver
 		{
 			var bindType = typeof(BType);
-			var resolver = new Resolver<CType> (this, bindType, syncLock);
+			var explicitBindKey = BindingKey.Get<BType> (false);
+
+			RType resolver = (RType) typeof(RType)
+				.GetConstructor(new Type[]{typeof(Injector), typeof(BindingKey), typeof(object)})
+					.Invoke(new object[]{this, explicitBindKey, syncLock});
 			
+			// TODO - logic is slightly broken: end up with edge cases where both implicit & explicit are using the same binding key
 			if (isImplicitBinding) {
-				allImplicitResolvers.Add (bindType, resolver);
-				if (!allResolvers.ContainsKey (bindType)) {
-					allResolvers.Add (bindType, resolver);
+				var implicitBindKey = BindingKey.Get<BType> (true);
+				
+				allResolvers.Add (implicitBindKey, resolver);
+				if (!allResolvers.ContainsKey (explicitBindKey)) {
+					allResolvers.Add (explicitBindKey, resolver);
 				}
 			} else {
-				allResolvers.Add (bindType, resolver);
+				allResolvers.Add (explicitBindKey, resolver);
 			}
 			
 			ImplicitTypeUtilities.SetupImplicitPropResolvers<CType> (resolver.BindingConfig, syncLock);
+
+			resolver.Changed += ClearDependentResolvers;
 
 			return resolver;
 		}
@@ -295,7 +342,7 @@ namespace IfInjector
 
 		internal void SetDependencies(IResolver resolver) {
 			lock (syncLock) {
-				foreach (Type t in resolver.Dependencies) {
+				foreach (var t in resolver.Dependencies) {
 					SetShim<IResolver> resolvers;
 					if (!resolverDeps.TryGetValue (t, out resolvers)) {
 						resolvers = new SetShim<IResolver> ();
@@ -309,7 +356,7 @@ namespace IfInjector
 		internal void ClearDependencies(IResolver resolver) {
 			lock (syncLock) {
 				// ensure operating on copy to avoid modification inside of loop
-				foreach (Type t in resolver.Dependencies.ToArray()) {
+				foreach (var t in resolver.Dependencies.ToArray()) {
 					SetShim<IResolver> resolvers;
 					if (resolverDeps.TryGetValue (t, out resolvers)) {
 						resolvers.Remove (resolver);
@@ -322,10 +369,10 @@ namespace IfInjector
 		/// Clears the dependent resolvers.
 		/// </summary>
 		/// <param name="bindType">Key type.</param>
-		internal void ClearDependentResolvers(Type bindType) {
+		private void ClearDependentResolvers(object source, BindingKey bindingKey) {
 			lock (syncLock) {
 				SetShim<IResolver> resolvers;
-				if (resolverDeps.TryGetValue (bindType, out resolvers)) {
+				if (resolverDeps.TryGetValue (bindingKey, out resolvers)) {
 					foreach (var resolver in resolvers) {
 						resolver.ClearResolver ();
 					}
@@ -339,134 +386,134 @@ namespace IfInjector
 		/// <summary>
 		/// Implicit type helper utilities
 		/// </summary>
-		private static class ImplicitTypeUtilities {
-			private static readonly Type ObjectType = typeof(object);
+	}
 
-			internal static void SetupImplicitPropResolvers<CType>(IBindingConfig bindingConfig, object syncLock) where CType : class {
-				var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-				Type cType = typeof(CType); 
+	internal static class ImplicitTypeUtilities {
+		private static readonly Type ObjectType = typeof(object);
 
-				do {
-					foreach (var prop in FilterMemberInfo<PropertyInfo>(cType, cType.GetProperties (bindingFlags))) {
-						bindingConfig.SetPropertyInfoSetter(prop, null);
-					}
+		internal static void SetupImplicitPropResolvers<CType>(IBindingConfig bindingConfig, object syncLock) where CType : class {
+			var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+			Type cType = typeof(CType); 
 
-					foreach (var field in FilterMemberInfo<FieldInfo>(cType, cType.GetFields (bindingFlags))) {
-						bindingConfig.SetFieldInfoSetter(field, null);
-					}
-				} while ((cType = cType.BaseType) != null && cType != ObjectType);
-
-				if (typeof(CType).GetCustomAttributes (typeof(SingletonAttribute), false).Length > 0) {
-					bindingConfig.Lifestyle =Lifestyle.Singleton;
-				}
-			}
-
-			private static IEnumerable<MInfo> FilterMemberInfo<MInfo>(Type cType, IEnumerable<MInfo> propsOrFields) 
-				where MInfo : MemberInfo 
-			{
-				return from p in propsOrFields 
-					where p.GetCustomAttributes(typeof(InjectAttribute), false).Length != 0
-						select p;
-			}
-
-			/// <summary>
-			/// Gets the implicit types.
-			/// </summary>
-			/// <returns>The implicit types.</returns>
-			/// <param name="boundType">Bound type.</param>
-			internal static SetShim<Type> GetImplicitTypes(Type boundType) {
-				var implicitTypes = new SetShim<Type>();
-
-				foreach (Type iFace in boundType.GetInterfaces()) {
-					implicitTypes.Add(iFace);
+			do {
+				foreach (var prop in FilterMemberInfo<PropertyInfo>(cType, cType.GetProperties (bindingFlags))) {
+					bindingConfig.SetPropertyInfoSetter(prop, null);
 				}
 
-				Type wTypeChain = boundType;
-				while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-					implicitTypes.Add(wTypeChain);
+				foreach (var field in FilterMemberInfo<FieldInfo>(cType, cType.GetFields (bindingFlags))) {
+					bindingConfig.SetFieldInfoSetter(field, null);
 				}
+			} while ((cType = cType.BaseType) != null && cType != ObjectType);
 
-				return implicitTypes;
+			if (typeof(CType).GetCustomAttributes (typeof(SingletonAttribute), false).Any()) {
+				bindingConfig.Lifestyle = Lifestyle.Singleton;
 			}
+		}
+
+		private static IEnumerable<MInfo> FilterMemberInfo<MInfo>(Type cType, IEnumerable<MInfo> propsOrFields) 
+			where MInfo : MemberInfo 
+		{
+			return from p in propsOrFields 
+				where p.GetCustomAttributes(typeof(InjectAttribute), false).Any()
+					select p;
 		}
 
 		/// <summary>
-		/// Injector binding implementation.
+		/// Gets the implicit types.
 		/// </summary>
-		private class InjectorBinding<CType> : IInjectorBinding<CType>
-			where CType : class 
-		{ 
-			private readonly object syncLock;
-			private readonly IBindingConfig bindingConfig;
+		/// <returns>The implicit types.</returns>
+		/// <param name="boundType">Bound type.</param>
+		internal static SetShim<Type> GetImplicitTypes(Type boundType) {
+			var implicitTypes = new SetShim<Type>();
 
-			internal InjectorBinding(object syncLock, IBindingConfig bindingConfig) {
-				this.syncLock = syncLock;
-				this.bindingConfig = bindingConfig;
+			foreach (Type iFace in boundType.GetInterfaces()) {
+				implicitTypes.Add(iFace);
 			}
 
-			public IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression) 
-			{
-				lock (syncLock) {
-					bindingConfig.FactoryExpression = factoryExpression;
-				}
-				return this;
+			Type wTypeChain = boundType;
+			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
+				implicitTypes.Add(wTypeChain);
 			}
 
-			public IInjectorBinding<CType> AddPropertyInjector<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression)
-				where TPropertyType : class
-			{
-				return AddPropertyInjectorInner (propertyExpression, null);
-			}
-
-			public IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
-			{
-				return AddPropertyInjectorInner (propertyExpression, setter);
-			}
-
-			private IInjectorBinding<CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
-				lock (syncLock) {
-					var propertyMemberExpression = propertyExpression.Body as MemberExpression;
-					if (propertyMemberExpression == null) {
-						throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
-					}
-
-					var member = propertyMemberExpression.Member;
-					if (member is PropertyInfo) {
-						bindingConfig.SetPropertyInfoSetter (member as PropertyInfo, setter);
-					} else if (member is FieldInfo) {
-						bindingConfig.SetFieldInfoSetter (member as FieldInfo, setter);
-					} else {
-						// Should not be reachable.
-						throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
-					}
-				}
-
-				return this;
-			}
-
-			public IInjectorBinding<CType> AsSingleton (bool singleton = true) {
-				lock (syncLock) {
-					if (singleton) {
-						bindingConfig.Lifestyle = Lifestyle.Singleton;
-					} else {
-						bindingConfig.Lifestyle = Lifestyle.Transient;
-					}
-				}
-
-				return this;
-			}
+			return implicitTypes;
 		}
 	}
 
+	/// <summary>
+	/// Injector binding implementation.
+	/// </summary>
+	internal class InjectorBinding<CType> : IInjectorBinding<CType>
+		where CType : class 
+	{ 
+		private readonly object syncLock;
+		private readonly IBindingConfig bindingConfig;
+
+		internal InjectorBinding(object syncLock, IBindingConfig bindingConfig) {
+			this.syncLock = syncLock;
+			this.bindingConfig = bindingConfig;
+		}
+
+		public IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression) 
+		{
+			lock (syncLock) {
+				bindingConfig.FactoryExpression = factoryExpression;
+			}
+			return this;
+		}
+
+		public IInjectorBinding<CType> AddPropertyInjector<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression)
+			where TPropertyType : class
+		{
+			return AddPropertyInjectorInner (propertyExpression, null);
+		}
+
+		public IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter)
+		{
+			return AddPropertyInjectorInner (propertyExpression, setter);
+		}
+
+		private IInjectorBinding<CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
+			lock (syncLock) {
+				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
+				if (propertyMemberExpression == null) {
+					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+				}
+
+				var member = propertyMemberExpression.Member;
+				if (member is PropertyInfo) {
+					bindingConfig.SetPropertyInfoSetter (member as PropertyInfo, setter);
+				} else if (member is FieldInfo) {
+					bindingConfig.SetFieldInfoSetter (member as FieldInfo, setter);
+				} else {
+					// Should not be reachable.
+					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+				}
+			}
+
+			return this;
+		}
+
+		public IInjectorBinding<CType> AsSingleton (bool singleton = true) {
+			lock (syncLock) {
+				if (singleton) {
+					bindingConfig.Lifestyle = Lifestyle.Singleton;
+				} else {
+					bindingConfig.Lifestyle = Lifestyle.Transient;
+				}
+			}
+
+			return this;
+		}
+	}
 
 	internal class Resolver<CType> : IResolver 
 		where CType : class 
 	{
 		private readonly Type cType = typeof(CType);
-		private readonly Type bindType;
-		private readonly object syncLock;
 
-		private readonly Injector injector;
+		protected readonly BindingKey bindingKey;
+		protected readonly object syncLock;
+		protected readonly Injector injector;
 
 		private readonly IBindingConfig bindingConfig;
 		private readonly IExpressionCompiler<CType> expressionCompiler;
@@ -476,7 +523,9 @@ namespace IfInjector
 		private LifestyleResolver<CType> resolver;
 		private Func<CType,CType> resolveProperties;
 
-		public SetShim<Type> Dependencies { 
+		public event ResolverChangedEventHandler Changed;
+
+		public virtual SetShim<BindingKey> Dependencies { 
 			get { 
 				lock (syncLock) {
 					return expressionCompiler.Dependencies; 
@@ -484,10 +533,10 @@ namespace IfInjector
 			} 
 		}
 
-		public Resolver(Injector injector, Type bindType, object syncLock)
+		public Resolver(Injector injector, BindingKey bindingKey, object syncLock)
 		{
 			this.injector = injector;
-			this.bindType = bindType;
+			this.bindingKey = bindingKey;
 			this.syncLock = syncLock;
 
 			this.bindingConfig = new BindingConfig<CType> ();
@@ -504,7 +553,6 @@ namespace IfInjector
 			if (!IsResolved()) {
 				CompileResolver ();
 			}
-
 
 			return resolver.Resolve ();
 		}
@@ -525,13 +573,20 @@ namespace IfInjector
 					var resolverExpressionCompiled = resolverExpression.Compile ();
 					var testInstance = resolverExpressionCompiled ();
 
-					injector.SetDependencies (this);
+					InjectorSetDependencies ();
 
 					resolver = bindingConfig.Lifestyle.GetLifestyleResolver<CType> (syncLock, resolverExpression, resolverExpressionCompiled, testInstance);
 
 					isRecursionTestPending = false; // END: Handle compile loop
 				}
 			}
+		}
+
+		/// <summary>
+		/// Ugly hack to ensure correct dependencies for collection types.
+		/// </summary>
+		protected virtual void InjectorSetDependencies() {
+			injector.SetDependencies (this);
 		}
 
 		private CType DoInjectTyped(CType instance) {
@@ -554,33 +609,142 @@ namespace IfInjector
 
 		private void OnBindingChanged(object sender, EventArgs e) {
 			lock (syncLock) {
-				injector.ClearDependentResolvers (bindType);
+				if (Changed != null) {
+					Changed (this, bindingKey);
+				}
 				ClearResolver ();
 			}
 		}
 
-		public void ClearResolver() {
+		public virtual void ClearResolver() {
 			lock (syncLock) {
 				isRecursionTestPending = false;
 
 				expressionCompiler.Dependencies.Clear ();
-				injector.ClearDependencies (this);
+				ClearInjectorDependencies();
 
 				resolver = null;
 			}
 		}
 
-		public Expression GetResolveExpression (SetShim<Type> callerDeps) {
+		public Expression GetResolveExpression (SetShim<BindingKey> callerDeps) {
 			lock (syncLock) {
 				if (!IsResolved()) {
 					CompileResolver ();
 				}
 
 				callerDeps.UnionWith (expressionCompiler.Dependencies);
-				callerDeps.Add (bindType);
+				callerDeps.Add (bindingKey);
 
 				return resolver.ResolveExpression.Body;
 			}
+		}
+
+		/// <summary>
+		/// TODO: Ugly hack.
+		/// </summary>
+		protected virtual void ClearInjectorDependencies() {
+			injector.ClearDependencies (this);
+		}
+	}
+
+	/// <summary>
+	/// Collection value resolver.
+	/// </summary>
+	internal class CollectionValueResolver<CType>: Resolver<CType>
+		where CType : class
+	{
+		private readonly IResolver parentResolver;
+
+		public CollectionValueResolver(Injector injector, BindingKey bindingKey, object syncLock, IResolver parentResolver) :
+			base(injector, bindingKey, syncLock) 
+		{
+			this.parentResolver = parentResolver;
+		}
+		
+		protected override void ClearInjectorDependencies() { 
+			// No-op.
+		}
+
+		protected override void InjectorSetDependencies() {
+			injector.SetDependencies (parentResolver);
+		}
+	}
+
+	/// <summary>
+	/// Map resolver.
+	/// </summary>
+	internal class DictionaryResolver<KeyType, BType> : Resolver<Dictionary<KeyType, BType>>, IDictionaryBinding<KeyType, BType>
+		where BType : class
+	{
+		private class ResolverPair
+		{
+			public BindingKey BindingKey { get; set; }
+			public IResolver Resolver { get; set; }
+		}
+
+		private readonly SafeDictionary<KeyType, ResolverPair> mapResolvers;
+
+		public DictionaryResolver(Injector injector, BindingKey bindingKey, object syncLock) :
+			base(injector, bindingKey, syncLock) 
+		{
+			this.mapResolvers = new SafeDictionary<KeyType, ResolverPair>(syncLock);
+			Expression<Func<Dictionary<KeyType, BType>>> factoryExpression = () => MakeDictionary ();
+			this.BindingConfig.FactoryExpression = factoryExpression;
+		}
+
+		// TODO - fix		
+		public override SetShim<BindingKey> Dependencies {
+			get {
+				lock (syncLock) {
+					SetShim<BindingKey> dependencies = new SetShim<BindingKey> ();
+					foreach (var resolverPair in mapResolvers.Values) {
+						if (resolverPair.Resolver != null) {
+							dependencies.UnionWith (resolverPair.Resolver.Dependencies);
+						}
+					}
+					return dependencies;
+				}
+			}
+		}
+
+		public IInjectorBinding<CType> AddBinding<CType> (KeyType keyValue)
+			where CType : class, BType
+		{
+			lock (syncLock) {
+				ResolverPair resolverPair;
+
+				// Clear old value
+				if (mapResolvers.TryGetValue (keyValue, out resolverPair)) {
+					if (resolverPair.Resolver != null) {
+						resolverPair.Resolver.Changed -= OnChildResolverChanged;
+					}
+					ClearResolver ();
+				}
+
+				resolverPair = new ResolverPair ();
+				var resolver = new CollectionValueResolver<CType> (injector, bindingKey, syncLock, this);
+				resolverPair.Resolver = resolver;
+
+				ImplicitTypeUtilities.SetupImplicitPropResolvers<CType> (resolver.BindingConfig, syncLock);
+				resolver.Changed += OnChildResolverChanged;
+
+				mapResolvers.Add (keyValue, resolverPair);
+
+				return new InjectorBinding<CType> (syncLock, resolverPair.Resolver.BindingConfig);
+			}
+		}
+
+		private void OnChildResolverChanged(object source, BindingKey bindingKey) {
+			ClearResolver ();
+		}
+
+		private Dictionary<KeyType, BType> MakeDictionary() {
+			Dictionary<KeyType, BType> dict = new Dictionary<KeyType, BType> ();
+			foreach (var kv in mapResolvers.UnsyncedEnumerate()) {
+				dict.Add (kv.Key, (BType) kv.Value.Resolver.DoResolve ());
+			}
+			return dict;
 		}
 	}
 }

@@ -113,35 +113,5 @@ namespace IfInjectorTest.Basic
             public interface IMyOtherInterface { }
             public class MyOtherInterfaceClass : IMyOtherInterface { }
         }
-
-        [Test]
-        public void TestSelectConstructorByIgnoreAttribute()
-        {
-			Bind<TestIgnoreConstructorByAttributeTestClass.IMyOtherInterface, TestIgnoreConstructorByAttributeTestClass.MyOtherInterfaceClass>();
-
-			var result = Injector.Resolve<TestIgnoreConstructorByAttributeTestClass>();
-
-			Assert.IsInstanceOf<TestIgnoreConstructorByAttributeTestClass>(result);
-            Assert.IsTrue(result.CorrectConstructorWasUsed);
-        }
-
-        class TestIgnoreConstructorByAttributeTestClass
-        {
-            [IgnoreConstructor]
-            public TestIgnoreConstructorByAttributeTestClass()
-            {
-                CorrectConstructorWasUsed = false;
-            }
-
-            public TestIgnoreConstructorByAttributeTestClass(IMyOtherInterface dep)
-            {
-                CorrectConstructorWasUsed = true;
-            }
-
-            public bool CorrectConstructorWasUsed { get; set; }
-
-            public interface IMyOtherInterface { }
-            public class MyOtherInterfaceClass : IMyOtherInterface { }
-        }
     }
 }

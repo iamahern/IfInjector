@@ -13,12 +13,6 @@ namespace IfInjector
 	public class InjectAttribute : Attribute {}
 
 	/// <summary>
-	/// Ignore constructor attribute. Used to flage constructors to be ignored.
-	/// </summary>
-	[AttributeUsage(AttributeTargets.Constructor)]
-	public class IgnoreConstructorAttribute : Attribute {}
-
-	/// <summary>
 	/// Implemented by attribute.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
@@ -69,7 +63,7 @@ namespace IfInjector
 		/// <returns>The resolver.</returns>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		/// <typeparam name="TConcreteType">The 2nd type parameter.</typeparam>
-		IfCore.IInjectorBinding<CType> Bind<BType, CType> ()
+		IfCore.IfBinding.IInjectorBinding<CType> Bind<BType, CType> ()
 			where BType : class
 			where CType : class, BType;
 
@@ -77,8 +71,17 @@ namespace IfInjector
 		/// Sets the resolver.
 		/// </summary>
 		/// <typeparam name="TConcreteType">The 1st type parameter.</typeparam>
-		IfCore.IInjectorBinding<CType> Bind<CType> ()
+		IfCore.IfBinding.IInjectorBinding<CType> Bind<CType> ()
 			where CType : class;
+
+		/// <summary>
+		/// Binds the map.
+		/// </summary>
+		/// <returns>The map.</returns>
+		/// <typeparam name="BType">The binding type.</typeparam>
+		/// <typeparam name="KeyType">The 2nd type parameter.</typeparam>
+		IfCore.IfBinding.IDictionaryBinding<KeyType, BType> BindDictionary<KeyType, BType> ()
+			where BType : class;
 
 		/// <summary>
 		/// Verify that all bindings all valid.
@@ -106,20 +109,20 @@ namespace IfInjector
 	/// Provide extension methods for Func<P1..P4,CT>
 	/// </summary>
 	public static class InjectorBindingExtensions {
-		public static IfCore.IInjectorBinding<CT> SetFactory<CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<CT>> factoryExpression) 
+		public static IfCore.IfBinding.IInjectorBinding<CT> SetFactory<CT>(this IfCore.IfBinding.IInjectorBinding<CT> binding, Expression<Func<CT>> factoryExpression) 
 			where CT : class
 		{
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfCore.IInjectorBinding<CT> SetFactory<P1,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,CT>> factoryExpression) 
+		public static IfCore.IfBinding.IInjectorBinding<CT> SetFactory<P1,CT>(this IfCore.IfBinding.IInjectorBinding<CT> binding, Expression<Func<P1,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 		{
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfCore.IInjectorBinding<CT> SetFactory<P1,P2,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
+		public static IfCore.IfBinding.IInjectorBinding<CT> SetFactory<P1,P2,CT>(this IfCore.IfBinding.IInjectorBinding<CT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 			where P2 : class
@@ -127,7 +130,7 @@ namespace IfInjector
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfCore.IInjectorBinding<CT> SetFactory<P1,P2,P3,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
+		public static IfCore.IfBinding.IInjectorBinding<CT> SetFactory<P1,P2,P3,CT>(this IfCore.IfBinding.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 			where P2 : class
@@ -136,7 +139,7 @@ namespace IfInjector
 			return binding.SetFactoryLambda (factoryExpression);
 		}
 
-		public static IfCore.IInjectorBinding<CT> SetFactory<P1,P2,P3,P4,CT>(this IfCore.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
+		public static IfCore.IfBinding.IInjectorBinding<CT> SetFactory<P1,P2,P3,P4,CT>(this IfCore.IfBinding.IInjectorBinding<CT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
 			where CT : class
 			where P1 : class
 			where P2 : class
@@ -208,20 +211,113 @@ namespace IfInjector
 			public InjectorError ErrorType { get; private set; }
 		}
 
-		/// <summary>
-		/// The fluent class is really only important to give the extension methods the type for T. 
-		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		public interface IInjectorBinding<CType> where CType : class
-		{
-			IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression);
+		namespace IfBinding {
+			using IfPlatform;
 
-			IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
-				where TPropertyType : class;
+			/// <summary>
+			/// The binding key object is used to
+			/// </summary>
+			internal class BindingKey {
+				private static readonly string PAREN_OPEN = "(";
+				private static readonly string PAREN_CLOSE = ")";
+				private static readonly string DELIM = "|";
+				private static readonly string TYPE = "Type=";
+				private static readonly string IMPLICIT = "Implicit=";
+				private static readonly string PARENT = "Parent=";
 
-			IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
+				private static object syncLock = new object();
+				private static SafeDictionary<string, BindingKey> bindingKeys = new SafeDictionary<string, BindingKey>(syncLock);
 
-			IInjectorBinding<CType> AsSingleton (bool singleton = true);
+				private string KeyString { get; set; }
+				public BindingKey Container { get; private set; }
+				public Type BindingType { get; private set; }
+				public bool Implicit { get; private set; }
+
+				public static BindingKey Get<T>()
+					where T : class 
+				{
+					return Get<T> (false);
+				}
+
+				internal static BindingKey Get<T>(bool isImplicit) where T : class {
+					return isImplicit ? 
+						BindingKeyInternal<T>.IMPLICIT : 
+						BindingKeyInternal<T>.EXPLICIT;
+				}
+
+				public static BindingKey Get(Type keyType) {
+					return Get (keyType, false);
+				}
+
+				/// <summary>
+				/// Used to get a binding key for a collection
+				/// </summary>
+				internal static BindingKey Get(BindingKey container, Type keyType) {
+					return Get (container, keyType, false);
+				}
+
+				internal static BindingKey Get(Type keyType, bool isImplicit) {
+					return Get (null, keyType, isImplicit);
+				}
+
+				private static BindingKey Get(BindingKey container, Type keyType, bool isImplicit) {
+					string keyString = 
+						PARENT + PAREN_OPEN + (container == null ? "" : container.KeyString) + PAREN_CLOSE 
+						+ DELIM + TYPE + keyType.FullName + DELIM + IMPLICIT + isImplicit;
+
+					BindingKey key;
+					if (!bindingKeys.UnsyncedTryGetValue (keyString, out key)) {
+						lock (syncLock) {
+							if (!bindingKeys.TryGetValue (keyString, out key)) {
+								key = new BindingKey () { 
+									KeyString = keyString,
+									Container = container,
+									BindingType = keyType,
+									Implicit = isImplicit
+								};
+								bindingKeys.Add (keyString, key);
+							}
+						}
+					}
+					return key;
+				}
+
+				private static class BindingKeyInternal<T> where T : class {
+					public static readonly BindingKey EXPLICIT = BindingKey.Get (typeof(T), false);
+					public static readonly BindingKey IMPLICIT = BindingKey.Get (typeof(T), true);
+				}
+			}
+
+			/// <summary>
+			/// Map binding. Callers specify a key and value (BType).
+			/// </summary>
+			public interface IDictionaryBinding<KeyType, BType> where BType : class
+			{
+				/// <summary>
+				/// Adds the binding.
+				/// </summary>
+				/// <returns>The binding.</returns>
+				/// <param name="keyValue">Key value.</param>
+				/// <typeparam name="CType">The 1st type parameter.</typeparam>
+				IInjectorBinding<CType> AddBinding<CType> (KeyType keyValue)
+					where CType : class, BType;
+			}
+
+			/// <summary>
+			/// The fluent class is really only important to give the extension methods the type for T. 
+			/// </summary>
+			/// <typeparam name="T"></typeparam>
+			public interface IInjectorBinding<CType> where CType : class
+			{
+				IInjectorBinding<CType> SetFactoryLambda (LambdaExpression factoryExpression);
+
+				IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
+					where TPropertyType : class;
+
+				IInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
+
+				IInjectorBinding<CType> AsSingleton (bool singleton = true);
+			}
 		}
 	}
 }

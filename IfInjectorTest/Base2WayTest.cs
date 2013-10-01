@@ -1,6 +1,7 @@
 using System;
 using IfInjector;
 using IfInjector.IfCore;
+using IfInjector.IfCore.IfBinding;
 using NUnit;
 using NUnit.Framework;
 

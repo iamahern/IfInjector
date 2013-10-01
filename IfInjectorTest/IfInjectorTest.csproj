@@ -62,6 +62,7 @@
     <Compile Include="MultipleInjectorsTest.cs" />
     <Compile Include="factory\ProvidesTest.cs" />
     <Compile Include="basic\ProvidersTest.cs" />
+    <Compile Include="MapBindingTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfInjector\IfInjector.csproj">

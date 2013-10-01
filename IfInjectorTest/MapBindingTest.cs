@@ -19,7 +19,7 @@ namespace IfInjectorTest
 
 			injector.Bind<ID, D> ();
 
-			var binding = injector.BindMap<string, IFace> ();
+			var binding = injector.BindDictionary<string, IFace> ();
 			binding.AddBinding<A> ("A");
 			binding.AddBinding<B> ("B");
 			binding.AddBinding<C> ("C").AddPropertyInjector (o => o.A);
@@ -31,7 +31,22 @@ namespace IfInjectorTest
 			foreach (var kv in dict) {
 				Assert.AreEqual (kv.Key, kv.Value.GetType ().Name);
 			}
+		}
 
+		[Test()]
+		public void TestOldStyleMapBinding ()
+		{
+			var injector = new Injector ();
+			injector.Bind<Dictionary<string, IFace>> ().SetFactory (() => Fact());
+
+			var d2 = injector.Resolve<Dictionary<string, IFace>> ();
+			Assert.AreEqual (1, d2.Count);
+		}
+
+		Dictionary<string, IFace> Fact() {
+			var dict = new Dictionary<string, IFace>();
+			dict.Add("A", new A());
+			return dict;
 		}
 
 		interface IFace {

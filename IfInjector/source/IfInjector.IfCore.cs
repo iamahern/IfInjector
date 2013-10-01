@@ -100,6 +100,10 @@ namespace IfInjector.IfCore
 				return unsyncDict.TryGetValue (key, out value);
 			}
 
+			public IEnumerable<KeyValuePair<TKey, TValue>> UnsyncedEnumerate() {
+				return unsyncDict;
+			}
+
 			public bool ContainsKey(TKey key) {
 				lock (syncLock) {
 					return dict.ContainsKey(key);
@@ -178,6 +182,14 @@ namespace IfInjector.IfCore
 					CType testInstance) 
 				where CType : class;
 
+			/// <summary>
+			/// Creates a custom lifestyle.
+			/// </summary>
+			/// <returns>The custom lifestyle delegate.</returns>
+			/// <param name="customLifestyle">The custom lifestyle.</param>
+			public static Lifestyle CreateCustom(CustomLifestyleDelegate customLifestyle) {
+				return new CustomLifestyle (customLifestyle);
+			}
 
 			/////////
 			// Internal impl for singleton
@@ -227,6 +239,44 @@ namespace IfInjector.IfCore
 
 					internal override CType Resolve() {
 						return resolverExpressionCompiled();
+					}
+				}
+			}
+
+			/// <summary>
+			/// Used to create custom lifestyle.
+			/// </summary>
+			internal delegate Func<object> CustomLifestyleDelegate(Func<object> instanceCreator);
+
+			internal class CustomLifestyle : Lifestyle {
+				private readonly CustomLifestyleDelegate lifestyleDelegate;
+
+				internal CustomLifestyle(CustomLifestyleDelegate lifestyleDelegate) {
+					this.lifestyleDelegate = lifestyleDelegate;
+				}
+
+				internal override LifestyleResolver<CType> GetLifestyleResolver<CType>(
+					object syncLock, 
+					Expression<Func<CType>> resolverExpression,
+					Func<CType> resolverExpressionCompiled,
+					CType testInstance)
+				{
+					Func<object> instanceCreator = () => resolverExpressionCompiled ();
+					return new BaseCustomLifecyle<CType>(resolverExpression, lifestyleDelegate(instanceCreator));
+				}
+
+				private class BaseCustomLifecyle<CType> : LifestyleResolver<CType> where CType : class {
+					private readonly Func<object> instanceCreator;
+
+					internal BaseCustomLifecyle(
+						Expression<Func<CType>> resolveExpression, 
+						Func<object> instanceCreator) : base(resolveExpression) 
+					{
+						this.instanceCreator = instanceCreator;
+					}
+
+					internal override CType Resolve() {
+						return (CType) instanceCreator();
 					}
 				}
 			}
@@ -428,7 +478,6 @@ namespace IfInjector.IfCore
 					} else {
 						// try to find the default constructor and create a default resolver from it
 						var ctor = cType.GetConstructors ()
-							.Where (v => Attribute.IsDefined (v, typeof(IgnoreConstructorAttribute)) == false)
 							.OrderBy (v => Attribute.IsDefined (v, typeof(InjectAttribute)) ? 0 : 1)
 								.ThenBy (v => v.GetParameters ().Count ())
 							.FirstOrDefault ();
@@ -490,7 +539,7 @@ namespace IfInjector.IfCore
 		/// <summary>
 		/// Resolve instance expression.
 		/// </summary>
-		internal delegate Expression ResolveResolverExpression(Type bindType, SetShim<Type> callerDependencies);
+		internal delegate Expression ResolveResolverExpression(BindingKey bindingKey, SetShim<BindingKey> callerDependencies);
 
 		/// <summary>
 		/// Expression compiler definition. Synchronization must be managed externally by the API caller.
@@ -500,7 +549,7 @@ namespace IfInjector.IfCore
 			/// Gets or sets the dependencies.
 			/// </summary>
 			/// <value>The dependencies.</value>
-			SetShim<Type> Dependencies { get; }
+			SetShim<BindingKey> Dependencies { get; }
 
 			/// <summary>
 			/// Compiles the resolver expression.
@@ -527,7 +576,7 @@ namespace IfInjector.IfCore
 
 			private readonly IBindingConfig bindingConfig;
 
-			public SetShim<Type> Dependencies { get; private set; }
+			public SetShim<BindingKey> Dependencies { get; private set; }
 
 			public ResolveResolverExpression ResolveResolverExpression { set; private get; }
 
@@ -538,7 +587,7 @@ namespace IfInjector.IfCore
 			/// </summary>
 			/// <param name="bindingConfig">Binding config.</param>
 			internal ExpressionCompiler(IBindingConfig bindingConfig) {
-				this.Dependencies = new SetShim<Type> ();
+				this.Dependencies = new SetShim<BindingKey> ();
 				this.bindingConfig = bindingConfig;
 			}
 
@@ -645,7 +694,7 @@ namespace IfInjector.IfCore
 			}
 
 			private Expression GetResolverInvocationExpressionForType(Type parameterType) {
-				return ResolveResolverExpression(parameterType, Dependencies);
+				return ResolveResolverExpression(BindingKey.Get(parameterType), Dependencies);
 			}
 
 			private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpressions) {

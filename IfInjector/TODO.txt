@@ -2,6 +2,14 @@
 - RESEARCH:
 	- Need for IDisposable???
 
+- Map issues:
+	- Don't like current architecture; need to investigate sub/child injector or managing of parent-child relationship via BindingKeys
+	- I think latter is correct approach, but need to sketch things out
+
+- UGLY:
+	- Use of events is ugly. Replace with Action() as will only have one callback ???
+	- Make lambda's more elegant 
+
 - DEFECT:
 	- EDGE Cases:
 		- How should singleton or (when we have them) custom lifecycles be handled?
@@ -9,7 +17,9 @@
 			- This probably requires a config setting for the behavior
 		- If an assembly creates new types, how should this be handled for implicit types???
 			- Think have correct behavior: TODO: test case
-		
+	
+	- Edge cases around binding mutation are ugly; revisit mutability
+			
 - MISSING FEATURES:
 	- InjectStatic()
 	
