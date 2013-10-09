@@ -57,8 +57,8 @@ namespace IfInjectorTest.Basic
 		[Test, Timeout(100)]
         public void TestResolverWithPropertyLooping()
         {
-			Bind<ConcretePropertyLoop>()
-				.AddPropertyInjector<ConcretePropertyLoop> (v => v.MyTestProperty);
+			Bind(MakeBind<ConcretePropertyLoop>()
+				.AddPropertyInjector<ConcretePropertyLoop> (v => v.MyTestProperty));
             
 			//fFastInjector.Injector.InternalResolver<ConcretePropertyLoop>.AddPropertySetter(v => v.MyTestProperty);//, () => Injector.Resolve<ConcretePropertyLoop>());
 

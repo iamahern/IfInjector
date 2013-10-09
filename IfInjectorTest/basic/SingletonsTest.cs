@@ -12,7 +12,7 @@ namespace IfInjectorTest.Basic
 		[Test()]
 		public void TestSingletonWithSetResolver ()
 		{
-			Bind<MyIFace, MyClass> ().AsSingleton ();
+			Bind(MakeBind<MyIFace, MyClass> ().AsSingleton ());
 
 			MyIFace inst1 = Injector.Resolve<MyIFace> ();
 			MyIFace inst2 = Injector.Resolve<MyIFace> ();
@@ -23,7 +23,7 @@ namespace IfInjectorTest.Basic
 		[Test()]
 		public void TestSingletonWithForConcreteType ()
 		{
-			Bind<MyClass> ().AsSingleton ();
+			Bind(MakeBind<MyClass> ().AsSingleton ());
 
 			MyClass inst1 = Injector.Resolve<MyClass> ();
 			MyClass inst2 = Injector.Resolve<MyClass> ();
@@ -32,7 +32,7 @@ namespace IfInjectorTest.Basic
 		}
 		
 		public void EnsureInnerSingletonIsSame1() {
-			Bind<MyClass> ().AsSingleton ();
+			Bind(MakeBind<MyClass> ().AsSingleton ());
 
 			MyClass inst1 = Injector.Resolve<MyClass> ();
 			MyClass inst2 = Injector.Resolve<MyTransient> ().MyClass;
@@ -43,7 +43,7 @@ namespace IfInjectorTest.Basic
 		}
 
 		public void EnsureInnerSingletonIsSame2() {
-			Bind<MyClass> ().AsSingleton ();
+			Bind(MakeBind<MyClass> ().AsSingleton ());
 
 			MyClass inst1 = Injector.Resolve<MyTransient> ().MyClass;
 			MyClass inst2 = Injector.Resolve<MyClass> ();

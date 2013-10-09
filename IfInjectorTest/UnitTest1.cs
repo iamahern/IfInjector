@@ -8,14 +8,13 @@ namespace IfInjectorTest
     [TestFixture]
     public class UnitTest1
     {
-		private Injector injector = new Injector();
-
         [Test]
         public void RegisterMethodToResolveInterfaceTest()
         {
             var x = new myClass();
+			var injector = new Injector();
 
-			injector.Bind<myInterface, myClass>().SetFactory(() => GetNew());
+			injector.Bind(Binding.For<myInterface>().SetFactory(() => GetNew()));
 
 			var z1 = injector.Resolve<myInterface>();
 			var z2 = injector.Resolve<myInterface>();
@@ -37,9 +36,10 @@ namespace IfInjectorTest
         [Test]
         public void TestResolverReplace()
 		{
+			var injector = new Injector ();
 			MyTestResolverReplaceDependency dep = new MyTestResolverReplaceDependency ();
 
-			injector.Bind<MyTestResolverReplace>().SetFactory(() => new MyTestResolverReplace(dep));
+			injector.Bind(Binding.For<MyTestResolverReplace>().SetFactory(() => new MyTestResolverReplace(dep)));
 
 			var result = injector.Resolve<MyTestResolverReplace>();
 			Assert.AreSame(dep, result.dependency);

@@ -2,13 +2,8 @@
 - RESEARCH:
 	- Need for IDisposable???
 
-- Map issues:
-	- Don't like current architecture; need to investigate sub/child injector or managing of parent-child relationship via BindingKeys
-	- I think latter is correct approach, but need to sketch things out
-
 - UGLY:
 	- Use of events is ugly. Replace with Action() as will only have one callback ???
-	- Make lambda's more elegant 
 
 - DEFECT:
 	- EDGE Cases:

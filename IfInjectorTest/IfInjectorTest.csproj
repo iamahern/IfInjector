@@ -44,7 +44,6 @@
     <Compile Include="basic\ConcreteTypesTest.cs" />
     <Compile Include="basic\ImplicitTypeTest.cs" />
     <Compile Include="basic\InjectorTest.cs" />
-    <Compile Include="basic\PropertyInjectionTest.cs" />
     <Compile Include="basic\ResolverLoopTest.cs" />
     <Compile Include="basic\UnitTest2.cs" />
     <Compile Include="basic\SingletonsTest.cs" />
@@ -53,7 +52,6 @@
     <Compile Include="factory\ImplicitTypeTest.cs" />
     <Compile Include="factory\ConcreteTypesTest.cs" />
     <Compile Include="factory\InjectorTest.cs" />
-    <Compile Include="factory\PropertyInjectionTest.cs" />
     <Compile Include="factory\RecompilationTest.cs" />
     <Compile Include="factory\ResolverLoopTest.cs" />
     <Compile Include="factory\SingletonsTest.cs" />
@@ -62,7 +60,7 @@
     <Compile Include="MultipleInjectorsTest.cs" />
     <Compile Include="factory\ProvidesTest.cs" />
     <Compile Include="basic\ProvidersTest.cs" />
-    <Compile Include="MapBindingTest.cs" />
+    <Compile Include="PropertyInjectionTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfInjector\IfInjector.csproj">

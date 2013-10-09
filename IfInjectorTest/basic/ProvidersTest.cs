@@ -23,7 +23,7 @@ namespace IfInjectorTest.Basic
 			Bind<MyInjectorCls> ();
 
 			try {
-				var inst = Injector.Bind<IfInjector.Injector> ();
+				Bind<IfInjector.Injector> ();
 				Assert.Fail("Error expected.");
 			} catch (InjectorException ex) {
 				Assert.AreEqual (InjectorErrors.ErrorMayNotBindInjector, ex.ErrorType);

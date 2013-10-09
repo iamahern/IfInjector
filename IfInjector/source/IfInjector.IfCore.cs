@@ -162,7 +162,7 @@ namespace IfInjector.IfCore
 		/// <summary>
 		/// Base lifestyle class
 		/// </summary>
-		internal abstract class Lifestyle {
+		public abstract class Lifestyle {
 			public static readonly Lifestyle Singleton = new SingletonLifestyle();
 			public static readonly Lifestyle Transient = new TransientLifestyle();
 
@@ -246,9 +246,9 @@ namespace IfInjector.IfCore
 			/// <summary>
 			/// Used to create custom lifestyle.
 			/// </summary>
-			internal delegate Func<object> CustomLifestyleDelegate(Func<object> instanceCreator);
+			public delegate Func<object> CustomLifestyleDelegate(Func<object> instanceCreator);
 
-			internal class CustomLifestyle : Lifestyle {
+			public class CustomLifestyle : Lifestyle {
 				private readonly CustomLifestyleDelegate lifestyleDelegate;
 
 				internal CustomLifestyle(CustomLifestyleDelegate lifestyleDelegate) {
@@ -314,6 +314,115 @@ namespace IfInjector.IfCore
 			/// </summary>
 			/// <value>The type of the member.</value>
 			Type MemberType { get; }
+		}
+
+		/// <summary>
+		/// Internal utilities for binding classes.
+		/// </summary>
+		internal static class BindingUtil {
+			internal static void AddPropertyInjectorToBindingConfig<CType, TPropertyType>(
+				IBindingConfig bindingConfig,
+				Expression<Func<CType, TPropertyType>> propertyExpression, 
+				Expression<Func<TPropertyType>> setter) 
+				where CType : class
+			{
+				var propertyMemberExpression = propertyExpression.Body as MemberExpression;
+				if (propertyMemberExpression == null) {
+					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+				}
+
+				var member = propertyMemberExpression.Member;
+				if (member is PropertyInfo) {
+					bindingConfig.SetPropertyInfoSetter (member as PropertyInfo, setter);
+				} else if (member is FieldInfo) {
+					bindingConfig.SetFieldInfoSetter (member as FieldInfo, setter);
+				} else {
+					// Should not be reachable.
+					throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+				}
+			}
+		}
+
+		/// <summary>
+		/// Internal interface for working with binding objects.
+		/// </summary>
+		internal interface IInternalBinding {
+			/// <summary>
+			/// Gets the binding config.
+			/// </summary>
+			/// <value>The binding config.</value>
+			IBindingConfig BindingConfig { get; }
+
+			/// <summary>
+			/// Gets the binding key.
+			/// </summary>
+			/// <value>The binding key.</value>
+			BindingKey BindingKey { get; }
+
+			/// <summary>
+			/// Gets the type of the concrete implementation.
+			/// </summary>
+			/// <value>The type of the bind to.</value>
+			Type ConcreteType { get; }
+		}
+		
+		internal class BoundBinding<BType, CType> : IBoundBinding<BType, CType>, IInternalBinding
+			where BType : class
+			where CType : class, BType
+		{
+			public IBindingConfig BindingConfig { get; private set; }
+			public BindingKey BindingKey { get; private set; }
+			public Type ConcreteType { get { return typeof(CType); } }
+
+			internal BoundBinding(IBindingConfig bindingConfig) {
+				BindingConfig = bindingConfig;
+				BindingKey = BindingKey.Get<BType> ();
+				Injector.ImplicitTypeUtilities.SetupImplicitPropResolvers<CType> (bindingConfig, this);
+			}
+
+			public IBinding SetLifestyle (IfLifestyle.Lifestyle lifestyle) {
+				BindingConfig.Lifestyle = lifestyle;
+				return this;
+			}
+
+			public IBoundBinding<BType, CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
+					where TPropertyType : class
+			{
+				return AddPropertyInjectorInner<TPropertyType> (propertyExpression, null);
+			}
+			
+			public IBoundBinding<BType, CType> AddPropertyInjector<TPropertyType> (
+				Expression<Func<CType, TPropertyType>> propertyExpression, 
+				Expression<Func<TPropertyType>> setter)
+			{
+				return AddPropertyInjectorInner<TPropertyType> (propertyExpression, setter);
+			}
+
+			private IBoundBinding<BType, CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
+				BindingUtil.AddPropertyInjectorToBindingConfig<CType, TPropertyType> (BindingConfig, propertyExpression, setter);
+				return this;
+			}
+		}
+
+		internal class OngoingBinding<BType> : BoundBinding<BType, BType>, IOngoingBinding<BType>
+			where BType : class
+		{
+			internal OngoingBinding() : base(new BindingConfig<BType>()) {}
+
+			public IBoundBinding<BType, CType> To<CType> () 
+				where CType : class, BType
+			{
+				return new BoundBinding<BType, CType> (new BindingConfig<CType>());
+			}
+
+			public IBoundBinding<BType, CType> SetFactoryLambda<CType>(LambdaExpression factoryExpression)
+				where CType : class, BType
+			{
+				var bindingConfig = new BindingConfig<CType> ();
+				var boundBinding = new BoundBinding<BType, CType> (bindingConfig); 
+				bindingConfig.FactoryExpression = factoryExpression;
+				return boundBinding;
+			}
 		}
 
 		/// <summary>

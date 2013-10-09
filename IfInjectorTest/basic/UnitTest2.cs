@@ -32,9 +32,9 @@ namespace IfInjectorTest.Basic
         [Test]
         public void AddPropertyInjectorTest()
         {
-			var binding = Bind<TestClassAddPropertyInjectorTest> ();
-			binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.Other);
-			binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger");
+			Bind(MakeBind<TestClassAddPropertyInjectorTest> ()
+				.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.Other)
+				.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger"));
 
 			var result = Injector.Resolve<TestClassAddPropertyInjectorTest>();
 
@@ -71,7 +71,7 @@ namespace IfInjectorTest.Basic
         [Test]
         public void AddPropertySetterNotMemberExpression()
         {
-			var binding = Bind<TestClassAddPropertyInjectorTest>();
+			var binding = MakeBind<TestClassAddPropertyInjectorTest>();
 
 			InjectorException exception = null;
             try
@@ -124,7 +124,7 @@ namespace IfInjectorTest.Basic
 
 		[Test]
 		public void TestVerify() {
-			Injector.Bind<NoProperConstructor> ();
+			Injector.Bind(Binding.For<NoProperConstructor> ());
 
 			try { 
 				Injector.Verify();

@@ -5,21 +5,18 @@ using IfInjector;
 using IfInjector.IfCore;
 using IfInjectorTest;
 
-namespace IfInjectorTest.Basic
+namespace IfInjectorTest
 {
 	[TestFixture()]
-	public class PropertyInjectionTest : Base2WayTest
+	public class PropertyInjectionTest
 	{
 		[Test()]
 		public void InjectMembersImplicit ()
 		{
-			Bind<MyClass>()
-				.AddPropertyInjector((x) => x.Age, () => 10)
-				.AddPropertyInjector((x) => x.Name, () => "Mike");
-
+			var injector = new Injector ();
 			var instance = new MyClass ();
 
-			Assert.AreSame(instance, Injector.InjectProperties(instance));
+			Assert.AreSame(instance, injector.InjectProperties(instance));
 
 			// Explicit Binding should not affect test
 			Assert.AreNotEqual (10, instance.Age);
@@ -33,13 +30,15 @@ namespace IfInjectorTest.Basic
 		[Test()]
 		public void InjectMembersExplicit ()
 		{
-			Bind<MyClass>()
+			var injector = new Injector ();
+
+			injector.BindInstanceInjector<MyClass>()
 				.AddPropertyInjector((x) => x.Age, () => 10)
 				.AddPropertyInjector((x) => x.Name, () => "Mike");
 
 			var instance = new MyClass ();
 
-			Assert.AreSame(instance, Injector.InjectProperties(instance, true));
+			Assert.AreSame(instance, injector.InjectProperties(instance));
 
 			// Explicit Binding should not affect test
 			Assert.AreEqual (10, instance.Age);
@@ -53,13 +52,14 @@ namespace IfInjectorTest.Basic
 		[Test, Timeout(100)]
 		public void TestResolverWithPropertyLooping()
 		{
+			var injector = new Injector ();
 			InjectorException exception = null;
 			var expectedErrorMessage = string.Format(InjectorErrors.ErrorResolutionRecursionDetected.MessageTemplate, typeof(ConcretePropertyLoop).Name);
 
 			try
 			{
 				var concrete = new ConcretePropertyLoop();
-				Injector.InjectProperties(concrete);
+				injector.InjectProperties(concrete);
 			}
 			catch (InjectorException ex)
 			{
@@ -73,22 +73,19 @@ namespace IfInjectorTest.Basic
 		[Test, Timeout(100)]
 		public void TestMayInjectMembersEvenIfConstructorLoops() 
 		{
-			if (IsFactory) {
-				Injector.Bind<LoopingConstructorOnly> ().SetFactory ((LoopingConstructorOnly lco) => new LoopingConstructorOnly (lco));
-			} else {
-				Injector.Bind<LoopingConstructorOnly> ();
-			}
+			var injector = new Injector ();
+			injector.Bind(Binding.For<LoopingConstructorOnly> ());
 
 			bool caughtEx = false;
 			try {
-				Injector.Resolve<LoopingConstructorOnly>();
+				injector.Resolve<LoopingConstructorOnly>();
 			} catch (InjectorException) {
 				caughtEx = true;
 			}
 			Assert.IsTrue (caughtEx);
 
 			var val = new LoopingConstructorOnly ();
-			Injector.InjectProperties (val);
+			injector.InjectProperties (val);
 
 			Assert.IsNotNull (val.MCls);
 		}

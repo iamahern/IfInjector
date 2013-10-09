@@ -57,7 +57,7 @@ namespace IfInjectorTest
 		public void TestFunc1 ()
 		{
 			var injector = new Injector();
-			injector.Bind<B>().SetFactory((A1 a1) => new B (a1));
+			injector.Bind(Binding.For<B>().SetFactory((A1 a1) => new B (a1)));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);
 			Assert.IsNull (b.Ma2);
@@ -69,7 +69,7 @@ namespace IfInjectorTest
 		public void TestFunc2 ()
 		{
 			var injector = new Injector();
-			injector.Bind<B>().SetFactory((A1 a1, A2 a2) => new B (a1,a2));
+			injector.Bind(Binding.For<B>().SetFactory((A1 a1, A2 a2) => new B (a1,a2)));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);
 			Assert.IsNotNull (b.Ma2);
@@ -81,7 +81,7 @@ namespace IfInjectorTest
 		public void TestFunc3 ()
 		{
 			var injector = new Injector();
-			injector.Bind<B>().SetFactory ((A1 a1, A2 a2, A3 a3) => new B (a1,a2,a3));
+			injector.Bind(Binding.For<B>().SetFactory ((A1 a1, A2 a2, A3 a3) => new B (a1,a2,a3)));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);
 			Assert.IsNotNull (b.Ma2);
@@ -93,7 +93,7 @@ namespace IfInjectorTest
 		public void TestFunc4 ()
 		{
 			var injector = new Injector();
-			injector.Bind<B>().SetFactory ((A1 a1, A2 a2, A3 a3, A4 a4) => new B (a1,a2,a3,a4));
+			injector.Bind(Binding.For<B>().SetFactory ((A1 a1, A2 a2, A3 a3, A4 a4) => new B (a1,a2,a3,a4)));
 			var b = injector.Resolve<B> ();
 			Assert.IsNotNull (b.Ma1);
 			Assert.IsNotNull (b.Ma2);
@@ -104,9 +104,9 @@ namespace IfInjectorTest
 		[Test]
 		public void TestSingltonInterfaceFactoryWithProperty() {
 			var injector = new Injector ();
-			injector.Bind<IB, B> ().SetFactory (() => new B ())
+			injector.Bind(Binding.For<IB>().SetFactory (() => new B ())
 				.AddPropertyInjector (ist => ist.C)
-				.AddPropertyInjector (ist => ist.MyD);
+				.AddPropertyInjector (ist => ist.MyD));
 			var b = injector.Resolve<IB> () as B;
 			Assert.IsNull (b.Ma1);
 			Assert.IsNull (b.Ma2);

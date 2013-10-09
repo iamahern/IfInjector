@@ -26,24 +26,40 @@ namespace IfInjectorTest
 			Injector = null;
 		}
 
-		protected IInjectorBinding<CType> Bind<CType>() where CType : class, new() {
-			var binding = Injector.Bind<CType> ();
-			if (IsFactory) {
-				binding.SetFactory (() => new CType ());
-			}
-			return binding;
+		protected IBoundBinding<CType, CType> MakeBind<CType>() 
+			where CType : class, new() 
+		{
+			return MakeBind<CType, CType> ();
 		}
 
-		protected IInjectorBinding<CType> Bind<BType, CType>() 
+		protected IBoundBinding<BType, CType> MakeBind<BType, CType>() 
 			where BType : class 
 			where CType : class, BType, new() 
 		{
-			var binding = Injector.Bind<BType, CType> ();
 			if (IsFactory) {
-				binding.SetFactory (() => new CType ());
+				return Binding.For<BType> ().SetFactory (() => new CType ());
+			} else {
+				return Binding.For<BType>().To<CType> ();
 			}
-			return binding;
 		}
+
+		protected void Bind (IBinding binding) {
+			Injector.Bind (binding);
+		}
+
+		protected void Bind<CType>() 
+			where CType : class, new()
+		{
+			Bind (MakeBind<CType> ());
+		}
+
+		protected void Bind<BType,CType>() 
+			where BType : class
+			where CType : class, BType, new()
+		{
+			Bind (MakeBind<BType, CType> ());
+		}
+
 	}
 }
 

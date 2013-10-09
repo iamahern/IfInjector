@@ -14,8 +14,8 @@ namespace IfInjectorTest.Basic
 		{
 			string expectX = "foobar";
 
-			Bind<Foo, Bar> ()
-				.AddPropertyInjector (v => v.X, () => expectX);
+			Bind(MakeBind<Foo, Bar> ()
+				.AddPropertyInjector (v => v.X, () => expectX));
 
 			Bar b = (Bar)Injector.Resolve<Foo> ();
 
@@ -25,7 +25,7 @@ namespace IfInjectorTest.Basic
 		[Test()]
 		public void TestTypeSingletonsForInterfaceBindings ()
 		{
-			Bind<Foo, Bar> ().AsSingleton();
+			Bind(MakeBind<Foo, Bar> ().AsSingleton());
 
 			Foo a = Injector.Resolve<Foo> ();
 			Foo b = Injector.Resolve<Foo> ();

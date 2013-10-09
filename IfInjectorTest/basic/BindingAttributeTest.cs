@@ -64,8 +64,8 @@ namespace IfInjectorTest.Basic
 
 		[NUnit.Framework.SetUp]
 		public void BindingAttributeTestSetup() {
-			Bind<Inner> ().AsSingleton ();
-			Bind<Outer> ().AsSingleton ();
+			Bind(MakeBind<Inner>().AsSingleton ());
+			Bind(MakeBind<Outer>().AsSingleton ());
 		}
 
 		[Test]
@@ -106,8 +106,8 @@ namespace IfInjectorTest.Basic
 		[Test]
 		public void FactoryConstructorAutoBinding()
 		{
-			Injector.Bind<Parent, Outer> ().SetFactory(() => new Outer()).AsSingleton();
-			Injector.Bind<Inner> ().AsSingleton ();
+			Injector.Bind(Binding.For<Parent>().SetFactory(() => new Outer()).AsSingleton());
+			Injector.Bind(Binding.For<Inner>().AsSingleton ());
 
 			var res = Injector.Resolve<Parent> ();
 			Assert.IsNotNull (res.FactoryParentInner);
@@ -159,7 +159,7 @@ namespace IfInjectorTest.Basic
 		private void GenericBadTypeBindingTest<T>() where T : class {
 			try {
 				var gbInjector = new Injector ();
-				gbInjector.Bind<T> ();
+				gbInjector.Bind(Binding.For<T>());
 				Assert.Fail("Attempting to bind should fail");
 			} catch (InjectorException ex) {
 				Assert.AreEqual (string.Format(InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.MessageTemplate, "Bad", typeof(T).FullName), ex.Message);
@@ -190,8 +190,8 @@ namespace IfInjectorTest.Basic
 		[Test]
 		public void CheckImplementedByOverrideAndAmbiguity() {
 			// Check - ambiguous situation where Resolve<XXX> may be for type with an @IfImplementedBy; but the user explicitly Bind<YYY> where YYY : XXX.
-			Bind<MyIFace, MyIFaceImpl>().AsSingleton();
-			Bind<MyIFaceImpl>().AsSingleton();
+			Bind(MakeBind<MyIFace, MyIFaceImpl>().AsSingleton());
+			Bind(MakeBind<MyIFaceImpl>().AsSingleton());
 
 			var res1 = Injector.Resolve<MyIFaceBaseImpl> ();
 			var res2 = Injector.Resolve<MyIFaceBaseImpl> ();
@@ -229,7 +229,7 @@ namespace IfInjectorTest.Basic
 
 		[Test]
 		public void CheckOverrideSingletonBehavior() {
-			Bind<MySingletonBase> ().AsSingleton (false);
+			Bind(MakeBind<MySingletonBase> ().AsSingleton (false));
 
 			var res1 = Injector.Resolve<MySingletonBase> ();
 			var res2 = Injector.Resolve<MySingletonBase> ();

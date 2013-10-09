@@ -43,9 +43,9 @@ namespace IfInjectorTest.Basic
 		{
 			var before = Injector.Resolve<B> ();
 			if (IsFactory) {
-				Injector.Bind<B> ().SetFactory((A a) => new B (a));
+				Injector.Bind(Binding.For<B> ().SetFactory((A a) => new B (a)));
 			} else {
-				Injector.Bind<B> ();
+				Injector.Bind(Binding.For<B> ());
 			}
 			var after = Injector.Resolve<B> ();
 			Assert.AreNotSame(before, after);
@@ -57,7 +57,7 @@ namespace IfInjectorTest.Basic
 		{
 			var injector = new Injector();
 
-			Bind<C> ().AddPropertyInjector (c => c.MyAProp);
+			Bind(MakeBind<C> ().AddPropertyInjector (c => c.MyAProp));
 			var before = Injector.Resolve<C> ();
 
 			Bind<A> ();
@@ -70,7 +70,7 @@ namespace IfInjectorTest.Basic
 		[Test]
 		public void TestFieldDependency ()
 		{
-			Bind<C> ().AddPropertyInjector (c => c.MyAField);
+			Bind(MakeBind<C> ().AddPropertyInjector (c => c.MyAField));
 			var before = Injector.Resolve<C> ();
 
 			Bind<A> ();
@@ -83,7 +83,7 @@ namespace IfInjectorTest.Basic
 		[Test]
 		public void TestDeepDependency ()
 		{
-			Bind<C> ().AddPropertyInjector (c => c.MyAField);
+			Bind(MakeBind<C> ().AddPropertyInjector (c => c.MyAField));
 
 			var before = Injector.Resolve<D> ();
 
@@ -99,7 +99,7 @@ namespace IfInjectorTest.Basic
 		public void TestOnlyRecompileAffectedGraph ()
 		{
 			Bind<E> ();
-			Bind<C> ().AddPropertyInjector (c => c.MyAField);
+			Bind(MakeBind<C> ().AddPropertyInjector (c => c.MyAField));
 
 			var beforeD = Injector.Resolve<D> ();
 			var beforeE = Injector.Resolve<E> ();
