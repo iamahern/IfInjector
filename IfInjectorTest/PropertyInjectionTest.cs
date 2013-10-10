@@ -32,9 +32,9 @@ namespace IfInjectorTest
 		{
 			var injector = new Injector ();
 
-			injector.BindInstanceInjector<MyClass>()
-				.AddPropertyInjector((x) => x.Age, () => 10)
-				.AddPropertyInjector((x) => x.Name, () => "Mike");
+			injector.Register(PropertiesBinding.For<MyClass>()
+				.InjectProperty((x) => x.Age, () => 10)
+				.InjectProperty((x) => x.Name, () => "Mike"));
 
 			var instance = new MyClass ();
 
@@ -74,7 +74,7 @@ namespace IfInjectorTest
 		public void TestMayInjectMembersEvenIfConstructorLoops() 
 		{
 			var injector = new Injector ();
-			injector.Bind(Binding.For<LoopingConstructorOnly> ());
+			injector.Register(Binding.For<LoopingConstructorOnly> ());
 
 			bool caughtEx = false;
 			try {

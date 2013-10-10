@@ -1,10 +1,32 @@
 ----------------
+Version 0.7
+----------------
+
+This is a major change. The most important change is that for 'explicit' bindings (EG Bind(..)) the system will now throw an exception once you have called Resolve(). This move to immutability solved a number of edge nasty edge cases.
+
+Also at a functional level, for property injection bindings have been split for instance binding; this allows for explicit configuration of each.
+			
+At an API level, the syntax for explicit bindings has changed from:
+
+injector.Bind<BindType, ConcreteType>()
+	.AddPropertyInjector(...)
+	.AddPropertyInjector(...)
+	.AsSingleton();
+	
+To
+
+injector.Register(Binding<BindType>().To<ConcreteType>()
+	.AddPropertyInjector(...)
+	.AddPropertyInjector(...)
+	.AsSingleton());
+
+Finally, in terms of new features, V0.7 adds custom lifecycles.
+
+----------------
 Version 0.6.1/0.6.2
 ----------------
 
-I was happy to see things working so soothly - then I published + tested my 0.6.1 nuget package.  It turns out, for whatever reason, nuget was packing my debug .dll rather than my release .dll.  At least the mystery is solved.
-
-There are some minor (but inconseqential) of a few lines of code I did while tracking this down...
+ It turns out, for whatever reason, nuget was packing my debug .dll rather than my release .dll. Packaging the correct DLL resolved the issue.
 
 ----------------
 Version 0.6

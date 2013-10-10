@@ -106,8 +106,8 @@ namespace IfInjectorTest.Basic
 		[Test]
 		public void FactoryConstructorAutoBinding()
 		{
-			Injector.Bind(Binding.For<Parent>().SetFactory(() => new Outer()).AsSingleton());
-			Injector.Bind(Binding.For<Inner>().AsSingleton ());
+			Injector.Register(Binding.For<Parent>().SetFactory(() => new Outer()).AsSingleton());
+			Injector.Register(Binding.For<Inner>().AsSingleton ());
 
 			var res = Injector.Resolve<Parent> ();
 			Assert.IsNotNull (res.FactoryParentInner);
@@ -159,7 +159,7 @@ namespace IfInjectorTest.Basic
 		private void GenericBadTypeBindingTest<T>() where T : class {
 			try {
 				var gbInjector = new Injector ();
-				gbInjector.Bind(Binding.For<T>());
+				gbInjector.Register(Binding.For<T>());
 				Assert.Fail("Attempting to bind should fail");
 			} catch (InjectorException ex) {
 				Assert.AreEqual (string.Format(InjectorErrors.ErrorUnableToBindNonClassFieldsProperties.MessageTemplate, "Bad", typeof(T).FullName), ex.Message);

@@ -1,4 +1,4 @@
-# IfInjector v0.6
+# IfInjector v0.7
 
 This project is a fork of the https://ffastinjector.codeplex.com/ library by David Walker (https://plus.google.com/109602553530284384616/).
 
@@ -18,15 +18,9 @@ https://github.com/iamahern/IfInjector/wiki
 
 # Example Usage and Quickstart
 
-## Source Code
+## Obtaining The Injector
 
-The implementation consists of 3 files:
-
-* IfInjector.cs (Interfaces and API definition)
-* IfInjector.Injector.cs (The injector implementation)
-* IfInjector.IfCore.cs (Core binding, platform & expression builder utilities.)
-
-Simply include these in your project or use the nuget package (https://www.nuget.org/packages/IfInjector).
+Either clone this repository or grab the binaries from nuget (https://www.nuget.org/packages/IfInjector).
 
 ## Example Usage
 

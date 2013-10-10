@@ -4,6 +4,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
+using IfInjector.IfBinding;
+using IfInjector.IfBinding.IfInternal;
+
 namespace IfInjector
 {
 	/// <summary>
@@ -32,116 +35,85 @@ namespace IfInjector
 	public class SingletonAttribute : Attribute {}
 
 	/// <summary>
-	/// Injector Interface.
-	/// </summary>
-	public interface IInjector {
-		/// <summary>
-		/// Resolve this instance.
-		/// </summary>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		T Resolve<T> () where T : class; 
-
-		/// <summary>
-		/// Resolve the specified type.
-		/// </summary>
-		/// <param name="type">Type.</param>
-		object Resolve (Type type);
-
-		/// <summary>
-		/// Injects the properties of an instance. By default, this will only inject 'implicitly' bound properties (ones bound by annotation). You may choose to allow this to use explicit bindings if desired.
-		/// </summary>
-		/// <returns>The properties.</returns>
-		/// <param name="instance">Instance.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		T InjectProperties<T> (T instance)
-			where T : class;
-		
-		/// <summary>
-		/// Bind the specified binding.
-		/// </summary>
-		/// <param name="binding">Binding.</param>
-		void Bind (IfCore.IfBinding.IBinding binding);
-
-		/// <summary>
-		/// Binds the instance injector.
-		/// </summary>
-		/// <returns>The instance injector.</returns>
-		/// <typeparam name="CType">The 1st type parameter.</typeparam>
-		IfCore.IfBinding.IInstanceInjectorBinding<CType> BindInstanceInjector<CType> () 
-			where CType : class;
-		
-		/// <summary>
-		/// Verify that all bindings all valid.
-		/// </summary>
-		void Verify ();
-	}
-
-	/// <summary>
 	/// Injector implementation.
 	/// </summary>
- 	public partial class Injector : IInjector
+ 	public partial class Injector : IfCore.IInjector
 	{
-		/// <summary>
-		/// News the instance.
-		/// </summary>
-		/// <returns>The instance.</returns>
-		[Obsolete("use new Injector()", false)]
-		public static Injector NewInstance ()
-		{
-			return new Injector ();
-		}
 	}
 
 	/// <summary>
 	/// Provide extension methods for Func<P1..P4,CT>
 	/// </summary>
 	public static class InjectorBindingExtensions {
-		public static IfCore.IfBinding.IBinding AsSingleton<BT,CT>(this IfCore.IfBinding.IBoundBinding<BT,CT> binding, bool singleton = true) 
+
+		/// <summary>
+		/// Set the binding singleton.
+		/// </summary>
+		/// <returns>The singleton.</returns>
+		/// <param name="binding">Binding.</param>
+		/// <param name="singleton">If set to <c>true</c> singleton.</param>
+		/// <typeparam name="BT">The 1st type parameter.</typeparam>
+		/// <typeparam name="CT">The 2nd type parameter.</typeparam>
+		public static IfBinding.IBinding<BT,CT> AsSingleton<BT,CT>(this IfBinding.IBinding<BT,CT> binding, bool singleton = true) 
 			where BT : class
 			where CT : class, BT
 		{
 			if (singleton) {
-				return binding.SetLifestyle (IfCore.IfLifestyle.Lifestyle.Singleton);
+				return binding.SetLifestyle (IfLifestyle.Lifestyle.Singleton);
 			} else {
-				return binding.SetLifestyle (IfCore.IfLifestyle.Lifestyle.Transient);
+				return binding.SetLifestyle (IfLifestyle.Lifestyle.Transient);
 			}
 		}
 
-		public static IfCore.IfBinding.IBoundBinding<BT,CT> SetFactory<BT, CT>(this IfCore.IfBinding.IOngoingBinding<BT> binding, Expression<Func<CT>> factoryExpression) 
+		/// <summary>
+		/// Helper method to allow for setting of factories expressions.
+		/// </summary>
+		/// <returns>The factory helper.</returns>
+		/// <param name="binding">Binding.</param>
+		/// <param name="factoryExpression">Factory expression.</param>
+		public static IfBinding.IBinding<BT,CT> SetFactoryHelper<BT, CT>(IfBinding.IOngoingBinding<BT> binding, LambdaExpression factoryExpression) 
 			where BT : class
 			where CT : class, BT
 		{
-			return binding.SetFactoryLambda<CT> (factoryExpression);
+			var internalBinding = (IfInjector.IfBinding.IfInternal.IOngoingBindingInternal<BT>)binding;
+			return internalBinding.SetFactoryLambda<CT> (factoryExpression);
 		}
 		
-		public static IfCore.IfBinding.IBoundBinding<BT,CT> SetFactory<P1,BT,CT>(this IfCore.IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,CT>> factoryExpression) 
+		public static IfBinding.IBinding<BT,CT> SetFactory<BT, CT>(this IfBinding.IOngoingBinding<BT> binding, Expression<Func<CT>> factoryExpression) 
+			where BT : class
+			where CT : class, BT
+		{
+			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
+		}
+		
+		public static IfBinding.IBinding<BT,CT> SetFactory<P1,BT,CT>(this IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
 		{
-			return binding.SetFactoryLambda<CT> (factoryExpression);
+			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 
-		public static IfCore.IfBinding.IBoundBinding<BT,CT> SetFactory<P1,P2,BT,CT>(this IfCore.IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
+		public static IfBinding.IBinding<BT,CT> SetFactory<P1,P2,BT,CT>(this IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
 			where P2 : class
 		{
-			return binding.SetFactoryLambda<CT> (factoryExpression);
+			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 
-		public static IfCore.IfBinding.IBoundBinding<BT,CT> SetFactory<P1,P2,P3,BT,CT>(this IfCore.IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
+		public static IfBinding.IBinding<BT,CT> SetFactory<P1,P2,P3,BT,CT>(this IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
 			where P2 : class
 			where P3 : class
 		{
-			return binding.SetFactoryLambda<CT> (factoryExpression);
+			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 
-		public static IfCore.IfBinding.IBoundBinding<BT,CT> SetFactory<P1,P2,P3,P4,BT,CT>(this IfCore.IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
+		public static IfBinding.IBinding<BT,CT> SetFactory<P1,P2,P3,P4,BT,CT>(this IfBinding.IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
@@ -149,7 +121,7 @@ namespace IfInjector
 			where P3 : class
 			where P4 : class
 		{
-			return binding.SetFactoryLambda<CT> (factoryExpression);
+			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 	}
 
@@ -162,10 +134,23 @@ namespace IfInjector
 		/// Create a binding.
 		/// </summary>
 		/// <typeparam name="BType">The 1st type parameter.</typeparam>
-		public static IfCore.IfBinding.IOngoingBinding<BType> For<BType>() where BType : class {
-			return new IfCore.IfBinding.OngoingBinding<BType>(); 
+		public static IfBinding.IOngoingBinding<BType> For<BType>() where BType : class {
+			return new OngoingBindingInternal<BType>(); 
 		}
+	}
 
+	/// <summary>
+	/// Member binding factory class.
+	/// </summary>
+	public static class PropertiesBinding {
+
+		/// <summary>
+		/// Create a binding.
+		/// </summary>
+		/// <typeparam name="BType">The 1st type parameter.</typeparam>
+		public static IfBinding.IPropertiesBinding<BType> For<BType>() where BType : class {
+			return new PropertiesBindingInternal<BType>(); 
+		}
 	}
 
 	/// <summary>
@@ -174,6 +159,50 @@ namespace IfInjector
 	/// Most API users will not need to access these types directly.
 	/// </summary>
 	namespace IfCore {
+		using IfInjector.IfBinding;
+
+		/// <summary>
+		/// Injector Interface.
+		/// </summary>
+		public interface IInjector {
+			/// <summary>
+			/// Resolve this instance.
+			/// </summary>
+			/// <typeparam name="T">The 1st type parameter.</typeparam>
+			T Resolve<T> () where T : class; 
+
+			/// <summary>
+			/// Resolve the specified type.
+			/// </summary>
+			/// <param name="type">Type.</param>
+			object Resolve (Type type);
+
+			/// <summary>
+			/// Injects the properties of an instance. By default, this will only inject 'implicitly' bound properties (ones bound by annotation). You may choose to allow this to use explicit bindings if desired.
+			/// </summary>
+			/// <returns>The properties.</returns>
+			/// <param name="instance">Instance.</param>
+			/// <typeparam name="T">The 1st type parameter.</typeparam>
+			T InjectProperties<T> (T instance)
+				where T : class;
+
+			/// <summary>
+			/// Bind the specified binding.
+			/// </summary>
+			/// <param name="binding">Binding.</param>
+			void Register (IBinding binding);
+
+			/// <summary>
+			/// Register the specified properties binding.
+			/// </summary>
+			/// <param name="propertiesBinding">Properties binding.</param>
+			void Register (IPropertiesBinding propertiesBinding);
+
+			/// <summary>
+			/// Verify that all bindings all valid.
+			/// </summary>
+			void Verify ();
+		}
 
 		/// <summary>
 		/// Represents an error code constant.
@@ -184,7 +213,16 @@ namespace IfInjector
 				MessageTemplate = messageTemplate;
 			}
 
+			/// <summary>
+			/// Gets the message code.
+			/// </summary>
+			/// <value>The message code.</value>
 			public string MessageCode { get; private set; }
+
+			/// <summary>
+			/// Gets the message template.
+			/// </summary>
+			/// <value>The message template.</value>
 			public string MessageTemplate { get; private set; }
 
 			public InjectorException FormatEx(params object[] args) {
@@ -210,6 +248,7 @@ namespace IfInjector
 			public static readonly InjectorError ErrorUnableToBindNonClassFieldsProperties = new InjectorError(5, "Autoinjection is only supported on single instance 'class' fields. Please define a manual binding for the field or property '{0}' on class '{1}'.");
 			public static readonly InjectorError ErrorNoAppropriateConstructor = new InjectorError (6, "No appropriate constructor for type: {0}.");
 			public static readonly InjectorError ErrorMayNotBindInjector = new InjectorError (7, "Binding 'Injector' types is not permitted.");
+			public static readonly InjectorError ErrorBindingRegistrationNotPermitted = new InjectorError (8, "Injector is in resolved state. Explicit binding registration is no longer permitted.");
 		}
 
 		/// <summary>
@@ -226,122 +265,11 @@ namespace IfInjector
 				ErrorType = errorType;
 			}
 
+			/// <summary>
+			/// Gets the type of the error.
+			/// </summary>
+			/// <value>The type of the error.</value>
 			public InjectorError ErrorType { get; private set; }
-		}
-
-		namespace IfBinding {
-			using IfPlatform;
-
-			/// <summary>
-			/// The binding key object is used to
-			/// </summary>
-			internal sealed class BindingKey : IEquatable<BindingKey> {
-				private static readonly string DELIM = "|";
-				private static readonly string TYPE = "Type=";
-				private static readonly string MEMBER = "Member=";
-
-				private static object syncLock = new object();
-				private static SafeDictionary<string, BindingKey> bindingKeys = new SafeDictionary<string, BindingKey>(syncLock);
-
-				private string KeyString { get; set; }
-				public Type BindingType { get; private set; }
-				public bool Member { get; private set; }
-
-				public override int GetHashCode() {
-					return KeyString.GetHashCode();
-				}
-
-				public override bool Equals(object obj) {
-					return Equals(obj as BindingKey);
-				}
-
-				public bool Equals(BindingKey obj) {
-					return obj != null && obj.KeyString == KeyString;
-				}
-
-				public static BindingKey Get<T>() where T : class {
-					return BindingKeyInternal<T>.INSTANCE;
-				}
-
-				internal static BindingKey GetMemberInjector<T>() where T : class {
-					return BindingKeyInternal<T>.MEMBER;
-				}
-
-				public static BindingKey Get(Type keyType) {
-					return GetInternal (keyType, false);
-				}
-
-				internal static BindingKey GetInternal(Type keyType, bool isMember) {
-					string keyString = 
-						TYPE + keyType.FullName + DELIM + MEMBER + isMember;
-
-					BindingKey key;
-					if (!bindingKeys.UnsyncedTryGetValue (keyString, out key)) {
-						lock (syncLock) {
-							if (!bindingKeys.TryGetValue (keyString, out key)) {
-								key = new BindingKey () { 
-									KeyString = keyString,
-									BindingType = keyType,
-									Member = isMember
-								};
-								bindingKeys.Add (keyString, key);
-							}
-						}
-					}
-					return key;
-				}
-
-				private static class BindingKeyInternal<T> where T : class {
-					public static readonly BindingKey INSTANCE = BindingKey.GetInternal (typeof(T), false);
-					public static readonly BindingKey MEMBER = BindingKey.GetInternal (typeof(T), true);
-				}
-			}
-
-			/// <summary>
-			/// Base binding type. This represents a closed binding object.
-			/// </summary>
-			public interface IBinding {}
-
-			/// <summary>
-			/// Closed binding with options
-			/// </summary>
-			public interface ILifestyleScopeableBinding : IBinding
-			{
-				IBinding SetLifestyle (IfLifestyle.Lifestyle lifestyle);
-			}
-
-			public interface IBoundBinding<BType, CType> : ILifestyleScopeableBinding
-				where BType : class
-				where CType : class, BType
-			{
-				IBoundBinding<BType, CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
-					where TPropertyType : class;
-
-				IBoundBinding<BType, CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
-			}
-
-			public interface IOngoingBinding<BType> : IBoundBinding<BType, BType>
-				where BType : class
-			{
-				IBoundBinding<BType, CType> To<CType> () 
-					where CType : class, BType;
-
-				IBoundBinding<BType, CType> SetFactoryLambda<CType>(LambdaExpression factoryExpression)
-					where CType : class, BType;
-			}
-
-			/// <summary>
-			/// Instance injector binding.
-			/// </summary>
-			/// <typeparam name="CType"></typeparam>
-			public interface IInstanceInjectorBinding<CType> 
-				where CType : class
-			{
-				IInstanceInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
-					where TPropertyType : class;
-
-				IInstanceInjectorBinding<CType> AddPropertyInjector<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter);
-			}
 		}
 	}
 }

@@ -14,7 +14,7 @@ namespace IfInjectorTest
             var x = new myClass();
 			var injector = new Injector();
 
-			injector.Bind(Binding.For<myInterface>().SetFactory(() => GetNew()));
+			injector.Register(Binding.For<myInterface>().SetFactory(() => GetNew()));
 
 			var z1 = injector.Resolve<myInterface>();
 			var z2 = injector.Resolve<myInterface>();
@@ -39,7 +39,7 @@ namespace IfInjectorTest
 			var injector = new Injector ();
 			MyTestResolverReplaceDependency dep = new MyTestResolverReplaceDependency ();
 
-			injector.Bind(Binding.For<MyTestResolverReplace>().SetFactory(() => new MyTestResolverReplace(dep)));
+			injector.Register(Binding.For<MyTestResolverReplace>().SetFactory(() => new MyTestResolverReplace(dep)));
 
 			var result = injector.Resolve<MyTestResolverReplace>();
 			Assert.AreSame(dep, result.dependency);

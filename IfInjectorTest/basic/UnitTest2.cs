@@ -4,6 +4,8 @@ using IfInjector;
 using IfInjector.IfCore;
 using IfInjectorTest;
 
+using IocPerformance.Classes.Properties;
+
 namespace IfInjectorTest.Basic
 {
     [TestFixture]
@@ -33,8 +35,8 @@ namespace IfInjectorTest.Basic
         public void AddPropertyInjectorTest()
         {
 			Bind(MakeBind<TestClassAddPropertyInjectorTest> ()
-				.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.Other)
-				.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger"));
+				.InjectProperty((TestClassAddPropertyInjectorTest v) => v.Other)
+				.InjectProperty((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger"));
 
 			var result = Injector.Resolve<TestClassAddPropertyInjectorTest>();
 
@@ -76,7 +78,7 @@ namespace IfInjectorTest.Basic
 			InjectorException exception = null;
             try
             {
-				binding.AddPropertyInjector((TestClassAddPropertyInjectorTest v) => "");
+				binding.InjectProperty((TestClassAddPropertyInjectorTest v) => "");
             }
 			catch (InjectorException ex)
             {
@@ -124,7 +126,7 @@ namespace IfInjectorTest.Basic
 
 		[Test]
 		public void TestVerify() {
-			Injector.Bind(Binding.For<NoProperConstructor> ());
+			Injector.Register(Binding.For<NoProperConstructor> ());
 
 			try { 
 				Injector.Verify();
@@ -133,6 +135,22 @@ namespace IfInjectorTest.Basic
 				var ex1 = InjectorErrors.ErrorNoAppropriateConstructor.FormatEx (typeof(NoProperConstructor).FullName);
 				Assert.AreEqual (ex1.ErrorType.MessageCode, ex.ErrorType.MessageCode);
 			}
+		}
+
+		[Test]
+		public void TestCompexInjection() {
+			var propertyInjectionObject = (ComplexPropertyObject) Injector.Resolve<IComplexPropertyObject>();
+			var propertyInjectionObject2 = (ComplexPropertyObject) Injector.Resolve<IComplexPropertyObject>();
+
+			Assert.AreSame (Injector.Resolve<IServiceA> (), Injector.Resolve<IServiceA> ());
+
+			Assert.AreNotSame (propertyInjectionObject, propertyInjectionObject2);
+			Assert.AreSame (propertyInjectionObject.ServiceA, propertyInjectionObject2.ServiceA);
+			Assert.AreSame (propertyInjectionObject.ServiceB, propertyInjectionObject2.ServiceB);
+			Assert.AreSame (propertyInjectionObject.ServiceC, propertyInjectionObject2.ServiceC);
+			Assert.AreNotSame (propertyInjectionObject.SubObjectA, propertyInjectionObject2.SubObjectA);
+			Assert.AreNotSame (propertyInjectionObject.SubObjectB, propertyInjectionObject2.SubObjectB);
+			Assert.AreNotSame (propertyInjectionObject.SubObjectC, propertyInjectionObject2.SubObjectC);
 		}
     }
 }

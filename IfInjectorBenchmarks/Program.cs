@@ -61,7 +61,7 @@ namespace IfInjectorMain
 		}
 
 		public static void TestNew1 () {
-			injector.Bind(Binding.For<MyTestInterface>().To<MyTestClass>());
+			injector.Register(Binding.For<MyTestInterface>().To<MyTestClass>());
 
 			var result1 = injector.Resolve<MyTestInterface>();
 

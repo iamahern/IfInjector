@@ -1,30 +1,17 @@
+- TO FIX:
+	- Move business logic out of BindingConfig.
 
 - RESEARCH:
 	- Need for IDisposable???
 
-- UGLY:
-	- Use of events is ugly. Replace with Action() as will only have one callback ???
-
-- DEFECT:
-	- EDGE Cases:
-		- How should singleton or (when we have them) custom lifecycles be handled?
-		- If modification of a dependent type occurs, should we clear the resolver or throw an exception...
-			- This probably requires a config setting for the behavior
-		- If an assembly creates new types, how should this be handled for implicit types???
-			- Think have correct behavior: TODO: test case
-	
-	- Edge cases around binding mutation are ugly; revisit mutability
-			
 - MISSING FEATURES:
 	- InjectStatic()
 	
 - TESTING:
 	- Add platform tests for Android, iPhone
-	- Ensure clear of implicit resolver if set explicit
 
 - WISH LIST:
 	- Generics
-	- Custom LifeCycles
 	- Extension feature to allow for interceptors
 	- Take a look at covariance handlers:
 		- http://simpleinjector.codeplex.com/wikipage?title=Advanced-scenarios&referringTitle=Documentation

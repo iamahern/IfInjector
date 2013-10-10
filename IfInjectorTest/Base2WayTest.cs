@@ -1,7 +1,7 @@
 using System;
 using IfInjector;
+using IfInjector.IfBinding;
 using IfInjector.IfCore;
-using IfInjector.IfCore.IfBinding;
 using NUnit;
 using NUnit.Framework;
 
@@ -26,13 +26,13 @@ namespace IfInjectorTest
 			Injector = null;
 		}
 
-		protected IBoundBinding<CType, CType> MakeBind<CType>() 
+		protected IBinding<CType, CType> MakeBind<CType>() 
 			where CType : class, new() 
 		{
 			return MakeBind<CType, CType> ();
 		}
 
-		protected IBoundBinding<BType, CType> MakeBind<BType, CType>() 
+		protected IBinding<BType, CType> MakeBind<BType, CType>() 
 			where BType : class 
 			where CType : class, BType, new() 
 		{
@@ -44,7 +44,7 @@ namespace IfInjectorTest
 		}
 
 		protected void Bind (IBinding binding) {
-			Injector.Bind (binding);
+			Injector.Register (binding);
 		}
 
 		protected void Bind<CType>() 

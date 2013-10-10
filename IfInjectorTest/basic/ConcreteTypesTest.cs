@@ -15,7 +15,7 @@ namespace IfInjectorTest.Basic
 			string expectX = "foobar";
 
 			Bind(MakeBind<Foo, Bar> ()
-				.AddPropertyInjector (v => v.X, () => expectX));
+				.InjectProperty (v => v.X, () => expectX));
 
 			Bar b = (Bar)Injector.Resolve<Foo> ();
 

@@ -17,8 +17,8 @@ namespace IfInjectorTest
 			MyClass i1expect = new MyClass(), 
 					i2expect = new MyClass();
 
-			injector1.Bind(Binding.For<MyClass>().SetFactory(() => i1expect));
-			injector2.Bind(Binding.For<MyClass>().SetFactory(() => i2expect));
+			injector1.Register(Binding.For<MyClass>().SetFactory(() => i1expect));
+			injector2.Register(Binding.For<MyClass>().SetFactory(() => i2expect));
 
 			var res1 = injector2.Resolve<MyClass>();
 			var res2 = injector2.Resolve<MyClass>();

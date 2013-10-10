@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>IfInjectorTest</RootNamespace>
     <AssemblyName>IfInjectorMxTest</AssemblyName>
-    <ReleaseVersion>0.6.2</ReleaseVersion>
+    <ReleaseVersion>0.7.0</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -61,6 +61,15 @@
     <Compile Include="factory\ProvidesTest.cs" />
     <Compile Include="basic\ProvidersTest.cs" />
     <Compile Include="PropertyInjectionTest.cs" />
+    <Compile Include="basic\LifestyleTest.cs" />
+    <Compile Include="factory\LifestyleTest.cs" />
+    <Compile Include="comprop\Properties\ComplexPropertyObject.cs" />
+    <Compile Include="comprop\Properties\ServiceA.cs" />
+    <Compile Include="comprop\Properties\ServiceB.cs" />
+    <Compile Include="comprop\Properties\ServiceC.cs" />
+    <Compile Include="comprop\Properties\SubObjectA.cs" />
+    <Compile Include="comprop\Properties\SubObjectB.cs" />
+    <Compile Include="comprop\Properties\SubObjectC.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfInjector\IfInjector.csproj">
@@ -71,5 +80,6 @@
   <ItemGroup>
     <Folder Include="basic\" />
     <Folder Include="factory\" />
+    <Folder Include="comprop\" />
   </ItemGroup>
 </Project>
