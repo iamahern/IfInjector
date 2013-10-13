@@ -50,7 +50,8 @@ namespace IfInjector.IfLifestyle
 			private class SingletonLifestyleResolver<CType> : LifestyleResolver<CType> where CType : class {
 				private readonly CType instance;
 
-				internal SingletonLifestyleResolver(CType instance)
+				internal SingletonLifestyleResolver(CType instance) :
+					base(Expression.Constant(instance))
 				{
 					this.instance = instance;
 				}
@@ -76,7 +77,7 @@ namespace IfInjector.IfLifestyle
 			private class TransientLifestyleResolver<CType> : LifestyleResolver<CType> where CType : class {
 				private readonly Func<CType> resolverExpressionCompiled;
 
-				internal TransientLifestyleResolver(Expression<Func<CType>> resolveExpression, Func<CType> resolverExpressionCompiled) : base(resolveExpression) {
+				internal TransientLifestyleResolver(Expression<Func<CType>> resolveExpression, Func<CType> resolverExpressionCompiled) : base(resolveExpression.Body) {
 					this.resolverExpressionCompiled = resolverExpressionCompiled;
 				}
 
@@ -132,21 +133,21 @@ namespace IfInjector.IfLifestyle
 	/// Lifestyle resolver. This is used to build resolvers and resolver expressions for a given lifestyle.
 	/// </summary>
 	internal abstract class LifestyleResolver<CType> where CType : class {
-		private readonly Expression<Func<CType>> resolveExpression;
+		private readonly Expression resolveExpression;
 
-		internal LifestyleResolver(Expression<Func<CType>> resolveExpression) {
+		internal LifestyleResolver(Expression resolveExpression) {
 			this.resolveExpression = resolveExpression;
 		}
 
 		internal LifestyleResolver() {
-			this.resolveExpression = () => Resolve();
+			this.resolveExpression = MakeResolveExpression();
 		}
 
 		/// <summary>
 		/// Gets the resolve expression. This is used in expression compilation.
 		/// </summary>
 		/// <value>The resolve expression.</value>
-		internal Expression<Func<CType>> ResolveExpression {
+		internal Expression ResolveExpression {
 			get {
 				return resolveExpression;
 			}
@@ -156,6 +157,11 @@ namespace IfInjector.IfLifestyle
 		/// Resolve this instance. The lifestyle is responsible for creating additional instances as necessary.
 		/// </summary>
 		internal abstract CType Resolve();
+
+		private Expression MakeResolveExpression() {
+			Expression<Func<CType>> expr = () => Resolve ();
+			return expr.Body;
+		}
 	}
 }
 

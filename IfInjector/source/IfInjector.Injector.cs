@@ -101,6 +101,16 @@ namespace IfInjector
 		}
 
 		/// <summary>
+		/// Resolve this instance.
+		/// </summary>
+		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		public T Resolve<T>()
+			where T : class
+		{
+			return (T)Resolve (typeof(T));
+		}
+
+		/// <summary>
 		/// Resolve the specified type.
 		/// </summary>
 		/// <param name="type">Type.</param>
@@ -118,16 +128,6 @@ namespace IfInjector
 			}
 
 			return resolver.DoResolve ();
-		}
-
-		/// <summary>
-		/// Resolve this instance.
-		/// </summary>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public T Resolve<T>()
-			where T : class
-		{
-			return (T) ResolveResolver (BindingKey.Get<T> ()).DoResolve();
 		}
 
 		/// <summary>
@@ -453,7 +453,7 @@ namespace IfInjector
 					CompileResolver ();
 				}
 
-				return resolver.ResolveExpression.Body;
+				return resolver.ResolveExpression;
 			}
 		}
 	}
