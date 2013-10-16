@@ -72,7 +72,7 @@ namespace IfInjector
 
 			// Implicitly resolvable
 			Expression<Func<Injector>> injectorFactoryExpr = () => this;
-			var bindingConfig = new BindingConfig<Injector> ();
+			var bindingConfig = new BindingConfig(typeof(Injector));
 			bindingConfig.FactoryExpression = injectorFactoryExpr;
 			bindingConfig.Lifestyle = Lifestyle.Singleton;
 			var injectorResolver = BindExplicit<Injector, Injector>(BindingKey.Get<Injector>(), bindingConfig);
@@ -264,8 +264,9 @@ namespace IfInjector
 			where CType : class, BType
 		{
 			if (bindingConfig == null) {
-				bindingConfig = new BindingConfig<CType> ();
-				ImplicitTypeUtilities.SetupImplicitPropResolvers<CType>(bindingConfig, syncLock);
+				bindingConfig = BindingUtil.CreateImplicitBindingSettings<CType> ();
+			} else {
+				bindingConfig = BindingUtil.MergeImplicitWithExplicitSettings<CType> (bindingConfig);
 			}
 			
 			var resolver = new Resolver<CType> (this, bindingKey, bindingConfig, syncLock);
@@ -314,35 +315,6 @@ namespace IfInjector
 		/// Implicit type helper utilities
 		/// </summary>
 		internal static class ImplicitTypeUtilities {
-			private static readonly Type ObjectType = typeof(object);
-
-			internal static void SetupImplicitPropResolvers<CType>(BindingConfig bindingConfig, object syncLock) where CType : class {
-				var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-				Type cType = typeof(CType); 
-
-				do {
-					foreach (var prop in FilterMemberInfo<PropertyInfo>(cType, cType.GetProperties (bindingFlags))) {
-						bindingConfig.SetPropertyInfoSetter(prop, null);
-					}
-
-					foreach (var field in FilterMemberInfo<FieldInfo>(cType, cType.GetFields (bindingFlags))) {
-						bindingConfig.SetFieldInfoSetter(field, null);
-					}
-				} while ((cType = cType.BaseType) != null && cType != ObjectType);
-
-				if (typeof(CType).GetCustomAttributes (typeof(SingletonAttribute), false).Any()) {
-					bindingConfig.Lifestyle = Lifestyle.Singleton;
-				}
-			}
-
-			private static IEnumerable<MInfo> FilterMemberInfo<MInfo>(Type cType, IEnumerable<MInfo> propsOrFields) 
-				where MInfo : MemberInfo 
-			{
-				return from p in propsOrFields 
-					where p.GetCustomAttributes(typeof(InjectAttribute), false).Any()
-						select p;
-			}
-
 			/// <summary>
 			/// Gets the implicit types.
 			/// </summary>

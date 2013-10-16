@@ -257,11 +257,11 @@ namespace IfInjector
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2237:MarkISerializableTypesWithSerializable")]
 		public class InjectorException : Exception
 		{
-			public InjectorException (InjectorError errorType, string message) : base(message) {
+			internal InjectorException (InjectorError errorType, string message) : base(message) {
 				ErrorType = errorType;
 			}
 
-			public InjectorException (InjectorError errorType, string message, Exception innerException) : base(message, innerException) {
+			internal InjectorException (InjectorError errorType, string message, Exception innerException) : base(message, innerException) {
 				ErrorType = errorType;
 			}
 

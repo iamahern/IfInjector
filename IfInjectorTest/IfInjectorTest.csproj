@@ -8,8 +8,8 @@
     <ProjectGuid>{083C5427-83BA-4579-A000-AC49EE2F4105}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>IfInjectorTest</RootNamespace>
-    <AssemblyName>IfInjectorMxTest</AssemblyName>
-    <ReleaseVersion>0.7.0</ReleaseVersion>
+    <AssemblyName>IfInjectorTest</AssemblyName>
+    <ReleaseVersion>0.7.1</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

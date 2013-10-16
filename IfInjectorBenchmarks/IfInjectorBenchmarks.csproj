@@ -8,8 +8,8 @@
     <ProjectGuid>{1254F89A-40A7-4F96-95AC-6483C64713B5}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>IfFastInjectorBenchmarks</RootNamespace>
-    <AssemblyName>IfFastInjectorBenchmarks</AssemblyName>
-    <ReleaseVersion>0.7.0</ReleaseVersion>
+    <AssemblyName>IfInjectorBenchmarks</AssemblyName>
+    <ReleaseVersion>0.7.1</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

@@ -1,11 +1,10 @@
-- TO FIX:
-	- Move business logic out of BindingConfig.
-
 - RESEARCH:
 	- Need for IDisposable???
 
 - MISSING FEATURES:
-	- InjectStatic()
+	- Since removed mutability lost way to dynamically load modules.
+		- Clean solution (without breaking mutability rules) is to allow for parent / child injectors
+		- Child injectors can handle explicit bindings / while 'implicit' bindings would be handled by the parent
 	
 - TESTING:
 	- Add platform tests for Android, iPhone

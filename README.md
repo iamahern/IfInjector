@@ -1,4 +1,4 @@
-# IfInjector v0.7
+# IfInjector v0.7.1
 
 This project is a fork of the https://ffastinjector.codeplex.com/ library by David Walker (https://plus.google.com/109602553530284384616/).
 
@@ -8,9 +8,9 @@ The goal of the project is to provide a featureful high performance micro-IoC co
 
 * Auto-Wiring
 * Configuration through code
-* Configuration through annotations
+* Configuration through attributes
 * Fast (top performer on [IoC Container Shootout](http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison)) 
-* Small (<35 KB)
+* Small (<40 KB)
 
 # Documentations
 
