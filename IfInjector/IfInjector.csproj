@@ -32,6 +32,7 @@ Distinguishing features are small size, speed and attribute based configuration.
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
+    <additionalargs>/doc:IfInjector.xml</additionalargs>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />

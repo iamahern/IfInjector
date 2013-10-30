@@ -70,6 +70,8 @@
     <Compile Include="comprop\Properties\SubObjectA.cs" />
     <Compile Include="comprop\Properties\SubObjectB.cs" />
     <Compile Include="comprop\Properties\SubObjectC.cs" />
+    <Compile Include="GenericBindingTest.cs" />
+    <Compile Include="BaseTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfInjector\IfInjector.csproj">

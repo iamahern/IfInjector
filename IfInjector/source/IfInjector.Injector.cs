@@ -52,14 +52,21 @@ namespace IfInjector
 		private readonly SafeDictionary<BindingKey, IResolver> allResolvers;
 		private readonly SafeDictionary<BindingKey, SetShim<BindingKey>> implicitTypeLookup;
 
+		// no implicits initially
+		private readonly SafeDictionary<BindingKey, BindingConfig> allGenericResolvers;
+
 		private readonly SafeDictionary<Type, IResolver> instanceResolversCache;
 
 		public Injector() 
 		{
-			// Init dictionaries
+			// Init type dictionaries
 			allResolvers = new SafeDictionary<BindingKey, IResolver>(syncLock);
 			implicitTypeLookup = new SafeDictionary<BindingKey, SetShim<BindingKey>> (syncLock);
 
+			// Init generic dictionaries
+			allGenericResolvers = new SafeDictionary<BindingKey, BindingConfig> (syncLock);
+
+			// Init resolvers cache
 			instanceResolversCache = new SafeDictionary<Type, IResolver>(syncLock);
 
 			// Init resolver
@@ -84,9 +91,11 @@ namespace IfInjector
 		/// <param name="binding">Binding.</param>
 		public void Register(IBinding binding)
 		{
-			IInternalBinding internalBinding = (IInternalBinding) binding;
-			CheckBindingType(internalBinding.BindingKey.BindingType);
-			BindExplicit (internalBinding);
+			lock (syncLock) {
+				IInternalBinding internalBinding = (IInternalBinding)binding;
+				ValidateInternalBinding (internalBinding);
+				BindExplicit (internalBinding);
+			}
 		}
 
 		/// <summary>
@@ -95,9 +104,25 @@ namespace IfInjector
 		/// <param name="membersBinding">Members binding.</param>
 		public void Register (IPropertiesBinding membersBinding)
 		{
-			IInternalBinding internalBinding = (IInternalBinding) membersBinding;
-			CheckBindingType (internalBinding.BindingKey.BindingType);
-			BindExplicit (internalBinding);
+			lock (syncLock) {
+				IInternalBinding internalBinding = (IInternalBinding) membersBinding;
+				ValidateInternalBinding (internalBinding);
+				BindExplicit (internalBinding);
+			}
+		}
+
+		/// <summary>
+		/// Bind the specified binding.
+		/// </summary>
+		/// <param name="binding">Binding.</param>
+		/// <param name="openGenericBinding">Open generic binding.</param>
+		public void Register (IOpenGenericBinding openGenericBinding)
+		{
+			lock (syncLock) {
+				IInternalBinding internalBinding = (IInternalBinding) openGenericBinding;
+				ValidateInternalBinding (internalBinding);
+				allGenericResolvers.Add (internalBinding.BindingKey, internalBinding.BindingConfig);
+			}
 		}
 
 		/// <summary>
@@ -202,10 +227,6 @@ namespace IfInjector
 			where CType : class, BType
 		{
 			lock (syncLock) {
-				if (resolveCalled) {
-					throw InjectorErrors.ErrorBindingRegistrationNotPermitted.FormatEx ();
-				}
-
 				IResolver oldResolver;					
 				if (allResolvers.TryGetValue (bindingKey, out oldResolver)) {
 					allResolvers.Remove (bindingKey);
@@ -229,23 +250,84 @@ namespace IfInjector
 					return resolver;
 				}
 
-				// Handle implementedBy
-				var implType = GetIfImplementedBy (bindingKey);
-				if (implType != null) {
-					resolver = CreateResolverInstance (bindingKey, implType, null, true);
+				// Handle explicit generic
+				BindingConfig bindingConfig = null;
+				Type implType = null;
+				if (bindingKey.BindingType.IsGenericType) {
+					implType = GetIfImplementedByForGeneric (bindingKey, out bindingConfig);
 				} else {
-					resolver = CreateResolverInstance (bindingKey, bindingKey.BindingType, null, true);
+					implType = GetIfImplementedByForType (bindingKey.BindingType);
 				}
 
-				return resolver;
+				if (implType != null) {
+					return CreateResolverInstance (bindingKey, implType, bindingConfig, true);
+				} else {
+					return CreateResolverInstance (bindingKey, bindingKey.BindingType, bindingConfig, true);
+				}
 			}
 		}
 
 		private Type GetIfImplementedBy(BindingKey bindingKey) {
-			var implTypeAttrs = bindingKey.BindingType.GetCustomAttributes(typeof(ImplementedByAttribute), false);
-			if (implTypeAttrs.Length > 0) {
-				return (implTypeAttrs[0] as ImplementedByAttribute).Implementor;
+			Type bindingType = bindingKey.BindingType;
+
+			if (bindingType.IsGenericType) {
+				return GetIfImplementedByForGeneric (bindingKey);
 			}
+
+			return GetIfImplementedByForType (bindingType);
+		}
+
+		private Type GetIfImplementedByForType(Type bindingType) {
+			var implTypeAttr = bindingType.GetCustomAttributes(typeof(ImplementedByAttribute), false).FirstOrDefault();
+			if (implTypeAttr != null) {
+				return (implTypeAttr as ImplementedByAttribute).Implementor;
+			}
+
+			return null;
+		}
+
+		private Type GetIfImplementedByForGeneric(BindingKey bindingKey) {
+			BindingConfig bindingConfig;
+			return GetIfImplementedByForGeneric (bindingKey, out bindingConfig);
+		}
+
+		private Type GetIfImplementedByForGeneric(BindingKey bindingKey, out BindingConfig bindingConfig) {
+			var bindingType = bindingKey.BindingType;
+			Type genericConcreteType = null;
+
+			if (bindingType.IsGenericTypeDefinition) {
+				throw InjectorErrors.ErrorGenericsCannotResolveOpenType.FormatEx (bindingType);
+			}
+
+			var genericBindingType = bindingType.GetGenericTypeDefinition ();
+			var genericTypeArguments = bindingType.GetGenericArguments ();
+			var genericBindingKey = BindingKey.GetInternal (genericBindingType, bindingKey.Member);
+
+			// Try registrations
+			BindingConfig genericBindingConfig;
+			if (allGenericResolvers.TryGetValue (genericBindingKey, out genericBindingConfig)) {
+				genericConcreteType = genericBindingConfig.ConcreteType;
+			}
+
+			// Try implicit
+			if (genericConcreteType == null) {
+				genericConcreteType = GetIfImplementedByForType (genericBindingType);
+			}
+
+			// Throw ex if unable to resolve concrete type
+			bindingConfig = null;
+			if (genericConcreteType != null) {
+				OpenGenericBinding.For (genericBindingType).To (genericConcreteType); // validate binding
+				Type concreteType = genericConcreteType.MakeGenericType (genericTypeArguments);
+
+				if (genericBindingConfig != null) {
+					bindingConfig = new BindingConfig (concreteType);
+					bindingConfig.Lifestyle = genericBindingConfig.Lifestyle;
+				}
+
+				return concreteType;
+			}
+
 			return null;
 		}
 
@@ -305,9 +387,13 @@ namespace IfInjector
 			}
 		}
 		
-		private void CheckBindingType(Type bindType) {
-			if (typeof(Injector) == bindType) {
+		private void ValidateInternalBinding(IInternalBinding internalBinding) {
+			if (typeof(Injector).Equals(internalBinding.BindingKey.BindingType)) {
 				throw InjectorErrors.ErrorMayNotBindInjector.FormatEx ();
+			}
+
+			if (resolveCalled) {
+				throw InjectorErrors.ErrorBindingRegistrationNotPermitted.FormatEx ();
 			}
 		}
 
@@ -320,16 +406,17 @@ namespace IfInjector
 			/// </summary>
 			/// <returns>The implicit types.</returns>
 			/// <param name="boundType">Bound type.</param>
-			internal static SetShim<BindingKey> GetImplicitTypes(BindingKey bindType) {
+			internal static SetShim<BindingKey> GetImplicitTypes(BindingKey bindingKey) {
 				var implicitTypes = new SetShim<BindingKey>();
+				var bindingType = bindingKey.BindingType;
 
-				foreach (Type iFace in bindType.BindingType.GetInterfaces()) {
-					implicitTypes.Add(BindingKey.Get(iFace));
+				foreach (Type iFace in bindingType.GetInterfaces()) {
+					implicitTypes.Add (BindingKey.Get (iFace));
 				}
 
-				Type wTypeChain = bindType.BindingType;
+				Type wTypeChain = bindingType;
 				while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-					implicitTypes.Add(BindingKey.Get(wTypeChain));
+					implicitTypes.Add (BindingKey.Get (wTypeChain));
 				}
 
 				return implicitTypes;

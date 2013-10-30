@@ -1,16 +1,26 @@
 - RESEARCH:
 	- Need for IDisposable???
+	- Implicit injection rules:
+		- Auto initialize types need error checking
+	- Upcast bindings:
+		- For iFace / concrete bindings - implicit bind concrete type?
+			=> probably not: issue is that it would break 'decorators' feature
 
-- MISSING FEATURES:
-	- Since removed mutability lost way to dynamically load modules.
-		- Clean solution (without breaking mutability rules) is to allow for parent / child injectors
+- KEY MISSING FEATURES:
+	- Lifestyle setting for explicit bindings
+	- Decorators
+		- For generic bindings, pattern of binding decorators would allow for easy complex initialization of generics
+	- Child injectorors: Since removed mutability lost way to dynamically load modules.
+		- Solution: (without breaking mutability rules) is to allow for parent / child injectors
 		- Child injectors can handle explicit bindings / while 'implicit' bindings would be handled by the parent
+		- Hard edge case is generic bindings???
 	
 - TESTING:
 	- Add platform tests for Android, iPhone
+	- Need tests for error conditions in implicit bindings
+	- Replace benchmarks with IoCPerformance suite
 
 - WISH LIST:
-	- Generics
 	- Extension feature to allow for interceptors
 	- Take a look at covariance handlers:
 		- http://simpleinjector.codeplex.com/wikipage?title=Advanced-scenarios&referringTitle=Documentation

@@ -88,7 +88,7 @@ namespace IfInjector.IfBinding
 			return BindingKeyInternal<T>.PROPERTIES;
 		}
 
-		private static BindingKey GetInternal(Type keyType, bool isMember) {
+		internal static BindingKey GetInternal(Type keyType, bool isMember) {
 			string keyString = 
 				TYPE + keyType.FullName + DELIM + PROPERTY + isMember;
 
@@ -197,6 +197,24 @@ namespace IfInjector.IfBinding
 	}
 
 	/// <summary>
+	/// Binding type for open generic bindings.
+	/// </summary>
+	public interface IOpenGenericBinding {
+		IOpenGenericBinding SetLifestyle (IfLifestyle.Lifestyle lifestyle);
+	}
+
+	/// <summary>
+	/// Ongoing open generic binding.
+	/// </summary>
+	public interface IOngoingOpenGenericBinding : IOpenGenericBinding {
+		/// <summary>
+		/// Binds the open generic to a particular concrete type.
+		/// </summary>
+		/// <param name="concreteType">Concrete type.</param>
+		IOpenGenericBinding To (Type concreteType);
+	}
+
+	/// <summary>
 	/// Internal implementation classes
 	/// </summary>
 	namespace IfInternal {
@@ -297,6 +315,87 @@ namespace IfInjector.IfBinding
 				var boundBinding = new BindingInternal<BType, CType> ();
 				boundBinding.BindingConfig.FactoryExpression = factoryExpression;
 				return boundBinding;
+			}
+		}
+
+		/// <summary>
+		/// Open generic binding.
+		/// </summary>
+		internal class OpenGenericBinding : IOpenGenericBinding, IInternalBinding {
+			public BindingConfig BindingConfig { get; private set; }
+			public BindingKey BindingKey { get; private set; }
+			public Type ConcreteType { get; private set; }
+
+			internal OpenGenericBinding(Type bindingType, Type concreteType) {
+				ValidateGenericType (bindingType);
+				ValidateGenericType (concreteType);
+
+				BindingConfig = new BindingConfig (concreteType);
+				BindingKey = BindingKey.Get (bindingType);
+				ConcreteType = concreteType;
+			}
+
+			public IOpenGenericBinding SetLifestyle (Lifestyle lifestyle) {
+				BindingConfig.Lifestyle = lifestyle;
+				return this;
+			}
+
+			protected void ValidateGenericType(Type type) {
+				if (!type.IsGenericType) {
+					throw InjectorErrors.ErrorGenericsCannotCreateBindingForNonGeneric.FormatEx (type);
+				}
+
+				if (!type.IsGenericTypeDefinition) {
+					throw InjectorErrors.ErrorGenericsCannotCreateBindingForClosedGeneric.FormatEx (type);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Ongoing open generic binding.
+		/// </summary>
+		internal class OngoingOpenGenericBinding : OpenGenericBinding, IOngoingOpenGenericBinding {
+			internal OngoingOpenGenericBinding(Type bindingType) : base(bindingType, bindingType) {}
+
+			public IOpenGenericBinding To(Type concreteType) {
+				ValidateGenericType (concreteType);
+				ValidateLinage (concreteType, concreteType);
+				ValidateCompatibleGenericArgs (concreteType);
+
+				return new OpenGenericBinding (BindingKey.BindingType, concreteType);
+			}
+
+			private void ValidateLinage(Type nConcreteType, Type originalCheckType) {
+				var bindingType = this.BindingKey.BindingType;
+
+				// Check same generic base
+				if (nConcreteType.IsGenericType && nConcreteType.GetGenericTypeDefinition () == bindingType) {
+					return;
+				}
+
+				// check extend interface
+				foreach (var it in nConcreteType.GetInterfaces()) {
+					if (it.IsGenericType && it.GetGenericTypeDefinition () == bindingType) {
+						return;
+					}
+				}
+
+				// recurse
+				Type nConcreteTypeBase = nConcreteType.BaseType;
+				if (nConcreteTypeBase == null) {
+					throw InjectorErrors.ErrorGenericsBindToTypeIsNotDerivedFromKey.FormatEx (bindingType, originalCheckType);
+				}
+
+				ValidateLinage (nConcreteTypeBase, originalCheckType);
+			}
+
+			private void ValidateCompatibleGenericArgs(Type nConcreteType) {
+				var bindingType = this.BindingKey.BindingType;
+				if (bindingType.GetGenericArguments().Length == nConcreteType.GetGenericArguments().Length) {
+					return; // TODO: Naive
+				}
+
+				throw InjectorErrors.ErrorGenericsBindToTypeMustHaveSameTypeArgsAsKey.FormatEx (bindingType, nConcreteType);
 			}
 		}
 
@@ -544,7 +643,7 @@ namespace IfInjector.IfBinding
 
 				// Do not trigger property change
 				if (bindingConfig.FactoryExpression == null && bindingConfig.Constructor == null) {
-					if (bindingConfig.ConcreteType.IsInterface || bindingConfig.ConcreteType.IsAbstract) {
+					if (cType.IsInterface || cType.IsAbstract) {
 						// if we can not instantiate, set the resolver to throw an exception.
 						Expression<Func<CType>> throwEx = () => ThrowInterfaceException<CType> ();
 						bindingConfig.FactoryExpression = throwEx;

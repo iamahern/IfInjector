@@ -35,9 +35,58 @@ namespace IfInjector
 	public class SingletonAttribute : Attribute {}
 
 	/// <summary>
+	/// Injector Interface.
+	/// </summary>
+	public interface IInjector {
+		/// <summary>
+		/// Resolve this instance.
+		/// </summary>
+		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		T Resolve<T> () where T : class; 
+
+		/// <summary>
+		/// Resolve the specified type.
+		/// </summary>
+		/// <param name="type">Type.</param>
+		object Resolve (Type type);
+
+		/// <summary>
+		/// Injects the properties of an instance. By default, this will only inject 'implicitly' bound properties (ones bound by annotation). You may choose to allow this to use explicit bindings if desired.
+		/// </summary>
+		/// <returns>The properties.</returns>
+		/// <param name="instance">Instance.</param>
+		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		T InjectProperties<T> (T instance)
+			where T : class;
+
+		/// <summary>
+		/// Bind the specified binding.
+		/// </summary>
+		/// <param name="binding">Binding.</param>
+		void Register (IBinding binding);
+
+		/// <summary>
+		/// Register the specified properties binding.
+		/// </summary>
+		/// <param name="propertiesBinding">Properties binding.</param>
+		void Register (IPropertiesBinding propertiesBinding);
+
+		/// <summary>
+		/// Register the specified openGenericBinding.
+		/// </summary>
+		/// <param name="openGenericBinding">Open generic binding.</param>
+		void Register (IOpenGenericBinding openGenericBinding);
+
+		/// <summary>
+		/// Verify that all bindings all valid.
+		/// </summary>
+		void Verify ();
+	}
+
+	/// <summary>
 	/// Injector implementation.
 	/// </summary>
- 	public partial class Injector : IfCore.IInjector
+ 	public partial class Injector : IInjector
 	{
 	}
 
@@ -153,6 +202,12 @@ namespace IfInjector
 		}
 	}
 
+	public static class OpenGenericBinding {
+		public static IfBinding.IOngoingOpenGenericBinding For(Type bindingType) {
+			return new OngoingOpenGenericBinding (bindingType);
+		}
+	}
+
 	/// <summary>
 	/// Holder of secondary IfInjector types and interfaces. This namespace contains error types and binding interfaces.
 	/// 
@@ -160,49 +215,6 @@ namespace IfInjector
 	/// </summary>
 	namespace IfCore {
 		using IfInjector.IfBinding;
-
-		/// <summary>
-		/// Injector Interface.
-		/// </summary>
-		public interface IInjector {
-			/// <summary>
-			/// Resolve this instance.
-			/// </summary>
-			/// <typeparam name="T">The 1st type parameter.</typeparam>
-			T Resolve<T> () where T : class; 
-
-			/// <summary>
-			/// Resolve the specified type.
-			/// </summary>
-			/// <param name="type">Type.</param>
-			object Resolve (Type type);
-
-			/// <summary>
-			/// Injects the properties of an instance. By default, this will only inject 'implicitly' bound properties (ones bound by annotation). You may choose to allow this to use explicit bindings if desired.
-			/// </summary>
-			/// <returns>The properties.</returns>
-			/// <param name="instance">Instance.</param>
-			/// <typeparam name="T">The 1st type parameter.</typeparam>
-			T InjectProperties<T> (T instance)
-				where T : class;
-
-			/// <summary>
-			/// Bind the specified binding.
-			/// </summary>
-			/// <param name="binding">Binding.</param>
-			void Register (IBinding binding);
-
-			/// <summary>
-			/// Register the specified properties binding.
-			/// </summary>
-			/// <param name="propertiesBinding">Properties binding.</param>
-			void Register (IPropertiesBinding propertiesBinding);
-
-			/// <summary>
-			/// Verify that all bindings all valid.
-			/// </summary>
-			void Verify ();
-		}
 
 		/// <summary>
 		/// Represents an error code constant.
@@ -249,6 +261,12 @@ namespace IfInjector
 			public static readonly InjectorError ErrorNoAppropriateConstructor = new InjectorError (6, "No appropriate constructor for type: {0}.");
 			public static readonly InjectorError ErrorMayNotBindInjector = new InjectorError (7, "Binding 'Injector' types is not permitted.");
 			public static readonly InjectorError ErrorBindingRegistrationNotPermitted = new InjectorError (8, "Injector is in resolved state. Explicit binding registration is no longer permitted.");
+
+			public static readonly InjectorError ErrorGenericsCannotResolveOpenType = new InjectorError (9, "Generic type: {0} has open parameters. Unable to resolve.");
+			public static readonly InjectorError ErrorGenericsCannotCreateBindingForNonGeneric = new InjectorError(10, "Cannot create binding for non generic type: {0}.");
+			public static readonly InjectorError ErrorGenericsCannotCreateBindingForClosedGeneric = new InjectorError(11, "Cannot create binding for closed generic type: {0}.");
+			public static readonly InjectorError ErrorGenericsBindToTypeIsNotDerivedFromKey = new InjectorError(12, "Cannot create binding for types that are not inherited from key types. Binding type is: {0}; key type is {1}.");
+			public static readonly InjectorError ErrorGenericsBindToTypeMustHaveSameTypeArgsAsKey = new InjectorError(12, "Cannot create binding for types that do not have the same generic arguments as their key type. Binding type is: {0}; key type is {1}.");
 		}
 
 		/// <summary>
