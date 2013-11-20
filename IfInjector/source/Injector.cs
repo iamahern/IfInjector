@@ -216,7 +216,7 @@ namespace IfInjector
 				// Add after create resolver
 				var resolver = CreateResolverInstanceGeneric<BType, CType> (bindingKey, bindingConfig, false);
 				if (!bindingKey.Member) {
-					AddImplicitTypes (bindingKey, ImplicitTypeUtilities.GetImplicitTypes (bindingKey));
+					AddImplicitTypes (bindingKey, GetImplicitTypes (bindingKey));
 				}
 
 				return resolver;
@@ -378,29 +378,24 @@ namespace IfInjector
 		}
 
 		/// <summary>
-		/// Implicit type helper utilities
+		/// Gets the implicit types.
 		/// </summary>
-		private static class ImplicitTypeUtilities {
-			/// <summary>
-			/// Gets the implicit types.
-			/// </summary>
-			/// <returns>The implicit types.</returns>
-			/// <param name="boundType">Bound type.</param>
-			internal static SetShim<BindingKey> GetImplicitTypes(BindingKey bindingKey) {
-				var implicitTypes = new SetShim<BindingKey>();
-				var bindingType = bindingKey.BindingType;
+		/// <returns>The implicit types.</returns>
+		/// <param name="boundType">Bound type.</param>
+		private static SetShim<BindingKey> GetImplicitTypes(BindingKey bindingKey) {
+			var implicitTypes = new SetShim<BindingKey>();
+			var bindingType = bindingKey.BindingType;
 
-				foreach (Type iFace in bindingType.GetInterfaces()) {
-					implicitTypes.Add (BindingKey.Get (iFace));
-				}
-
-				Type wTypeChain = bindingType;
-				while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-					implicitTypes.Add (BindingKey.Get (wTypeChain));
-				}
-
-				return implicitTypes;
+			foreach (Type iFace in bindingType.GetInterfaces()) {
+				implicitTypes.Add (BindingKey.Get (iFace));
 			}
+
+			Type wTypeChain = bindingType;
+			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
+				implicitTypes.Add (BindingKey.Get (wTypeChain));
+			}
+
+			return implicitTypes;
 		}
 	}
 }

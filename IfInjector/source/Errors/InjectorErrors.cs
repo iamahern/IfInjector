@@ -20,7 +20,7 @@ namespace IfInjector.Errors
 		public static readonly InjectorError ErrorGenericsCannotCreateBindingForNonGeneric = new InjectorError(10, "Cannot create binding for non generic type: {0}.");
 		public static readonly InjectorError ErrorGenericsCannotCreateBindingForClosedGeneric = new InjectorError(11, "Cannot create binding for closed generic type: {0}.");
 		public static readonly InjectorError ErrorGenericsBindToTypeIsNotDerivedFromKey = new InjectorError(12, "Cannot create binding for types that are not inherited from key types. Binding type is: {0}; key type is {1}.");
-		public static readonly InjectorError ErrorGenericsBindToTypeMustHaveSameTypeArgsAsKey = new InjectorError(12, "Cannot create binding for types that do not have the same generic arguments as their key type. Binding type is: {0}; key type is {1}.");
+		public static readonly InjectorError ErrorGenericsBindToTypeMustHaveSameTypeArgsAsKey = new InjectorError(13, "Cannot create binding for types that do not have the same generic arguments as their key type. Binding type is: {0}; key type is {1}.");
 	}
 }
 
