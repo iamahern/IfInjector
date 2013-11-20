@@ -6,42 +6,22 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
-using IfInjector.IfBinding;
-using IfInjector.IfBinding.IfInternal;
-using IfInjector.IfCore;
-using IfInjector.IfCore.IfExpression;
-using IfInjector.IfCore.IfPlatform;
-using IfInjector.IfLifestyle;
+using IfInjector.Bindings.Config;
+using IfInjector.Bindings.Fluent;
+using IfInjector.Bindings.Fluent.Concrete;
+using IfInjector.Bindings.Fluent.OpenGeneric;
+using IfInjector.Bindings.Fluent.Properties;
+using IfInjector.Bindings.Lifestyles;
+using IfInjector.Resolver;
+using IfInjector.Errors;
+using IfInjector.Util;
 
 namespace IfInjector
 {	
 	/// <summary>
-	/// Internal resolver interface.
-	/// </summary>
-	internal interface IResolver {
-		/// <summary>
-		/// Resolves the object.
-		/// </summary>
-		/// <returns>The resolve.</returns>
-		object DoResolve ();
-
-		/// <summary>
-		/// Injects the properties.
-		/// </summary>
-		/// <param name="instance">Instance.</param>
-		void DoInject (object instance);
-
-		/// <summary>
-		/// Gets the resolve expression.
-		/// </summary>
-		/// <returns>The resolve expression.</returns>
-		Expression GetResolveExpression ();
-	}
-
-	/// <summary>
 	/// The actual injector implementation.
 	/// </summary>
-	public partial class Injector
+	public class Injector
 	{	
 		private readonly object syncLock = new object();
 		private bool resolveCalled = false;
@@ -53,7 +33,7 @@ namespace IfInjector
 		private readonly SafeDictionary<BindingKey, SetShim<BindingKey>> implicitTypeLookup;
 
 		// no implicits initially
-		private readonly SafeDictionary<BindingKey, BindingConfig> allGenericResolvers;
+		private readonly SafeDictionary<BindingKey, IBindingConfig> allGenericResolvers;
 
 		private readonly SafeDictionary<Type, IResolver> instanceResolversCache;
 
@@ -64,7 +44,7 @@ namespace IfInjector
 			implicitTypeLookup = new SafeDictionary<BindingKey, SetShim<BindingKey>> (syncLock);
 
 			// Init generic dictionaries
-			allGenericResolvers = new SafeDictionary<BindingKey, BindingConfig> (syncLock);
+			allGenericResolvers = new SafeDictionary<BindingKey, IBindingConfig> (syncLock);
 
 			// Init resolvers cache
 			instanceResolversCache = new SafeDictionary<Type, IResolver>(syncLock);
@@ -92,7 +72,7 @@ namespace IfInjector
 		public void Register(IBinding binding)
 		{
 			lock (syncLock) {
-				IInternalBinding internalBinding = (IInternalBinding)binding;
+				IBindingInternal internalBinding = (IBindingInternal) binding;
 				ValidateInternalBinding (internalBinding);
 				BindExplicit (internalBinding);
 			}
@@ -101,11 +81,11 @@ namespace IfInjector
 		/// <summary>
 		/// Binds the member injector.
 		/// </summary>
-		/// <param name="membersBinding">Members binding.</param>
-		public void Register (IPropertiesBinding membersBinding)
+		/// <param name="propertiesBinding">Properties binding.</param>
+		public void Register (IPropertiesBinding propertiesBinding)
 		{
 			lock (syncLock) {
-				IInternalBinding internalBinding = (IInternalBinding) membersBinding;
+				IBindingInternal internalBinding = (IBindingInternal) propertiesBinding;
 				ValidateInternalBinding (internalBinding);
 				BindExplicit (internalBinding);
 			}
@@ -119,7 +99,7 @@ namespace IfInjector
 		public void Register (IOpenGenericBinding openGenericBinding)
 		{
 			lock (syncLock) {
-				IInternalBinding internalBinding = (IInternalBinding) openGenericBinding;
+				IBindingInternal internalBinding = (IBindingInternal) openGenericBinding;
 				ValidateInternalBinding (internalBinding);
 				allGenericResolvers.Add (internalBinding.BindingKey, internalBinding.BindingConfig);
 			}
@@ -212,7 +192,7 @@ namespace IfInjector
 			}
 		}
 
-		private IResolver BindExplicit(IInternalBinding internalBinding) {
+		private IResolver BindExplicit(IBindingInternal internalBinding) {
 			try {
 				return (IResolver) bindExplicitGeneric
 					.MakeGenericMethod (internalBinding.BindingKey.BindingType, internalBinding.ConcreteType)
@@ -222,7 +202,7 @@ namespace IfInjector
 			}
 		}
 
-		private IResolver BindExplicit<BType, CType>(BindingKey bindingKey, BindingConfig bindingConfig)
+		private IResolver BindExplicit<BType, CType>(BindingKey bindingKey, IBindingConfig bindingConfig)
 			where BType : class
 			where CType : class, BType
 		{
@@ -251,7 +231,7 @@ namespace IfInjector
 				}
 
 				// Handle explicit generic
-				BindingConfig bindingConfig = null;
+				IBindingConfig bindingConfig = null;
 				Type implType = null;
 				if (bindingKey.BindingType.IsGenericType) {
 					implType = GetIfImplementedByForGeneric (bindingKey, out bindingConfig);
@@ -287,11 +267,11 @@ namespace IfInjector
 		}
 
 		private Type GetIfImplementedByForGeneric(BindingKey bindingKey) {
-			BindingConfig bindingConfig;
+			IBindingConfig bindingConfig;
 			return GetIfImplementedByForGeneric (bindingKey, out bindingConfig);
 		}
 
-		private Type GetIfImplementedByForGeneric(BindingKey bindingKey, out BindingConfig bindingConfig) {
+		private Type GetIfImplementedByForGeneric(BindingKey bindingKey, out IBindingConfig bindingConfig) {
 			var bindingType = bindingKey.BindingType;
 			Type genericConcreteType = null;
 
@@ -304,7 +284,7 @@ namespace IfInjector
 			var genericBindingKey = BindingKey.GetInternal (genericBindingType, bindingKey.Member);
 
 			// Try registrations
-			BindingConfig genericBindingConfig;
+			IBindingConfig genericBindingConfig;
 			if (allGenericResolvers.TryGetValue (genericBindingKey, out genericBindingConfig)) {
 				genericConcreteType = genericBindingConfig.ConcreteType;
 			}
@@ -331,7 +311,7 @@ namespace IfInjector
 			return null;
 		}
 
-		private IResolver CreateResolverInstance(BindingKey bindingKey, Type implType, BindingConfig bindingConfig, bool isImplicitBinding) {
+		private IResolver CreateResolverInstance(BindingKey bindingKey, Type implType, IBindingConfig bindingConfig, bool isImplicitBinding) {
 			try {
 				return (IResolver) createResolverInstanceGeneric
 					.MakeGenericMethod(bindingKey.BindingType, implType)
@@ -341,17 +321,17 @@ namespace IfInjector
 			}
 		}
 
-		private Resolver<CType> CreateResolverInstanceGeneric<BType, CType>(BindingKey bindingKey, BindingConfig bindingConfig, bool isImplicitBinding) 
+		private Resolver<CType> CreateResolverInstanceGeneric<BType, CType>(BindingKey bindingKey, IBindingConfig bindingConfig, bool isImplicitBinding) 
 			where BType : class
 			where CType : class, BType
 		{
 			if (bindingConfig == null) {
-				bindingConfig = BindingUtil.CreateImplicitBindingSettings<CType> ();
+				bindingConfig = BindingConfigUtils.CreateImplicitBindingSettings<CType> ();
 			} else {
-				bindingConfig = BindingUtil.MergeImplicitWithExplicitSettings<CType> (bindingConfig);
+				bindingConfig = BindingConfigUtils.MergeImplicitWithExplicitSettings<CType> (bindingConfig);
 			}
 			
-			var resolver = new Resolver<CType> (this, bindingKey, bindingConfig, syncLock);
+			var resolver = new Resolver<CType> (this, bindingConfig, syncLock);
 			
 			if (isImplicitBinding) {
 				allResolvers.Add (bindingKey, resolver);
@@ -387,7 +367,7 @@ namespace IfInjector
 			}
 		}
 		
-		private void ValidateInternalBinding(IInternalBinding internalBinding) {
+		private void ValidateInternalBinding(IBindingInternal internalBinding) {
 			if (typeof(Injector).Equals(internalBinding.BindingKey.BindingType)) {
 				throw InjectorErrors.ErrorMayNotBindInjector.FormatEx ();
 			}
@@ -400,7 +380,7 @@ namespace IfInjector
 		/// <summary>
 		/// Implicit type helper utilities
 		/// </summary>
-		internal static class ImplicitTypeUtilities {
+		private static class ImplicitTypeUtilities {
 			/// <summary>
 			/// Gets the implicit types.
 			/// </summary>
@@ -420,99 +400,6 @@ namespace IfInjector
 				}
 
 				return implicitTypes;
-			}
-		}
-	}
-
-	internal class Resolver<CType> : IResolver 
-		where CType : class 
-	{
-		private readonly Type cType = typeof(CType);
-
-		protected readonly BindingKey bindingKey;
-		protected readonly object syncLock;
-		protected readonly Injector injector;
-
-		private readonly BindingConfig bindingConfig;
-		private readonly IExpressionCompiler<CType> expressionCompiler;
-
-		private bool isRecursionTestPending;
-
-		private LifestyleResolver<CType> resolver;
-		private Func<CType,CType> resolveProperties;
-
-		public Resolver(Injector injector, BindingKey bindingKey, BindingConfig bindingConfig, object syncLock)
-		{
-			this.injector = injector;
-			this.bindingKey = bindingKey;
-			this.syncLock = syncLock;
-
-			this.bindingConfig = bindingConfig;
-			this.expressionCompiler = new ExpressionCompiler<CType> (bindingConfig) { ResolveResolverExpression = injector.ResolveResolverExpression };
-		}
-
-		public BindingConfig BindingConfig {
-			get { return bindingConfig; }
-		}
-
-		public object DoResolve() {
-			if (!IsResolved()) {
-				CompileResolver ();
-			}
-
-			return resolver.Resolve ();
-		}
-
-		public void DoInject(object instance) {
-			DoInjectTyped (instance as CType);
-		}
-
-		private void CompileResolver() {
-			lock (syncLock) {
-				if (!IsResolved()) {
-					injector.SetResolveCalled (); // Indicate resolve called
-
-					if (isRecursionTestPending) { // START: Handle compile loop
-						throw InjectorErrors.ErrorResolutionRecursionDetected.FormatEx(cType.Name);
-					}
-					isRecursionTestPending = true; 
-
-					var resolverExpression = expressionCompiler.CompileResolverExpression ();
-					var resolverExpressionCompiled = resolverExpression.Compile ();
-					var testInstance = resolverExpressionCompiled ();
-
-					resolver = bindingConfig.Lifestyle.GetLifestyleResolver<CType> (syncLock, resolverExpression, resolverExpressionCompiled, testInstance);
-
-					isRecursionTestPending = false; // END: Handle compile loop
-				}
-			}
-		}
-
-		private CType DoInjectTyped(CType instance) {
-			if (instance != null) {
-				if (resolveProperties == null) {
-					lock (this) {
-						resolveProperties = expressionCompiler.CompilePropertiesResolver ();
-					}
-				}
-
-				resolveProperties (instance);
-			}
-
-			return instance;
-		}
-
-		private bool IsResolved() {
-			return resolver != null;
-		}
-
-		public Expression GetResolveExpression () {
-			lock (syncLock) {
-				if (!IsResolved()) {
-					CompileResolver ();
-				}
-
-				return resolver.ResolveExpression;
 			}
 		}
 	}

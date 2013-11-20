@@ -1,6 +1,6 @@
 using NUnit.Framework;
 using System;
-using IfInjector.IfCore;
+using IfInjector.Errors;
 
 namespace IfInjectorTest.Basic
 {

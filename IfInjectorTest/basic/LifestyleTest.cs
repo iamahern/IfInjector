@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using System;
 
-using IfInjector.IfLifestyle;
+using IfInjector.Bindings.Lifestyles;
 using IfInjectorTest;
 
 namespace IfInjectorTest.Basic

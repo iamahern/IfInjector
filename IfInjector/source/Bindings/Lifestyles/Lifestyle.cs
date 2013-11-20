@@ -1,13 +1,35 @@
 using System;
 using System.Linq.Expressions;
 
-namespace IfInjector.IfLifestyle
+namespace IfInjector.Bindings.Lifestyles
 {
 	/// <summary>
 	/// Base lifestyle class
 	/// </summary>
 	public abstract class Lifestyle {
+
+		/// <summary>
+		/// Delegate to create custom lifestyle.
+		/// </summary>
+		/// <example>
+		/// var customLifestyle = Lifestyle.CreateCustom(instanceCreator => {
+		/// 	ThreadLocal<object> instance = new ThreadLocal<object>(instanceCreator);
+		///
+		///		return () => {
+		///			return instance.Value;
+		///		}
+		///	});
+		/// </example>
+		public delegate Func<object> CustomLifestyleDelegate(Func<object> instanceCreator);
+
+		/// <summary>
+		/// The singleton lifestyle constant.
+		/// </summary>
 		public static readonly Lifestyle Singleton = new SingletonLifestyle();
+
+		/// <summary>
+		/// The transient liestyle constant
+		/// </summary>
 		public static readonly Lifestyle Transient = new TransientLifestyle();
 
 		/// <summary>
@@ -88,14 +110,9 @@ namespace IfInjector.IfLifestyle
 		}
 
 		/// <summary>
-		/// Used to create custom lifestyle.
+		/// Internal implementation for custom lifestyle factory class.
 		/// </summary>
-		public delegate Func<object> CustomLifestyleDelegate(Func<object> instanceCreator);
-
-		/// <summary>
-		/// Custom lifestyle factory class.
-		/// </summary>
-		public class CustomLifestyle : Lifestyle {
+		private class CustomLifestyle : Lifestyle {
 			private readonly CustomLifestyleDelegate lifestyleDelegate;
 
 			internal CustomLifestyle(CustomLifestyleDelegate lifestyleDelegate) {
@@ -128,40 +145,4 @@ namespace IfInjector.IfLifestyle
 			}
 		}
 	}
-
-	/// <summary>
-	/// Lifestyle resolver. This is used to build resolvers and resolver expressions for a given lifestyle.
-	/// </summary>
-	internal abstract class LifestyleResolver<CType> where CType : class {
-		private readonly Expression resolveExpression;
-
-		internal LifestyleResolver(Expression resolveExpression) {
-			this.resolveExpression = resolveExpression;
-		}
-
-		internal LifestyleResolver() {
-			this.resolveExpression = MakeResolveExpression();
-		}
-
-		/// <summary>
-		/// Gets the resolve expression. This is used in expression compilation.
-		/// </summary>
-		/// <value>The resolve expression.</value>
-		internal Expression ResolveExpression {
-			get {
-				return resolveExpression;
-			}
-		}
-
-		/// <summary>
-		/// Resolve this instance. The lifestyle is responsible for creating additional instances as necessary.
-		/// </summary>
-		internal abstract CType Resolve();
-
-		private Expression MakeResolveExpression() {
-			Expression<Func<CType>> expr = () => Resolve ();
-			return expr.Body;
-		}
-	}
 }
-

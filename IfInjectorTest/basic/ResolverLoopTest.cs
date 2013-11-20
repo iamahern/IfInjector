@@ -1,7 +1,7 @@
 ﻿using System;
 using NUnit.Framework;
 using IfInjector;
-using IfInjector.IfCore;
+using IfInjector.Errors;
 using IfInjectorTest;
 
 namespace IfInjectorTest.Basic

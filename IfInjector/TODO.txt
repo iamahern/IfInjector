@@ -7,7 +7,6 @@
 			=> probably not: issue is that it would break 'decorators' feature
 
 - KEY MISSING FEATURES:
-	- Lifestyle setting for explicit bindings
 	- Decorators
 		- For generic bindings, pattern of binding decorators would allow for easy complex initialization of generics
 	- Child injectorors: Since removed mutability lost way to dynamically load modules.

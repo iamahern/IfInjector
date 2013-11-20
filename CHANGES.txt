@@ -1,4 +1,16 @@
 ----------------
+Version 0.8
+----------------
+
+Finally broke down and split the project into multiple files. From an API standpoint, the only user visible rationalization is a package change for custom lifestyles.
+
+Before:
+	using IfInjector.IfBinding.IfLifestyle;
+
+To
+	using IfInjector.Bindings.Lifestyle
+
+----------------
 Version 0.7
 ----------------
 
@@ -15,12 +27,29 @@ injector.Bind<BindType, ConcreteType>()
 	
 To
 
-injector.Register(Binding<BindType>().To<ConcreteType>()
-	.AddPropertyInjector(...)
-	.AddPropertyInjector(...)
+injector.Register(Binding.For<BindType>().To<ConcreteType>()
+	.InjectProperty(...)
+	.InjectProperty(...)
 	.AsSingleton());
 
 Finally, in terms of new features, V0.7 adds custom lifecycles.
+
+-------
+
+To create / use a custom lifestyle
+
+var myCustomLifestyle = Lifestyle.CreateCustom(instanceCreator => {
+	ThreadLocal<object> instance = new ThreadLocal<object>(instanceCreator);
+	
+	return () => {
+		return instance.Value;
+	}
+});
+
+injector.Register(Binding.For<BindType>().To<ConcreteType>()
+	.InjectProperty(...)
+	.InjectProperty(...)
+	.SetLifestyle(myCustomLifestyle));
 
 ----------------
 Version 0.6.1/0.6.2

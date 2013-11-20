@@ -2,9 +2,8 @@ using NUnit.Framework;
 using System;
 
 using IfInjector;
-using IfInjector.IfCore;
-using IfInjector.IfBinding;
-using IfInjector.IfLifestyle;
+using IfInjector.Bindings.Lifestyles;
+using IfInjector.Errors;
 
 namespace IfInjectorTest
 {
