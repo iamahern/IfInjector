@@ -38,6 +38,6 @@ Global
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = IfInjector\IfInjector.csproj
 		description = IfInjector is a high performance IoC container for mobile development.
-		version = 0.7.1
+		version = 0.8.0
 	EndGlobalSection
 EndGlobal

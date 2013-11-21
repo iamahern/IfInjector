@@ -9,7 +9,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>IfFastInjectorBenchmarks</RootNamespace>
     <AssemblyName>IfInjectorBenchmarks</AssemblyName>
-    <ReleaseVersion>0.7.1</ReleaseVersion>
+    <ReleaseVersion>0.8.0</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
