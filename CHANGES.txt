@@ -28,8 +28,8 @@ injector.Bind<BindType, ConcreteType>()
 To
 
 injector.Register(Binding.For<BindType>().To<ConcreteType>()
-	.InjectProperty(...)
-	.InjectProperty(...)
+	.InjectMember(...)
+	.InjectMember(...)
 	.AsSingleton());
 
 Finally, in terms of new features, V0.7 adds custom lifecycles.

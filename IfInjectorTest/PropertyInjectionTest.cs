@@ -32,9 +32,9 @@ namespace IfInjectorTest
 		{
 			var injector = new Injector ();
 
-			injector.Register(PropertiesBinding.For<MyClass>()
-				.InjectProperty((x) => x.Age, () => 10)
-				.InjectProperty((x) => x.Name, () => "Mike"));
+			injector.Register(MembersBinding.For<MyClass>()
+			    .InjectMember((x) => x.Age, () => 10)
+			    .InjectMember((x) => x.Name, () => "Mike"));
 
 			var instance = new MyClass ();
 

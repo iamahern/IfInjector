@@ -42,8 +42,8 @@ namespace IfInjectorTest.Basic
         public void InjectProperty()
         {
 			Bind(MakeBind<MyInterface, MyTestClass>()
-             	.InjectProperty(v => v.MyProperty)
-                .InjectProperty(v => v.MyOtherProperty, () => new MyPropertyClass()));
+             	.InjectMember(v => v.MyProperty)
+                .InjectMember(v => v.MyOtherProperty, () => new MyPropertyClass()));
 
 			var result = Injector.Resolve<MyTestClass>();
 

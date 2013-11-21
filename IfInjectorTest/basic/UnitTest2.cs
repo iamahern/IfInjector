@@ -35,8 +35,8 @@ namespace IfInjectorTest.Basic
         public void AddPropertyInjectorTest()
         {
 			Bind(MakeBind<TestClassAddPropertyInjectorTest> ()
-				.InjectProperty((TestClassAddPropertyInjectorTest v) => v.Other)
-				.InjectProperty((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger"));
+				.InjectMember((TestClassAddPropertyInjectorTest v) => v.Other)
+				.InjectMember((TestClassAddPropertyInjectorTest v) => v.MyStringProperty, () => "Goldfinger"));
 
 			var result = Injector.Resolve<TestClassAddPropertyInjectorTest>();
 
@@ -78,7 +78,7 @@ namespace IfInjectorTest.Basic
 			InjectorException exception = null;
             try
             {
-				binding.InjectProperty((TestClassAddPropertyInjectorTest v) => "");
+				binding.InjectMember((TestClassAddPropertyInjectorTest v) => "");
             }
 			catch (InjectorException ex)
             {

@@ -47,7 +47,6 @@ Distinguishing features are small size, speed and attribute based configuration.
     <Compile Include="source\Injector.cs" />
     <Compile Include="source\Binding.cs" />
     <Compile Include="source\OpenGenericBinding.cs" />
-    <Compile Include="source\PropertiesBinding.cs" />
     <Compile Include="source\ImplementedByAttribute.cs" />
     <Compile Include="source\InjectAttribute.cs" />
     <Compile Include="source\SingletonAttribute.cs" />
@@ -64,7 +63,6 @@ Distinguishing features are small size, speed and attribute based configuration.
     <Compile Include="source\Bindings\Lifestyles\LifestyleResolver.cs" />
     <Compile Include="source\Bindings\Fluent\IBindingInternal.cs" />
     <Compile Include="source\Bindings\Fluent\ILifestyleSetableBinding.cs" />
-    <Compile Include="source\Bindings\Fluent\IPropertyInjectableBinding.cs" />
     <Compile Include="source\Bindings\Fluent\Concrete\Binding.cs" />
     <Compile Include="source\Bindings\Fluent\Concrete\IBinding.cs" />
     <Compile Include="source\Bindings\Fluent\Concrete\IOngoingBinding.cs" />
@@ -74,13 +72,15 @@ Distinguishing features are small size, speed and attribute based configuration.
     <Compile Include="source\Bindings\Fluent\OpenGeneric\IOpenGenericBinding.cs" />
     <Compile Include="source\Bindings\Fluent\OpenGeneric\OngoingOpenGenericBinding.cs" />
     <Compile Include="source\Bindings\Fluent\OpenGeneric\OpenGenericBinding.cs" />
-    <Compile Include="source\Bindings\Fluent\Properties\IPropertiesBinding.cs" />
-    <Compile Include="source\Bindings\Fluent\Properties\PropertiesBinding.cs" />
     <Compile Include="source\Errors\InjectorError.cs" />
     <Compile Include="source\Errors\InjectorErrors.cs" />
     <Compile Include="source\Errors\InjectorException.cs" />
     <Compile Include="source\Util\SafeDictionary.cs" />
     <Compile Include="source\Util\SetShim.cs" />
+    <Compile Include="source\MembersBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\Members\IMembersBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\Members\MembersBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\IMemberInjectableBinding.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>

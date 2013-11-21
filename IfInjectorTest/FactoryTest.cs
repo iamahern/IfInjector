@@ -105,8 +105,8 @@ namespace IfInjectorTest
 		public void TestSingltonInterfaceFactoryWithProperty() {
 			var injector = new Injector ();
 			injector.Register(Binding.For<IB>().SetFactory (() => new B ())
-				.InjectProperty (ist => ist.C)
-				.InjectProperty (ist => ist.MyD));
+				.InjectMember (ist => ist.C)
+				.InjectMember (ist => ist.MyD));
 			var b = injector.Resolve<IB> () as B;
 			Assert.IsNull (b.Ma1);
 			Assert.IsNull (b.Ma2);

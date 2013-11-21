@@ -28,13 +28,13 @@ namespace IfInjector.Bindings.Fluent
 			return this;
 		}
 
-		public IBinding<BType, CType> InjectProperty<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
+		public IBinding<BType, CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
 			where TPropertyType : class
 		{
 			return AddPropertyInjectorInner<TPropertyType> (propertyExpression, null);
 		}
 
-		public IBinding<BType, CType> InjectProperty<TPropertyType> (
+		public IBinding<BType, CType> InjectMember<TPropertyType> (
 			Expression<Func<CType, TPropertyType>> propertyExpression, 
 			Expression<Func<TPropertyType>> setter)
 		{
@@ -42,7 +42,7 @@ namespace IfInjector.Bindings.Fluent
 		}
 
 		private IBinding<BType, CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
-			BindingConfigUtils.AddPropertyInjectorToBindingConfig<CType, TPropertyType> (BindingConfig, propertyExpression, setter);
+			BindingConfigUtils.AddMemberInjectorToBindingConfig<CType, TPropertyType> (BindingConfig, propertyExpression, setter);
 			return this;
 		}
 	}

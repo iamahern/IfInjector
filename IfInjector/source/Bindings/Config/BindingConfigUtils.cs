@@ -137,25 +137,25 @@ namespace IfInjector.Bindings.Config
 		/// <param name="setter">Setter.</param>
 		/// <typeparam name="CType">The 1st type parameter.</typeparam>
 		/// <typeparam name="TPropertyType">The 2nd type parameter.</typeparam>
-		internal static void AddPropertyInjectorToBindingConfig<CType, TPropertyType>(
+		internal static void AddMemberInjectorToBindingConfig<CType, TPropertyType>(
 			IBindingConfig bindingConfig,
 			Expression<Func<CType, TPropertyType>> propertyExpression, 
 			Expression<Func<TPropertyType>> setter) 
 			where CType : class
 		{
-			var propertyMemberExpression = propertyExpression.Body as MemberExpression;
-			if (propertyMemberExpression == null) {
-				throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+			var memberExpression = propertyExpression.Body as MemberExpression;
+			if (memberExpression == null) {
+				throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("memberExpression");
 			}
 
-			var member = propertyMemberExpression.Member;
+			var member = memberExpression.Member;
 			if (member is PropertyInfo) {
 				bindingConfig.SetPropertyInfoSetter (member as PropertyInfo, setter);
 			} else if (member is FieldInfo) {
 				bindingConfig.SetFieldInfoSetter (member as FieldInfo, setter);
 			} else {
 				// Should not be reachable.
-				throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("propertyExpression");
+				throw InjectorErrors.ErrorMustContainMemberExpression.FormatEx ("memberExpression");
 			}
 		}
 	}

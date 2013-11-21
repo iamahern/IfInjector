@@ -10,7 +10,7 @@ using IfInjector.Bindings.Config;
 using IfInjector.Bindings.Fluent;
 using IfInjector.Bindings.Fluent.Concrete;
 using IfInjector.Bindings.Fluent.OpenGeneric;
-using IfInjector.Bindings.Fluent.Properties;
+using IfInjector.Bindings.Fluent.Members;
 using IfInjector.Bindings.Lifestyles;
 using IfInjector.Resolver;
 using IfInjector.Errors;
@@ -81,11 +81,11 @@ namespace IfInjector
 		/// <summary>
 		/// Binds the member injector.
 		/// </summary>
-		/// <param name="propertiesBinding">Properties binding.</param>
-		public void Register (IPropertiesBinding propertiesBinding)
+		/// <param name="membersBinding">Members binding.</param>
+		public void Register (IMembersBinding membersBinding)
 		{
 			lock (syncLock) {
-				IBindingInternal internalBinding = (IBindingInternal) propertiesBinding;
+				IBindingInternal internalBinding = (IBindingInternal) membersBinding;
 				ValidateInternalBinding (internalBinding);
 				BindExplicit (internalBinding);
 			}

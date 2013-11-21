@@ -15,7 +15,7 @@ namespace IfInjector.Bindings.Fluent.Concrete
 	/// </summary>
 	public interface IBinding<BType, CType> : IBinding,
 			ILifestyleSetableBinding<IBinding<BType, CType>>, 
-			IPropertyInjectableBinding<IBinding<BType, CType>, CType>
+			IMemberInjectableBinding<IBinding<BType, CType>, CType>
 		where BType : class
 		where CType : class, BType
 	{

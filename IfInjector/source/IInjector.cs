@@ -2,7 +2,7 @@ using System;
 
 using IfInjector.Bindings.Fluent.Concrete;
 using IfInjector.Bindings.Fluent.OpenGeneric;
-using IfInjector.Bindings.Fluent.Properties;
+using IfInjector.Bindings.Fluent.Members;
 
 namespace IfInjector
 {
@@ -28,23 +28,23 @@ namespace IfInjector
 		/// <returns>The properties.</returns>
 		/// <param name="instance">Instance.</param>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		T InjectProperties<T> (T instance)
+		T InjectMembers<T> (T instance)
 			where T : class;
 
 		/// <summary>
-		/// Bind the specified binding.
+		/// Register the specified binding.
 		/// </summary>
 		/// <param name="binding">Binding.</param>
 		void Register (IBinding binding);
 
 		/// <summary>
-		/// Register the specified properties binding.
+		/// Register the specified members binding.
 		/// </summary>
-		/// <param name="propertiesBinding">Properties binding.</param>
-		void Register (IPropertiesBinding propertiesBinding);
+		/// <param name="membersBinding">Members binding.</param>
+		void Register (IMembersBinding membersBinding);
 
 		/// <summary>
-		/// Register the specified openGenericBinding.
+		/// Register the specified openGeneric binding.
 		/// </summary>
 		/// <param name="openGenericBinding">Open generic binding.</param>
 		void Register (IOpenGenericBinding openGenericBinding);
@@ -55,4 +55,3 @@ namespace IfInjector
 		void Verify ();
 	}
 }
-

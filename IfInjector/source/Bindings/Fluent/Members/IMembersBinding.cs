@@ -2,18 +2,18 @@ using System;
 using System.Linq.Expressions;
 using IfInjector.Bindings.Fluent;
 
-namespace IfInjector.Bindings.Fluent.Properties
+namespace IfInjector.Bindings.Fluent.Members
 {
 	/// <summary>
 	/// Base binding type. This represents a closed member binding object.
 	/// </summary>
-	public interface IPropertiesBinding {}
+	public interface IMembersBinding {}
 
 	/// <summary>
 	/// Members binding.
 	/// </summary>
-	public interface IPropertiesBinding<CType> : IPropertiesBinding,
-		IPropertyInjectableBinding<IPropertiesBinding<CType>, CType>
+	public interface IMembersBinding<CType> : IMembersBinding,
+		IMemberInjectableBinding<IMembersBinding<CType>, CType>
 		where CType : class
 	{
 	}
