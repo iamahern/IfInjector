@@ -7,9 +7,10 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{1254F89A-40A7-4F96-95AC-6483C64713B5}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>IfFastInjectorBenchmarks</RootNamespace>
+    <RootNamespace>IfInjectorBenchmarks</RootNamespace>
     <AssemblyName>IfInjectorBenchmarks</AssemblyName>
     <ReleaseVersion>0.8.0</ReleaseVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -30,11 +31,95 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Net" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="fFastInjector">
+      <HintPath>..\packages\fFastInjector.0.8.1\lib\portable-net4+sl4+wp8+win8\fFastInjector.dll</HintPath>
+    </Reference>
+    <Reference Include="HaveBox">
+      <HintPath>..\packages\HaveBox.1.6.0\lib\net40\HaveBox.dll</HintPath>
+    </Reference>
+    <Reference Include="SimpleInjector">
+      <HintPath>..\packages\SimpleInjector.2.3.6\lib\net40-client\SimpleInjector.dll</HintPath>
+    </Reference>
+    <Reference Include="LightInject">
+      <HintPath>..\packages\LightInject.3.0.1.0\lib\net40\LightInject.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.Windows.Forms.DataVisualization" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Data.Linq" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Original_fFastInjector.cs" />
+    <Compile Include="source\Adapters\ContainerAdapterBase.cs" />
+    <Compile Include="source\Adapters\FFastInjectorContainerAdapter.cs" />
+    <Compile Include="source\Adapters\HaveBoxContainerAdapter.cs" />
+    <Compile Include="source\Adapters\IContainerAdapter.cs" />
+    <Compile Include="source\Adapters\IfInjectorContainerAdapter.cs" />
+    <Compile Include="source\Adapters\LightInjectContainerAdapter.cs" />
+    <Compile Include="source\Adapters\NoContainerAdapter.cs" />
+    <Compile Include="source\Adapters\SimpleInjectorContainerAdapter.cs" />
+    <Compile Include="source\Classes\Complex\Complex.cs" />
+    <Compile Include="source\Classes\Complex\FirstService.cs" />
+    <Compile Include="source\Classes\Complex\SecondService.cs" />
+    <Compile Include="source\Classes\Complex\SubObjectOne.cs" />
+    <Compile Include="source\Classes\Complex\SubObjectThree.cs" />
+    <Compile Include="source\Classes\Complex\SubObjectTwo.cs" />
+    <Compile Include="source\Classes\Complex\ThirdService.cs" />
+    <Compile Include="source\Classes\Conditional\ExportConditionalObject.cs" />
+    <Compile Include="source\Classes\Conditional\ExportConditionalObject2.cs" />
+    <Compile Include="source\Classes\Conditional\IExportConditionInterface.cs" />
+    <Compile Include="source\Classes\Conditional\ImportConditionObject.cs" />
+    <Compile Include="source\Classes\Conditional\ImportConditionObject2.cs" />
+    <Compile Include="source\Classes\Dummy\DummyEight.cs" />
+    <Compile Include="source\Classes\Dummy\DummyFive.cs" />
+    <Compile Include="source\Classes\Dummy\DummyFour.cs" />
+    <Compile Include="source\Classes\Dummy\DummyNine.cs" />
+    <Compile Include="source\Classes\Dummy\DummyOne.cs" />
+    <Compile Include="source\Classes\Dummy\DummySeven.cs" />
+    <Compile Include="source\Classes\Dummy\DummySix.cs" />
+    <Compile Include="source\Classes\Dummy\DummyTen.cs" />
+    <Compile Include="source\Classes\Dummy\DummyThree.cs" />
+    <Compile Include="source\Classes\Dummy\DummyTwo.cs" />
+    <Compile Include="source\Classes\Generics\GenericExport.cs" />
+    <Compile Include="source\Classes\Generics\IGenericInterface.cs" />
+    <Compile Include="source\Classes\Generics\ImportGeneric.cs" />
+    <Compile Include="source\Classes\Multiple\ImportMultiple.cs" />
+    <Compile Include="source\Classes\Multiple\ISimpleAdapter.cs" />
+    <Compile Include="source\Classes\Multiple\SimpleAdapterFive.cs" />
+    <Compile Include="source\Classes\Multiple\SimpleAdapterFour.cs" />
+    <Compile Include="source\Classes\Multiple\SimpleAdapterOne.cs" />
+    <Compile Include="source\Classes\Multiple\SimpleAdapterThree.cs" />
+    <Compile Include="source\Classes\Multiple\SimpleAdapterTwo.cs" />
+    <Compile Include="source\Classes\Properties\ComplexPropertyObject.cs" />
+    <Compile Include="source\Classes\Properties\ServiceA.cs" />
+    <Compile Include="source\Classes\Properties\ServiceB.cs" />
+    <Compile Include="source\Classes\Properties\ServiceC.cs" />
+    <Compile Include="source\Classes\Properties\SubObjectA.cs" />
+    <Compile Include="source\Classes\Properties\SubObjectB.cs" />
+    <Compile Include="source\Classes\Properties\SubObjectC.cs" />
+    <Compile Include="source\Classes\Standard\Calculator.cs" />
+    <Compile Include="source\Classes\Standard\Combined.cs" />
+    <Compile Include="source\Classes\Standard\Singleton.cs" />
+    <Compile Include="source\Classes\Standard\Transient.cs" />
+    <Compile Include="source\Conditional\SimpleInjectorContextDependentExtensions.cs" />
+    <Compile Include="source\Interception\HaveBoxInterceptionLogger.cs" />
+    <Compile Include="source\Interception\SimpleInjectorInterceptionExtensions.cs" />
+    <Compile Include="source\Interception\SimpleInjectorInterceptionLogger.cs" />
+    <Compile Include="source\Output\ChartOutput.cs" />
+    <Compile Include="source\Output\ConsoleOutput.cs" />
+    <Compile Include="source\Output\CsvOutput.cs" />
+    <Compile Include="source\Output\CsvOutputReader.cs" />
+    <Compile Include="source\Output\HtmlOutput.cs" />
+    <Compile Include="source\Output\IOutput.cs" />
+    <Compile Include="source\Output\MarkdownOutput.cs" />
+    <Compile Include="source\Output\MultiOutput.cs" />
+    <Compile Include="source\Output\Result.cs" />
+    <Compile Include="source\ContainerAdapterFactory.cs" />
+    <Compile Include="source\Program.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -42,5 +127,13 @@
       <Project>{E223D620-7563-4C59-8361-B10A7C398723}</Project>
       <Name>IfInjector</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="source\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+    <None Include="LICENSE.txt" />
+    <None Include="SourceOrigin.txt" />
   </ItemGroup>
 </Project>

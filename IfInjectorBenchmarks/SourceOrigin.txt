@@ -1,0 +1,4 @@
+The source contained in IfInjectorBenchmarks is a modified copy of:
+	https://github.com/danielpalme/IocPerformance
+
+The set of IoC containers tested is greatly reduced to focus on the immediate peers of IfInjector.
