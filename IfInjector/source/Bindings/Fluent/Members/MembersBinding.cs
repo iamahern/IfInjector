@@ -17,7 +17,7 @@ namespace IfInjector.Bindings.Fluent.Members
 
 		internal MembersBinding() {
 			BindingConfig = new BindingConfig(typeof(CType));
-			BindingKey = BindingKey.GetPropertiesInjector<CType> ();
+			BindingKey = BindingKey.GetMember<CType> ();
 		}
 
 		public IMembersBinding<CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> memberExpression) 

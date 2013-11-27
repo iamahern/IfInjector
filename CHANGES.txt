@@ -1,8 +1,14 @@
 ----------------
+Version 0.8.1
+----------------
+
+Minor performance improvements.
+
+----------------
 Version 0.8
 ----------------
 
-Finally broke down and split the project into multiple files. From an API standpoint, the only user visible rationalization is a package change for custom lifestyles.
+API change for custom Lifestyles.
 
 Before:
 	using IfInjector.IfBinding.IfLifestyle;
@@ -47,8 +53,8 @@ var myCustomLifestyle = Lifestyle.CreateCustom(instanceCreator => {
 });
 
 injector.Register(Binding.For<BindType>().To<ConcreteType>()
-	.InjectProperty(...)
-	.InjectProperty(...)
+	.InjectMember(...)
+	.InjectMember(...)
 	.SetLifestyle(myCustomLifestyle));
 
 ----------------

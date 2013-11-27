@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>IfInjectorTest</RootNamespace>
     <AssemblyName>IfInjectorTest</AssemblyName>
-    <ReleaseVersion>0.8.0</ReleaseVersion>
+    <ReleaseVersion>0.8.1</ReleaseVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -72,6 +72,8 @@
     <Compile Include="comprop\Properties\SubObjectC.cs" />
     <Compile Include="GenericBindingTest.cs" />
     <Compile Include="BaseTest.cs" />
+    <Compile Include="DumpSampleTree.cs" />
+    <Compile Include="Bindings\Config\BindingKeyTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IfInjector\IfInjector.csproj">
@@ -83,5 +85,7 @@
     <Folder Include="basic\" />
     <Folder Include="factory\" />
     <Folder Include="comprop\" />
+    <Folder Include="Bindings\" />
+    <Folder Include="Bindings\Config\" />
   </ItemGroup>
 </Project>

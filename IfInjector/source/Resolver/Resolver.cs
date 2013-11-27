@@ -32,7 +32,9 @@ namespace IfInjector.Resolver
 			this.bindingConfig = bindingConfig;
 			this.syncLock = syncLock;
 
-			this.expressionCompiler = new ExpressionCompiler<CType> (bindingConfig) { ResolveResolverExpression = injector.ResolveResolverExpression };
+			this.expressionCompiler = new ExpressionCompiler<CType> (
+				bindingConfig, 
+				injector.ResolveResolverExpression);
 		}
 
 		public object DoResolve() {
@@ -57,11 +59,10 @@ namespace IfInjector.Resolver
 					}
 					isRecursionTestPending = true; 
 
-					var resolverExpression = expressionCompiler.CompileResolverExpression ();
-					var resolverExpressionCompiled = resolverExpression.Compile ();
-					var testInstance = resolverExpressionCompiled ();
-
-					resolver = bindingConfig.Lifestyle.GetLifestyleResolver<CType> (syncLock, resolverExpression, resolverExpressionCompiled, testInstance);
+					resolver = bindingConfig.Lifestyle.GetLifestyleResolver<CType> (
+						syncLock, 
+						expressionCompiler, 
+						(CType) expressionCompiler.InstanceResolver());
 
 					isRecursionTestPending = false; // END: Handle compile loop
 				}
@@ -71,8 +72,9 @@ namespace IfInjector.Resolver
 		private CType DoInjectTyped(CType instance) {
 			if (instance != null) {
 				if (resolveProperties == null) {
-					lock (this) {
-						resolveProperties = expressionCompiler.CompilePropertiesResolver ();
+					lock (syncLock) {
+						// Expression compiler caches delegate; no need for double checking
+						resolveProperties = expressionCompiler.PropertiesResolver;
 					}
 				}
 
@@ -80,10 +82,6 @@ namespace IfInjector.Resolver
 			}
 
 			return instance;
-		}
-
-		private bool IsResolved() {
-			return resolver != null;
 		}
 
 		public Expression GetResolveExpression () {
@@ -95,6 +93,10 @@ namespace IfInjector.Resolver
 				return resolver.ResolveExpression;
 			}
 		}
+
+		private bool IsResolved() {
+			return resolver != null;
+		}		
 	}
 }
 

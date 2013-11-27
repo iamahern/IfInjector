@@ -13,33 +13,45 @@ namespace IfInjector.Bindings.Config
 	/// The binding key object is an immutable type used to index bindings.
 	/// </summary>
 	internal sealed class BindingKey : IEquatable<BindingKey> {
-		private static readonly string DELIM = "|";
-		private static readonly string TYPE = "Type=";
-		private static readonly string PROPERTY = "Property=";
+		/// <summary>
+		/// Internal constant for hash code.
+		/// </summary>
+		private const int HASHCODE_MULTIPLIER = 33;
 
-		private static object syncLock = new object();
-		private static SafeDictionary<string, BindingKey> bindingKeys = new SafeDictionary<string, BindingKey>(syncLock);
+		private readonly Type bindingType;
+		private readonly bool member;
 
-		private string KeyString { get; set; }
+		private BindingKey(Type bindingType, bool member) {
+			this.bindingType = bindingType;
+			this.member = member;
+		}
 
 		/// <summary>
 		/// Gets the type of the binding.
 		/// </summary>
 		/// <value>The type of the binding.</value>
-		public Type BindingType { get; private set; }
+		public Type BindingType {
+			get {
+				return bindingType;	
+			}
+		}
 
 		/// <summary>
 		/// Gets a value indicating whether this <see cref="IfInjector.IfBinding.BindingKey"/> is a property-only binding.
 		/// </summary>
 		/// <value><c>true</c> if member; otherwise, <c>false</c>.</value>
-		public bool Member { get; private set; }
+		public bool Member {
+			get {
+				return member;
+			}
+		}
 
 		/// <summary>
 		/// Serves as a hash function for a particular type.
 		/// </summary>
 		/// <returns>A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a hash table.</returns>
 		public override int GetHashCode() {
-			return KeyString.GetHashCode();
+			return HASHCODE_MULTIPLIER * BindingType.GetHashCode () + Member.GetHashCode ();
 		}
 
 		/// <summary>
@@ -59,7 +71,14 @@ namespace IfInjector.Bindings.Config
 		/// <returns><c>true</c> if the specified <see cref="IfInjector.IfBinding.BindingKey"/> is equal to the current
 		/// <see cref="IfInjector.IfBinding.BindingKey"/>; otherwise, <c>false</c>.</returns>
 		public bool Equals(BindingKey obj) {
-			return obj != null && obj.KeyString == KeyString;
+			if (obj == null) {
+				return false;
+			} else if (object.ReferenceEquals (this, obj)) {
+				return true;
+			} else {
+				return BindingType.Equals (obj.BindingType) &&
+					Member == obj.Member;
+			}
 		}
 
 		/// <summary>
@@ -67,7 +86,7 @@ namespace IfInjector.Bindings.Config
 		/// </summary>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
 		public static BindingKey Get<T>() where T : class {
-			return BindingKeyInternal<T>.INSTANCE;
+			return GetInternal (typeof(T), false);
 		}
 
 		/// <summary>
@@ -79,37 +98,22 @@ namespace IfInjector.Bindings.Config
 		}
 
 		/// <summary>
-		/// Gets the properties injector.
+		/// Gets the member injector key.
 		/// </summary>
-		/// <returns>The properties injector.</returns>
+		/// <returns>The member injector key.</returns>
 		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		internal static BindingKey GetPropertiesInjector<T>() where T : class {
-			return BindingKeyInternal<T>.PROPERTIES;
+		internal static BindingKey GetMember<T>() where T : class {
+			return GetInternal (typeof(T), true);
 		}
 
+		/// <summary>
+		/// Gets a key.
+		/// </summary>
+		/// <returns>The internal.</returns>
+		/// <param name="keyType">Key type.</param>
+		/// <param name="isMember">If set to <c>true</c> is member.</param>
 		internal static BindingKey GetInternal(Type keyType, bool isMember) {
-			string keyString = 
-				TYPE + keyType.FullName + DELIM + PROPERTY + isMember;
-
-			BindingKey key;
-			if (!bindingKeys.UnsyncedTryGetValue (keyString, out key)) {
-				lock (syncLock) {
-					if (!bindingKeys.TryGetValue (keyString, out key)) {
-						key = new BindingKey () { 
-							KeyString = keyString,
-							BindingType = keyType,
-							Member = isMember
-						};
-						bindingKeys.Add (keyString, key);
-					}
-				}
-			}
-			return key;
-		}
-
-		private static class BindingKeyInternal<T> where T : class {
-			public static readonly BindingKey INSTANCE = BindingKey.GetInternal (typeof(T), false);
-			public static readonly BindingKey PROPERTIES = BindingKey.GetInternal (typeof(T), true);
+			return new BindingKey (keyType, isMember);
 		}
 	}
 }

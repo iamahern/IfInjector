@@ -12,7 +12,7 @@
     <AssemblyName>IfInjector</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>Profile104</TargetFrameworkProfile>
-    <ReleaseVersion>0.8.0</ReleaseVersion>
+    <ReleaseVersion>0.8.1</ReleaseVersion>
     <Description>IfInjector is a lightweight, high performance micro-IoC container. The container is packaged as a PCL 104 library - suitable for WP7.1, Windows Store and SL4+ (MonoDroid, MonoTouch) projects.
 
 Distinguishing features are small size, speed and attribute based configuration.</Description>
@@ -33,6 +33,7 @@ Distinguishing features are small size, speed and attribute based configuration.
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
     <additionalargs>/doc:IfInjector.xml</additionalargs>
+    <GenerateDocumentation>true</GenerateDocumentation>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -81,6 +82,9 @@ Distinguishing features are small size, speed and attribute based configuration.
     <Compile Include="source\Bindings\Fluent\Members\IMembersBinding.cs" />
     <Compile Include="source\Bindings\Fluent\Members\MembersBinding.cs" />
     <Compile Include="source\Bindings\Fluent\IMemberInjectableBinding.cs" />
+    <Compile Include="source\Bindings\Lifestyles\SingletonLifestyle.cs" />
+    <Compile Include="source\Bindings\Lifestyles\TransientLifestyle.cs" />
+    <Compile Include="source\Bindings\Lifestyles\CustomLifestyle.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>

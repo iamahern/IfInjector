@@ -22,27 +22,46 @@ namespace IfInjector.Resolver.Expressions
 		}
 
 		private readonly IBindingConfig bindingConfig;
+		private readonly ResolveResolverExpression resolveResolverExpression;
 
-		public ResolveResolverExpression ResolveResolverExpression { set; private get; }
+		private Expression instanceResolverExpression;
+		private Func<CType> instanceResolver;
+		private Func<CType, CType> propertiesResolver;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="IfInjector.IfPlatform.ExpressionCompiler`1"/> class.
-		/// 
-		/// The binding is cloned to 
-		/// </summary>
-		/// <param name="bindingConfig">Binding config.</param>
-		internal ExpressionCompiler(IBindingConfig bindingConfig) {
+		
+		internal ExpressionCompiler(IBindingConfig bindingConfig, ResolveResolverExpression resolveResolverExpression) {
 			this.bindingConfig = bindingConfig;
+			this.resolveResolverExpression = resolveResolverExpression;
 		}
 
-		public Expression<Func<CType>> CompileResolverExpression() {
+		public Func<CType> InstanceResolver {
+			get {
+				if (instanceResolver == null) {
+					var instanceResolverExpressionLambda = Expression.Lambda<Func<CType>>(InstanceResolverExpression);
+					instanceResolver = instanceResolverExpressionLambda.Compile ();
+				}
+				return instanceResolver;
+			}
+		}
+
+		public Expression InstanceResolverExpression { 
+			get {
+				if (instanceResolverExpression == null) {
+					instanceResolverExpression = CompileResolverExpression ();
+				}
+
+				return instanceResolverExpression;
+			}
+		}
+
+		private Expression CompileResolverExpression() {
 			if (bindingConfig.FactoryExpression != null) {
 				var factoryExpr = CompileFactoryExpr ();
 				var fieldInjectors = bindingConfig.GetFieldInfoSetters ();
 				var propertyInjectors = bindingConfig.GetPropertyInfoSetters ();
 
 				if (fieldInjectors.Any () || propertyInjectors.Any ()) {
-					return CompileFactoryExprSetters (factoryExpr);
+					return CompileFactoryExprSetters (factoryExpr, PropertiesResolver);
 				} else {
 					return factoryExpr;
 				}
@@ -51,43 +70,13 @@ namespace IfInjector.Resolver.Expressions
 			}
 		}
 
-		public Func<CType,CType> CompilePropertiesResolver()
-		{
-			var fieldInjectors = bindingConfig.GetFieldInfoSetters ();
-			var propertyInjectors = bindingConfig.GetPropertyInfoSetters ();
-
-			if (fieldInjectors.Length > 0 || propertyInjectors.Length > 0) {
-				return CompilePropertiesResolverExpr ().Compile ();
-			} else {
-				return (CType x) => { return x; };
-			}
-		}
-
-		private Expression<Func<CType, CType>> CompilePropertiesResolverExpr()
-		{
-			var instance = Expression.Parameter (typeof(CType), "instanceR");
-
-			var blockExpression = new List<Expression> ();
-			AddFieldSetterExpressions(instance, blockExpression);
-			AddPropertySetterExpressions(instance, blockExpression);
-
-			var blockFuncs = new List<Action<CType>>(
-				from be in blockExpression 
-				select Expression.Lambda<Action<CType>>(be, instance).Compile());
-
-			Expression<Func<CType,CType>> setSettersExpr = (CType inst) => CallSetterList (inst, blockFuncs);
-
-			return setSettersExpr;
-		}
-
-		private Expression<Func<CType>> CompileFactoryExpr()
+		private Expression CompileFactoryExpr()
 		{
 			var arguments = CompileArgumentListExprs(bindingConfig.FactoryExpression.Parameters.Select (x => x.Type));
-			var callLambdaExpression = Expression.Invoke (bindingConfig.FactoryExpression, arguments.ToArray());
-			return ((Expression<Func<CType>>)Expression.Lambda(callLambdaExpression));
+			return Expression.Invoke (bindingConfig.FactoryExpression, arguments.ToArray());
 		}
 
-		private Expression<Func<CType>> CompileConstructorExpr()
+		private Expression CompileConstructorExpr()
 		{
 			var arguments = CompileArgumentListExprs(bindingConfig.Constructor.GetParameters().Select(v => v.ParameterType));
 			var createInstanceExpression = Expression.New(bindingConfig.Constructor, arguments);
@@ -98,11 +87,9 @@ namespace IfInjector.Resolver.Expressions
 			if (fieldInjectors.Any () || propertyInjectors.Any ()) {
 				var fields = from iconf in fieldInjectors select Expression.Bind (iconf.MemberInfo, GetSetterValueExpression(iconf));
 				var props = from iconf in propertyInjectors select Expression.Bind (iconf.MemberInfo, GetSetterValueExpression(iconf));
-				var fullInit = Expression.MemberInit (createInstanceExpression, fields.Union(props).ToArray());
-
-				return ((Expression<Func<CType>>)Expression.Lambda(fullInit));
+				return Expression.MemberInit (createInstanceExpression, fields.Union(props).ToArray());
 			} else {
-				return ((Expression<Func<CType>>)Expression.Lambda(createInstanceExpression));
+				return createInstanceExpression;
 			}
 		}
 
@@ -117,12 +104,11 @@ namespace IfInjector.Resolver.Expressions
 			return argumentsOut;
 		}
 
-		private Expression<Func<CType>> CompileFactoryExprSetters(Expression<Func<CType>> factoryExpr)
+		private Expression CompileFactoryExprSetters(Expression factoryExpr, Func<CType, CType> cPropertiesResolver)
 		{
-			Func<CType> factory = factoryExpr.Compile ();
-			var propertiesResolver = CompilePropertiesResolver ();
-			Expression<Func<CType>> func = () => propertiesResolver(factory());
-			return func;
+			Func<CType> factory = Expression.Lambda<Func<CType>>(factoryExpr).Compile ();
+			Expression<Func<CType>> func = () => cPropertiesResolver(factory());
+			return func.Body;
 		}
 
 		private Expression GetSetterValueExpression<MIType>(IMemberSetterConfig<MIType> setter) where MIType : MemberInfo {
@@ -138,7 +124,7 @@ namespace IfInjector.Resolver.Expressions
 		}
 
 		private Expression GetResolverInvocationExpressionForType(Type parameterType) {
-			return ResolveResolverExpression(BindingKey.Get(parameterType));
+			return resolveResolverExpression(BindingKey.Get(parameterType));
 		}
 
 		private void AddPropertySetterExpressions(ParameterExpression instanceVar, List<Expression> blockExpressions) {
@@ -185,6 +171,45 @@ namespace IfInjector.Resolver.Expressions
 		private static void CallSetField<TPropertyType>(CType instance, FieldInfo fieldInfo, Func<TPropertyType> propValue)
 		{
 			fieldInfo.SetValue (instance, propValue());
+		}
+
+		public Func<CType,CType> PropertiesResolver {
+			get {
+				if (propertiesResolver == null) {
+					propertiesResolver = CompilePropertiesResolver();
+				}
+
+				return propertiesResolver;
+			}
+		}
+
+		private Func<CType,CType> CompilePropertiesResolver()
+		{
+			var fieldInjectors = bindingConfig.GetFieldInfoSetters ();
+			var propertyInjectors = bindingConfig.GetPropertyInfoSetters ();
+
+			if (fieldInjectors.Length > 0 || propertyInjectors.Length > 0) {
+				return CompilePropertiesResolverExpr ().Compile ();
+			} else {
+				return (CType x) => { return x; };
+			}
+		}
+
+		private Expression<Func<CType, CType>> CompilePropertiesResolverExpr()
+		{
+			var instance = Expression.Parameter (typeof(CType), "instanceR");
+
+			var blockExpression = new List<Expression> ();
+			AddFieldSetterExpressions(instance, blockExpression);
+			AddPropertySetterExpressions(instance, blockExpression);
+
+			var blockFuncs = new List<Action<CType>>(
+				from be in blockExpression 
+				select Expression.Lambda<Action<CType>>(be, instance).Compile());
+
+			Expression<Func<CType,CType>> setSettersExpr = (CType inst) => CallSetterList (inst, blockFuncs);
+
+			return setSettersExpr;
 		}
 	}
 }

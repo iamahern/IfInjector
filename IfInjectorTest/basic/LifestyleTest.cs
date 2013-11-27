@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 
+using IfInjector;
 using IfInjector.Bindings.Lifestyles;
 using IfInjectorTest;
 
@@ -26,6 +27,10 @@ namespace IfInjectorTest.Basic
 		});
 
 		class A {}
+		class B {
+			[Inject]
+			public A A { get; set; }
+		}
 
 		[Test()]
 		public void TestSingleton ()
@@ -53,18 +58,23 @@ namespace IfInjectorTest.Basic
 		public void TestCustomLifestyle ()
 		{
 			Bind (MakeBind<A> ().SetLifestyle (customLifestyle));
+			Bind (MakeBind<B> ());
 
-			var a1 = Injector.Resolve<A> ();
-			var a2 = Injector.Resolve<A> ();
+			var b1 = Injector.Resolve<B> ();
+			var b2 = Injector.Resolve<B> ();
 
 			changeCounter++;
 
-			var a3 = Injector.Resolve<A> ();
-			var a4 = Injector.Resolve<A> ();
+			var b3 = Injector.Resolve<B> ();
+			var b4 = Injector.Resolve<B> ();
 
-			Assert.AreSame (a1, a2);
-			Assert.AreSame (a3, a4);
-			Assert.AreNotSame (a1, a3);
+			Assert.AreSame (b1.A, b2.A);
+			Assert.AreSame (b3.A, b4.A);
+			Assert.AreNotSame (b1.A, b3.A);
+
+			Assert.AreNotSame (b1, b2);
+			Assert.AreNotSame (b2, b3);
+			Assert.AreNotSame (b3, b4);
 		}
 	}
 }

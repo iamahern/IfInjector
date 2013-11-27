@@ -144,7 +144,7 @@ namespace IfInjector
 		public T InjectProperties<T> (T instance)
 			where T : class
 		{
-			var iResolver = ResolveResolver (BindingKey.GetPropertiesInjector<T>());
+			var iResolver = ResolveResolver (BindingKey.GetMember<T>());
 			iResolver.DoInject (instance);
 			return instance;
 		}

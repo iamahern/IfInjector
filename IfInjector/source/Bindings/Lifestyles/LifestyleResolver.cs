@@ -9,12 +9,17 @@ namespace IfInjector.Bindings.Lifestyles
 	internal abstract class LifestyleResolver<CType> where CType : class {
 		private readonly Expression resolveExpression;
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="IfInjector.Bindings.Lifestyles.LifestyleResolver`1"/> class.
+		/// </summary>
+		/// <param name="resolveExpression">Resolve expression.</param>
 		internal LifestyleResolver(Expression resolveExpression) {
 			this.resolveExpression = resolveExpression;
 		}
 
 		internal LifestyleResolver() {
-			this.resolveExpression = MakeResolveExpression();
+			Expression<Func<CType>> expr = () => Resolve ();
+			resolveExpression = expr.Body;
 		}
 
 		/// <summary>
@@ -31,11 +36,5 @@ namespace IfInjector.Bindings.Lifestyles
 		/// Resolve this instance. The lifestyle is responsible for creating additional instances as necessary.
 		/// </summary>
 		internal abstract CType Resolve();
-
-		private Expression MakeResolveExpression() {
-			Expression<Func<CType>> expr = () => Resolve ();
-			return expr.Body;
-		}
 	}
 }
-

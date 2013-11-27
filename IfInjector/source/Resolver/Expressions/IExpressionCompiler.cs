@@ -14,16 +14,22 @@ namespace IfInjector.Resolver.Expressions
 	/// </summary>
 	internal interface IExpressionCompiler<CType> where CType : class {
 		/// <summary>
-		/// Compiles the resolver expression.
+		/// Gets the instance resolver expression.
 		/// </summary>
-		/// <returns>The resolver expression.</returns>
-		Expression<Func<CType>> CompileResolverExpression();
+		/// <value>The instance resolver expression.</value>
+		Expression InstanceResolverExpression { get; }
 
 		/// <summary>
-		/// Compiles the properties resolver.
+		/// Gets the instance resolver.
 		/// </summary>
-		/// <returns>The properties resolver.</returns>
-		Func<CType, CType> CompilePropertiesResolver ();
+		/// <value>The instance resolver.</value>
+		Func<CType> InstanceResolver { get; } 
+
+		/// <summary>
+		/// Gets the properties resolver.
+		/// </summary>
+		/// <value>The properties resolver.</value>
+		Func<CType, CType> PropertiesResolver { get; }
 	}
 }
 
