@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>$id$</id>
-    <version>0.8</version>
+    <version>0.8.1</version>
     <title>IfInjector</title>
     <authors>Michael Ahern</authors>
     <owners>Michael Ahern</owners>
