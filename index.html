@@ -28,7 +28,63 @@
     <div id="content-wrapper">
       <div class="inner clearfix">
         <section id="main-content">
-          <p>Foo</p>
+          <h1>
+<a name="ifinjector-v08" class="anchor" href="#ifinjector-v08"><span class="octicon octicon-link"></span></a>IfInjector v0.8</h1>
+
+<p>This project is a fork of the <a href="https://ffastinjector.codeplex.com/">https://ffastinjector.codeplex.com/</a> library by David Walker (<a href="https://plus.google.com/109602553530284384616/">https://plus.google.com/109602553530284384616/</a>).</p>
+
+<p>The goal of the project is to provide a featureful high performance micro-IoC container suitable for use in mobile environments. The key distinguishing feature in relation to other Micro containers is support for annotation based configuration.</p>
+
+<h1>
+<a name="key-features" class="anchor" href="#key-features"><span class="octicon octicon-link"></span></a>Key Features</h1>
+
+<ul>
+<li>Auto-Wiring</li>
+<li>Configuration through code</li>
+<li>Configuration through attributes</li>
+<li>Fast (top performer on <a href="http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison">IoC Container Shootout</a>) </li>
+<li>Small</li>
+</ul><h1>
+<a name="documentations" class="anchor" href="#documentations"><span class="octicon octicon-link"></span></a>Documentations</h1>
+
+<p><a href="https://github.com/iamahern/IfInjector/wiki">https://github.com/iamahern/IfInjector/wiki</a></p>
+
+<h1>
+<a name="example-usage-and-quickstart" class="anchor" href="#example-usage-and-quickstart"><span class="octicon octicon-link"></span></a>Example Usage and Quickstart</h1>
+
+<h2>
+<a name="obtaining-the-injector" class="anchor" href="#obtaining-the-injector"><span class="octicon octicon-link"></span></a>Obtaining The Injector</h2>
+
+<p>Either clone this repository or grab the binaries from nuget (<a href="https://www.nuget.org/packages/IfInjector">https://www.nuget.org/packages/IfInjector</a>).</p>
+
+<h2>
+<a name="example-usage" class="anchor" href="#example-usage"><span class="octicon octicon-link"></span></a>Example Usage</h2>
+
+<pre><code>// =================================
+// Setup
+// =================================
+using IfInjector;
+
+[ImplementedBy(typeof(MyType))]
+interface IMyType { }
+
+[Singleton]
+class MyType : IMyType {}
+
+
+// =================================
+// Usage
+// =================================
+var injector = new Injector();
+
+IMyType obj = injector.Resolve&lt;IMyType&gt;();
+
+</code></pre>
+
+<h1>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>LICENSE</h1>
+
+<p>This source is under the BSD license (<a href="http://ffastinjector.codeplex.com/license">http://ffastinjector.codeplex.com/license</a>).</p>
         </section>
 
         <aside id="sidebar">
