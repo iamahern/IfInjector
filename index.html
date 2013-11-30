@@ -1,35 +1,38 @@
 <!DOCTYPE html>
 <html>
+
   <head>
-    <meta charset='utf-8'>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="IfInjector : High performance mobile micro-IoC container. " />
 
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>Ifinjector by iamahern</title>
+    <title>IfInjector</title>
   </head>
 
   <body>
-    <header>
-      <div class="inner">
-        <h1>Ifinjector</h1>
-        <h2>High performance mobile micro-IoC container. </h2>
-        <a href="https://github.com/iamahern/IfInjector" class="button"><small>View project on</small>GitHub</a>
-      </div>
-    </header>
 
-    <div id="content-wrapper">
-      <div class="inner clearfix">
-        <section id="main-content">
-          <h1>
-<a name="ifinjector-v06" class="anchor" href="#ifinjector-v06"><span class="octicon octicon-link"></span></a>IfInjector v0.6</h1>
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/iamahern/IfInjector">View on GitHub</a>
+
+          <h1 id="project_title">IfInjector</h1>
+          <h2 id="project_tagline">High performance mobile micro-IoC container. </h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/iamahern/IfInjector/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/iamahern/IfInjector/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="ifinjector-v081" class="anchor" href="#ifinjector-v081"><span class="octicon octicon-link"></span></a>IfInjector v0.8.1</h1>
 
 <p>This project is a fork of the <a href="https://ffastinjector.codeplex.com/">https://ffastinjector.codeplex.com/</a> library by David Walker (<a href="https://plus.google.com/109602553530284384616/">https://plus.google.com/109602553530284384616/</a>).</p>
 
@@ -41,9 +44,9 @@
 <ul>
 <li>Auto-Wiring</li>
 <li>Configuration through code</li>
-<li>Configuration through annotations</li>
+<li>Configuration through attributes</li>
 <li>Fast (top performer on <a href="http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison">IoC Container Shootout</a>) </li>
-<li>Small (&lt;35 KB)</li>
+<li>Small</li>
 </ul><h1>
 <a name="documentations" class="anchor" href="#documentations"><span class="octicon octicon-link"></span></a>Documentations</h1>
 
@@ -53,15 +56,9 @@
 <a name="example-usage-and-quickstart" class="anchor" href="#example-usage-and-quickstart"><span class="octicon octicon-link"></span></a>Example Usage and Quickstart</h1>
 
 <h2>
-<a name="source-code" class="anchor" href="#source-code"><span class="octicon octicon-link"></span></a>Source Code</h2>
+<a name="obtaining-the-injector" class="anchor" href="#obtaining-the-injector"><span class="octicon octicon-link"></span></a>Obtaining The Injector</h2>
 
-<p>The implementation consists of 3 files:</p>
-
-<ul>
-<li>IfInjector.cs (Interfaces and API definition)</li>
-<li>IfInjector.Injector.cs (The injector implementation)</li>
-<li>IfInjector.IfCore.cs (Core binding, platform &amp; expression builder utilities.)</li>
-</ul><p>Simply include these in your project or use the nuget package (<a href="https://www.nuget.org/packages/IfInjector">https://www.nuget.org/packages/IfInjector</a>).</p>
+<p>Either clone this repository or grab the binaries from nuget (<a href="https://www.nuget.org/packages/IfInjector">https://www.nuget.org/packages/IfInjector</a>).</p>
 
 <h2>
 <a name="example-usage" class="anchor" href="#example-usage"><span class="octicon octicon-link"></span></a>Example Usage</h2>
@@ -91,25 +88,18 @@ IMyType obj = injector.Resolve&lt;IMyType&gt;();
 <a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>LICENSE</h1>
 
 <p>This source is under the BSD license (<a href="http://ffastinjector.codeplex.com/license">http://ffastinjector.codeplex.com/license</a>).</p>
-        </section>
-
-        <aside id="sidebar">
-          <a href="https://github.com/iamahern/IfInjector/zipball/master" class="button">
-            <small>Download</small>
-            .zip file
-          </a>
-          <a href="https://github.com/iamahern/IfInjector/tarball/master" class="button">
-            <small>Download</small>
-            .tar.gz file
-          </a>
-
-          <p class="repo-owner"><a href="https://github.com/iamahern/IfInjector"></a> is maintained by <a href="https://github.com/iamahern">iamahern</a>.</p>
-
-          <p>This page was generated by <a href="pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
-        </aside>
-      </div>
+      </section>
     </div>
 
-  
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">IfInjector maintained by <a href="https://github.com/iamahern">iamahern</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
   </body>
 </html>
