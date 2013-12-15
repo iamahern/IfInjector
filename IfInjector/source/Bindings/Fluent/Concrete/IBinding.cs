@@ -11,13 +11,10 @@ namespace IfInjector.Bindings.Fluent.Concrete
 	public interface IBinding {}
 
 	/// <summary>
-	/// Bbound binding.
+	/// Base binding type. This represents a 'typed' closed binding object.
 	/// </summary>
-	public interface IBinding<BType, CType> : IBinding,
-			ILifestyleSetableBinding<IBinding<BType, CType>>, 
-			IMemberInjectableBinding<IBinding<BType, CType>, CType>
+	public interface IBinding<BType, CType> : IBinding
 		where BType : class
 		where CType : class, BType
-	{
-	}
+	{}
 }

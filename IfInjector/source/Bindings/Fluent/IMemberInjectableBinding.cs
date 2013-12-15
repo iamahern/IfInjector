@@ -1,7 +1,7 @@
 using System;
 using System.Linq.Expressions;
 
-namespace IfInjector.Bindings
+namespace IfInjector.Bindings.Fluent
 {
 	public interface IMemberInjectableBinding<FType, CType>
 		where FType : IMemberInjectableBinding<FType, CType>

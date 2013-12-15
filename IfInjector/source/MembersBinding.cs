@@ -12,8 +12,8 @@ namespace IfInjector
 		/// Create a binding.
 		/// </summary>
 		/// <typeparam name="BType">The 1st type parameter.</typeparam>
-		public static IMembersBinding<BType> For<BType>() where BType : class {
-			return new MembersBinding<BType>(); 
+		public static IBoundMembersBinding<BType> For<BType>() where BType : class {
+			return new BoundMembersBinding<BType>(); 
 		}
 	}
 }

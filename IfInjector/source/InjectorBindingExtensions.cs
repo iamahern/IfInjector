@@ -19,7 +19,7 @@ namespace IfInjector
 		/// <param name="singleton">If set to <c>true</c> singleton.</param>
 		/// <typeparam name="BT">The 1st type parameter.</typeparam>
 		/// <typeparam name="CT">The 2nd type parameter.</typeparam>
-		public static IBinding<BT,CT> AsSingleton<BT,CT>(this IBinding<BT,CT> binding, bool singleton = true) 
+		public static IBoundBinding<BT,CT> AsSingleton<BT,CT>(this IBoundBinding<BT,CT> binding, bool singleton = true) 
 			where BT : class
 			where CT : class, BT
 		{
@@ -36,7 +36,7 @@ namespace IfInjector
 		/// <returns>The factory helper.</returns>
 		/// <param name="binding">Binding.</param>
 		/// <param name="factoryExpression">Factory expression.</param>
-		public static IBinding<BT,CT> SetFactoryHelper<BT, CT>(IOngoingBinding<BT> binding, LambdaExpression factoryExpression) 
+		public static IBoundBinding<BT,CT> SetFactoryHelper<BT, CT>(IOngoingBinding<BT> binding, LambdaExpression factoryExpression) 
 			where BT : class
 			where CT : class, BT
 		{
@@ -44,14 +44,14 @@ namespace IfInjector
 			return internalBinding.SetFactoryLambda<CT> (factoryExpression);
 		}
 
-		public static IBinding<BT,CT> SetFactory<BT, CT>(this IOngoingBinding<BT> binding, Expression<Func<CT>> factoryExpression) 
+		public static IBoundBinding<BT,CT> SetFactory<BT, CT>(this IOngoingBinding<BT> binding, Expression<Func<CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 		{
 			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 
-		public static IBinding<BT,CT> SetFactory<P1,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,CT>> factoryExpression) 
+		public static IBoundBinding<BT,CT> SetFactory<P1,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
@@ -59,7 +59,7 @@ namespace IfInjector
 			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 
-		public static IBinding<BT,CT> SetFactory<P1,P2,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
+		public static IBoundBinding<BT,CT> SetFactory<P1,P2,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,P2,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
@@ -68,7 +68,7 @@ namespace IfInjector
 			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 
-		public static IBinding<BT,CT> SetFactory<P1,P2,P3,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
+		public static IBoundBinding<BT,CT> SetFactory<P1,P2,P3,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
@@ -78,7 +78,7 @@ namespace IfInjector
 			return SetFactoryHelper<BT,CT> (binding, factoryExpression);
 		}
 
-		public static IBinding<BT,CT> SetFactory<P1,P2,P3,P4,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
+		public static IBoundBinding<BT,CT> SetFactory<P1,P2,P3,P4,BT,CT>(this IOngoingBinding<BT> binding, Expression<Func<P1,P2,P3,P4,CT>> factoryExpression) 
 			where BT : class
 			where CT : class, BT
 			where P1 : class
@@ -90,4 +90,3 @@ namespace IfInjector
 		}
 	}
 }
-

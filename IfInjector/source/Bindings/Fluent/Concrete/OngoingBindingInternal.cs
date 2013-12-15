@@ -7,19 +7,19 @@ namespace IfInjector.Bindings.Fluent.Concrete
 	/// <summary>
 	/// Ongoing binding implementation.
 	/// </summary>
-	internal class OngoingBindingInternal<BType> : Binding<BType, BType>, IOngoingBinding<BType>, IOngoingBindingInternal<BType>
+	internal class OngoingBindingInternal<BType> : BoundBinding<BType, BType>, IOngoingBinding<BType>, IOngoingBindingInternal<BType>
 		where BType : class
 	{
-		public IBinding<BType, CType> To<CType> () 
+		public IBoundBinding<BType, CType> To<CType> () 
 			where CType : class, BType
 		{
-			return new Binding<BType, CType> ();
+			return new BoundBinding<BType, CType> ();
 		}
 
-		public IBinding<BType, CType> SetFactoryLambda<CType>(LambdaExpression factoryExpression)
+		public IBoundBinding<BType, CType> SetFactoryLambda<CType>(LambdaExpression factoryExpression)
 			where CType : class, BType
 		{
-			var boundBinding = new Binding<BType, CType> ();
+			var boundBinding = new BoundBinding<BType, CType> ();
 			boundBinding.BindingConfig.FactoryExpression = factoryExpression;
 			return boundBinding;
 		}

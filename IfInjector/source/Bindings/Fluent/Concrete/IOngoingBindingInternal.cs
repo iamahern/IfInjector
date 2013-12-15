@@ -15,7 +15,7 @@ namespace IfInjector.Bindings.Fluent.Concrete
 		/// <returns>The factory lambda.</returns>
 		/// <param name="factoryExpression">Factory expression.</param>
 		/// <typeparam name="CType">The 1st type parameter.</typeparam>
-		IBinding<BType, CType> SetFactoryLambda<CType>(LambdaExpression factoryExpression)
+		IBoundBinding<BType, CType> SetFactoryLambda<CType>(LambdaExpression factoryExpression)
 			where CType : class, BType;
 	}
 }

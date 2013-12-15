@@ -44,7 +44,7 @@ namespace IfInjectorTest
 
 			var c = injector.Resolve<C>();
 
-			var expr = injector.ResolveResolverExpression (BindingKey.Get<C> ());
+			var expr = injector.ResolveResolverExpression (BindingKey<C>.InstanceKey);
 			var visitor = new EV ();
 			visitor.Visit (expr);
 		}

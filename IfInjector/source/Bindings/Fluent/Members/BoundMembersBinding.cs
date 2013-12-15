@@ -8,25 +8,25 @@ namespace IfInjector.Bindings.Fluent.Members
 	/// <summary>
 	/// Properties binding implementation.
 	/// </summary>
-	internal class MembersBinding<CType> : IMembersBinding<CType>, IBindingInternal
+	internal class BoundMembersBinding<CType> : IBoundMembersBinding<CType>, IBindingInternal
 		where CType : class
 	{
 		public IBindingConfig BindingConfig { get; private set; }
 		public BindingKey BindingKey { get; private set; }
 		public Type ConcreteType { get { return typeof(CType); } }
 
-		internal MembersBinding() {
+		internal BoundMembersBinding() {
 			BindingConfig = new BindingConfig(typeof(CType));
-			BindingKey = BindingKey.GetMember<CType> ();
+			BindingKey = BindingKey<CType>.MembersKey;
 		}
 
-		public IMembersBinding<CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> memberExpression) 
+		public IBoundMembersBinding<CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> memberExpression) 
 			where TPropertyType : class
 		{
 			return InjectMember<TPropertyType> (memberExpression, null);
 		}
 
-		public IMembersBinding<CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> memberExpression, Expression<Func<TPropertyType>> setter)
+		public IBoundMembersBinding<CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> memberExpression, Expression<Func<TPropertyType>> setter)
 		{
 			BindingConfigUtils.AddMemberInjectorToBindingConfig<CType, TPropertyType> (BindingConfig, memberExpression, setter);
 			return this;

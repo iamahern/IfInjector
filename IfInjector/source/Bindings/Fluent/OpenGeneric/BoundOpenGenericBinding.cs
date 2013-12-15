@@ -9,12 +9,12 @@ namespace IfInjector.Bindings.Fluent.OpenGeneric
 	/// <summary>
 	/// Open generic binding.
 	/// </summary>
-	internal class OpenGenericBinding : IOpenGenericBinding, IBindingInternal {
+	internal class BoundOpenGenericBinding : IBoundOpenGenericBinding, IBindingInternal {
 		public IBindingConfig BindingConfig { get; private set; }
 		public BindingKey BindingKey { get; private set; }
 		public Type ConcreteType { get; private set; }
 
-		internal OpenGenericBinding(Type bindingType, Type concreteType) {
+		internal BoundOpenGenericBinding(Type bindingType, Type concreteType) {
 			ValidateGenericType (bindingType);
 			ValidateGenericType (concreteType);
 
@@ -23,7 +23,7 @@ namespace IfInjector.Bindings.Fluent.OpenGeneric
 			ConcreteType = concreteType;
 		}
 
-		public IOpenGenericBinding SetLifestyle (Lifestyle lifestyle) {
+		public IBoundOpenGenericBinding SetLifestyle (Lifestyle lifestyle) {
 			BindingConfig.Lifestyle = lifestyle;
 			return this;
 		}

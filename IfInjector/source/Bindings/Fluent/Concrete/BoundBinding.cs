@@ -10,7 +10,7 @@ namespace IfInjector.Bindings.Fluent
 	/// <summary>
 	/// Internal binding implementation.
 	/// </summary>
-	internal class Binding<BType, CType> : IBinding<BType, CType>, IBindingInternal
+	internal class BoundBinding<BType, CType> : IBoundBinding<BType, CType>, IBindingInternal
 		where BType : class
 		where CType : class, BType
 	{
@@ -18,30 +18,30 @@ namespace IfInjector.Bindings.Fluent
 		public BindingKey BindingKey { get; private set; }
 		public Type ConcreteType { get { return typeof(CType); } }
 
-		internal Binding() {
+		internal BoundBinding() {
 			BindingConfig = new BindingConfig(typeof(CType));
-			BindingKey = BindingKey.Get<BType> ();
+			BindingKey = BindingKey<BType>.InstanceKey;
 		}
 
-		public IBinding<BType, CType> SetLifestyle (Lifestyle lifestyle) {
+		public IBoundBinding<BType, CType> SetLifestyle (Lifestyle lifestyle) {
 			BindingConfig.Lifestyle = lifestyle;
 			return this;
 		}
 
-		public IBinding<BType, CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
+		public IBoundBinding<BType, CType> InjectMember<TPropertyType> (Expression<Func<CType, TPropertyType>> propertyExpression) 
 			where TPropertyType : class
 		{
 			return AddPropertyInjectorInner<TPropertyType> (propertyExpression, null);
 		}
 
-		public IBinding<BType, CType> InjectMember<TPropertyType> (
+		public IBoundBinding<BType, CType> InjectMember<TPropertyType> (
 			Expression<Func<CType, TPropertyType>> propertyExpression, 
 			Expression<Func<TPropertyType>> setter)
 		{
 			return AddPropertyInjectorInner<TPropertyType> (propertyExpression, setter);
 		}
 
-		private IBinding<BType, CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
+		private IBoundBinding<BType, CType> AddPropertyInjectorInner<TPropertyType>(Expression<Func<CType, TPropertyType>> propertyExpression, Expression<Func<TPropertyType>> setter) {
 			BindingConfigUtils.AddMemberInjectorToBindingConfig<CType, TPropertyType> (BindingConfig, propertyExpression, setter);
 			return this;
 		}

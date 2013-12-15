@@ -25,13 +25,13 @@ namespace IfInjectorTest
 			Injector = null;
 		}
 
-		protected IBinding<CType, CType> MakeBind<CType>() 
+		protected IBoundBinding<CType, CType> MakeBind<CType>() 
 			where CType : class, new() 
 		{
 			return MakeBind<CType, CType> ();
 		}
 
-		protected IBinding<BType, CType> MakeBind<BType, CType>() 
+		protected IBoundBinding<BType, CType> MakeBind<BType, CType>() 
 			where BType : class 
 			where CType : class, BType, new() 
 		{

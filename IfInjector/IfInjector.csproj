@@ -64,15 +64,12 @@ Distinguishing features are small size, speed and attribute based configuration.
     <Compile Include="source\Bindings\Lifestyles\LifestyleResolver.cs" />
     <Compile Include="source\Bindings\Fluent\IBindingInternal.cs" />
     <Compile Include="source\Bindings\Fluent\ILifestyleSetableBinding.cs" />
-    <Compile Include="source\Bindings\Fluent\Concrete\Binding.cs" />
     <Compile Include="source\Bindings\Fluent\Concrete\IBinding.cs" />
     <Compile Include="source\Bindings\Fluent\Concrete\IOngoingBinding.cs" />
     <Compile Include="source\Bindings\Fluent\Concrete\IOngoingBindingInternal.cs" />
-    <Compile Include="source\Bindings\Fluent\Concrete\OngingBindingInternal.cs" />
     <Compile Include="source\Bindings\Fluent\OpenGeneric\IOngoingOpenGenericBinding.cs" />
     <Compile Include="source\Bindings\Fluent\OpenGeneric\IOpenGenericBinding.cs" />
     <Compile Include="source\Bindings\Fluent\OpenGeneric\OngoingOpenGenericBinding.cs" />
-    <Compile Include="source\Bindings\Fluent\OpenGeneric\OpenGenericBinding.cs" />
     <Compile Include="source\Errors\InjectorError.cs" />
     <Compile Include="source\Errors\InjectorErrors.cs" />
     <Compile Include="source\Errors\InjectorException.cs" />
@@ -80,11 +77,20 @@ Distinguishing features are small size, speed and attribute based configuration.
     <Compile Include="source\Util\SetShim.cs" />
     <Compile Include="source\MembersBinding.cs" />
     <Compile Include="source\Bindings\Fluent\Members\IMembersBinding.cs" />
-    <Compile Include="source\Bindings\Fluent\Members\MembersBinding.cs" />
     <Compile Include="source\Bindings\Fluent\IMemberInjectableBinding.cs" />
     <Compile Include="source\Bindings\Lifestyles\SingletonLifestyle.cs" />
     <Compile Include="source\Bindings\Lifestyles\TransientLifestyle.cs" />
     <Compile Include="source\Bindings\Lifestyles\CustomLifestyle.cs" />
+    <Compile Include="source\Bindings\Fluent\Concrete\IBoundBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\Concrete\BoundBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\Concrete\OngoingBindingInternal.cs" />
+    <Compile Include="source\Bindings\Fluent\Members\IBoundMembersBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\Members\BoundMembersBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\OpenGeneric\IBoundOpenGenericBinding.cs" />
+    <Compile Include="source\Bindings\Fluent\OpenGeneric\BoundOpenGenericBinding.cs" />
+    <Compile Include="source\Resolver\IBindingResolver.cs" />
+    <Compile Include="source\Resolver\GenericBindingResolver.cs" />
+    <Compile Include="source\Resolver\ImplicitBindingResolver.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>

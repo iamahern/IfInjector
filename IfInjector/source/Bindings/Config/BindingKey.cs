@@ -12,7 +12,12 @@ namespace IfInjector.Bindings.Config
 	/// <summary>
 	/// The binding key object is an immutable type used to index bindings.
 	/// </summary>
-	internal sealed class BindingKey : IEquatable<BindingKey> {
+	internal class BindingKey : IEquatable<BindingKey> {
+		/// <summary>
+		/// Marker value to indicate no qualifier value.
+		/// </summary>
+		private static readonly string NoQualifierValue = "49cb7b90-6bd3-4041-b58d-bc29cf55b3a2";
+
 		/// <summary>
 		/// Internal constant for hash code.
 		/// </summary>
@@ -20,10 +25,12 @@ namespace IfInjector.Bindings.Config
 
 		private readonly Type bindingType;
 		private readonly bool member;
+		private readonly string qualifier;
 
-		private BindingKey(Type bindingType, bool member) {
+		protected BindingKey(Type bindingType, bool member, string qualifier) {
 			this.bindingType = bindingType;
 			this.member = member;
+			this.qualifier = (qualifier == null) ? NoQualifierValue : qualifier;
 		}
 
 		/// <summary>
@@ -47,11 +54,24 @@ namespace IfInjector.Bindings.Config
 		}
 
 		/// <summary>
+		/// Gets the qualifier.
+		/// </summary>
+		/// <value>The qualifier.</value>
+		public string Qualifier {
+			get {
+				if (NoQualifierValue == qualifier) {
+					return null;
+				}
+				return qualifier;
+			}
+		}
+
+		/// <summary>
 		/// Serves as a hash function for a particular type.
 		/// </summary>
 		/// <returns>A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a hash table.</returns>
 		public override int GetHashCode() {
-			return HASHCODE_MULTIPLIER * BindingType.GetHashCode () + Member.GetHashCode ();
+			return HASHCODE_MULTIPLIER * BindingType.GetHashCode () + Member.GetHashCode () + qualifier.GetHashCode();
 		}
 
 		/// <summary>
@@ -76,34 +96,18 @@ namespace IfInjector.Bindings.Config
 			} else if (object.ReferenceEquals (this, obj)) {
 				return true;
 			} else {
-				return BindingType.Equals (obj.BindingType) &&
-					Member == obj.Member;
+				return bindingType.Equals (obj.bindingType) &&
+					member == obj.member &&
+					qualifier.Equals(obj.qualifier);
 			}
-		}
-
-		/// <summary>
-		/// Get this instance of the binding key.
-		/// </summary>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public static BindingKey Get<T>() where T : class {
-			return GetInternal (typeof(T), false);
 		}
 
 		/// <summary>
 		/// Get the instance injector.
 		/// </summary>
 		/// <param name="keyType">Key type.</param>
-		public static BindingKey Get(Type keyType) {
-			return GetInternal (keyType, false);
-		}
-
-		/// <summary>
-		/// Gets the member injector key.
-		/// </summary>
-		/// <returns>The member injector key.</returns>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		internal static BindingKey GetMember<T>() where T : class {
-			return GetInternal (typeof(T), true);
+		internal static BindingKey Get(Type keyType) {
+			return Get (keyType, null);
 		}
 
 		/// <summary>
@@ -112,8 +116,38 @@ namespace IfInjector.Bindings.Config
 		/// <returns>The internal.</returns>
 		/// <param name="keyType">Key type.</param>
 		/// <param name="isMember">If set to <c>true</c> is member.</param>
-		internal static BindingKey GetInternal(Type keyType, bool isMember) {
-			return new BindingKey (keyType, isMember);
+		internal static BindingKey Get(Type keyType, bool isMember) {
+			return new BindingKey (keyType, isMember, null);
+		}
+
+		/// <summary>
+		/// Gets the internal.
+		/// </summary>
+		/// <returns>The internal.</returns>
+		/// <param name="keyType">Key type.</param>
+		/// <param name="isMember">If set to <c>true</c> is member.</param>
+		/// <param name="qualifier">Qualifier.</param>
+		internal static BindingKey Get(Type keyType, string qualifier) {
+			return new BindingKey (keyType, false, qualifier);
+		}
+	}
+
+	/// <summary>
+	/// Typed binding key.
+	/// </summary>
+	internal class BindingKey<BType> : BindingKey where BType : class {
+		internal static readonly BindingKey<BType> InstanceKey = new BindingKey<BType> (false, null);
+		internal static readonly BindingKey<BType> MembersKey = new BindingKey<BType> (true, null);
+
+		private BindingKey(bool member, string qualifier) : base(typeof(BType), member, qualifier) { }
+
+		/// <summary>
+		/// Get the instance injector.
+		/// </summary>
+		/// <param name="keyType">Key type.</param>
+		/// <param name="qualifier">Qualifier.</param>
+		internal static BindingKey Get(string qualifier) {
+			return new BindingKey<BType> (false, qualifier);
 		}
 	}
 }

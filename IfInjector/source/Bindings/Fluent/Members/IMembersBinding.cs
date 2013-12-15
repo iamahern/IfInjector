@@ -10,10 +10,9 @@ namespace IfInjector.Bindings.Fluent.Members
 	public interface IMembersBinding {}
 
 	/// <summary>
-	/// Members binding.
+	/// Base binding type. This represents a closed, typed member binding object.
 	/// </summary>
-	public interface IMembersBinding<CType> : IMembersBinding,
-		IMemberInjectableBinding<IMembersBinding<CType>, CType>
+	public interface IMembersBinding<CType> : IMembersBinding
 		where CType : class
 	{
 	}

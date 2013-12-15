@@ -1,7 +1,7 @@
 using System;
 using IfInjector.Bindings.Lifestyles;
 
-namespace IfInjector.Bindings
+namespace IfInjector.Bindings.Fluent
 {
 	public interface ILifestyleSetableBinding<FType>
 		where FType : ILifestyleSetableBinding<FType>

@@ -30,7 +30,9 @@ namespace IfInjector
 		private readonly MethodInfo bindExplicitGeneric;
 
 		private readonly SafeDictionary<BindingKey, IResolver> allResolvers;
-		private readonly SafeDictionary<BindingKey, SetShim<BindingKey>> implicitTypeLookup;
+
+		private readonly ImplicitBindingResolver implicitBindingResolver;
+		private readonly GenericBindingResolver genericBindingRresolver;
 
 		// no implicits initially
 		private readonly SafeDictionary<BindingKey, IBindingConfig> allGenericResolvers;
@@ -41,7 +43,6 @@ namespace IfInjector
 		{
 			// Init type dictionaries
 			allResolvers = new SafeDictionary<BindingKey, IResolver>(syncLock);
-			implicitTypeLookup = new SafeDictionary<BindingKey, SetShim<BindingKey>> (syncLock);
 
 			// Init generic dictionaries
 			allGenericResolvers = new SafeDictionary<BindingKey, IBindingConfig> (syncLock);
@@ -49,8 +50,12 @@ namespace IfInjector
 			// Init resolvers cache
 			instanceResolversCache = new SafeDictionary<Type, IResolver>(syncLock);
 
+			// Init binding key helpers
+			implicitBindingResolver = new ImplicitBindingResolver (syncLock);
+			genericBindingRresolver = new GenericBindingResolver (this);
+
 			// Init resolver
-			Expression<Action> tmpExpr = () => CreateResolverInstanceGeneric<Exception, Exception>(null, null, true);
+			Expression<Action> tmpExpr = () => CreateResolverInstance<Exception, Exception>(null, null, true);
 			createResolverInstanceGeneric = ((MethodCallExpression)tmpExpr.Body).Method.GetGenericMethodDefinition();
 
 			// Init bindExplicit
@@ -62,7 +67,7 @@ namespace IfInjector
 			var bindingConfig = new BindingConfig(typeof(Injector));
 			bindingConfig.FactoryExpression = injectorFactoryExpr;
 			bindingConfig.Lifestyle = Lifestyle.Singleton;
-			var injectorResolver = BindExplicit<Injector, Injector>(BindingKey.Get<Injector>(), bindingConfig);
+			var injectorResolver = BindExplicit<Injector, Injector>(BindingKey<Injector>.InstanceKey, bindingConfig);
 		}
 
 		/// <summary>
@@ -144,7 +149,7 @@ namespace IfInjector
 		public T InjectProperties<T> (T instance)
 			where T : class
 		{
-			var iResolver = ResolveResolver (BindingKey.GetMember<T>());
+			var iResolver = ResolveResolver (BindingKey<T>.MembersKey);
 			iResolver.DoInject (instance);
 			return instance;
 		}
@@ -168,17 +173,13 @@ namespace IfInjector
 
 		private IResolver ResolveResolver(BindingKey bindingKey)
 		{
-			SetShim<BindingKey> lookup;
+			BindingKey implicitKey;
 			IResolver resolver;
 
 			if (allResolvers.UnsyncedTryGetValue (bindingKey, out resolver)) {
 				return resolver;
-			} else if (implicitTypeLookup.UnsyncedTryGetValue (bindingKey, out lookup) && lookup.Count > 0) {
-				if (lookup.Count == 1) {
-					return ResolveResolver (lookup.First());
-				} else {
-					throw InjectorErrors.ErrorAmbiguousBinding.FormatEx(bindingKey.BindingType.Name);
-				}
+			} else if ((implicitKey = implicitBindingResolver.ResolveBinding(bindingKey)) != null) {
+				return ResolveResolver (implicitKey);
 			} 
 
 			return BindImplicit (bindingKey);
@@ -210,15 +211,14 @@ namespace IfInjector
 				IResolver oldResolver;					
 				if (allResolvers.TryGetValue (bindingKey, out oldResolver)) {
 					allResolvers.Remove (bindingKey);
-					implicitTypeLookup.Remove (bindingKey);
 				}
-
+				
 				// Add after create resolver
-				var resolver = CreateResolverInstanceGeneric<BType, CType> (bindingKey, bindingConfig, false);
-				if (!bindingKey.Member) {
-					AddImplicitTypes (bindingKey, GetImplicitTypes (bindingKey));
-				}
+				var resolver = CreateResolverInstance<BType, CType> (bindingKey, bindingConfig, false);
 
+				// Register Implicits
+				implicitBindingResolver.Register(bindingKey);
+				
 				return resolver;
 			}
 		}
@@ -240,9 +240,9 @@ namespace IfInjector
 				}
 
 				if (implType != null) {
-					return CreateResolverInstance (bindingKey, implType, bindingConfig, true);
+					return CreateResolverInstanceGeneric (bindingKey, implType, bindingConfig, true);
 				} else {
-					return CreateResolverInstance (bindingKey, bindingKey.BindingType, bindingConfig, true);
+					return CreateResolverInstanceGeneric (bindingKey, bindingKey.BindingType, bindingConfig, true);
 				}
 			}
 		}
@@ -281,7 +281,7 @@ namespace IfInjector
 
 			var genericBindingType = bindingType.GetGenericTypeDefinition ();
 			var genericTypeArguments = bindingType.GetGenericArguments ();
-			var genericBindingKey = BindingKey.GetInternal (genericBindingType, bindingKey.Member);
+			var genericBindingKey = BindingKey.Get (genericBindingType, bindingKey.Member);
 
 			// Try registrations
 			IBindingConfig genericBindingConfig;
@@ -311,7 +311,7 @@ namespace IfInjector
 			return null;
 		}
 
-		private IResolver CreateResolverInstance(BindingKey bindingKey, Type implType, IBindingConfig bindingConfig, bool isImplicitBinding) {
+		private IResolver CreateResolverInstanceGeneric(BindingKey bindingKey, Type implType, IBindingConfig bindingConfig, bool isImplicitBinding) {
 			try {
 				return (IResolver) createResolverInstanceGeneric
 					.MakeGenericMethod(bindingKey.BindingType, implType)
@@ -321,7 +321,7 @@ namespace IfInjector
 			}
 		}
 
-		private Resolver<CType> CreateResolverInstanceGeneric<BType, CType>(BindingKey bindingKey, IBindingConfig bindingConfig, bool isImplicitBinding) 
+		private Resolver<CType> CreateResolverInstance<BType, CType>(BindingKey bindingKey, IBindingConfig bindingConfig, bool isImplicitBinding) 
 			where BType : class
 			where CType : class, BType
 		{
@@ -345,27 +345,7 @@ namespace IfInjector
 			return resolver;
 		}
 
-		private void AddImplicitTypes(BindingKey bindingKey, SetShim<BindingKey> implicitTypeKeys) {
-			lock (syncLock) {
-				foreach(BindingKey implicitTypeKey in implicitTypeKeys) {
-					if (GetIfImplementedBy (implicitTypeKey) == null) {
-						SetShim<BindingKey> newSet, oldSet;
 
-						if (implicitTypeLookup.TryGetValue (implicitTypeKey, out oldSet)) {
-							implicitTypeLookup.Remove (implicitTypeKey);
-							newSet = new SetShim<BindingKey> (oldSet);
-						} else {
-							newSet = new SetShim<BindingKey> ();
-						}
-
-						newSet.Add (bindingKey);
-						implicitTypeLookup.Add (implicitTypeKey, newSet);
-					} else {
-						BindImplicit (implicitTypeKey);
-					}
-				}
-			}
-		}
 		
 		private void ValidateInternalBinding(IBindingInternal internalBinding) {
 			if (typeof(Injector).Equals(internalBinding.BindingKey.BindingType)) {
@@ -377,25 +357,6 @@ namespace IfInjector
 			}
 		}
 
-		/// <summary>
-		/// Gets the implicit types.
-		/// </summary>
-		/// <returns>The implicit types.</returns>
-		/// <param name="boundType">Bound type.</param>
-		private static SetShim<BindingKey> GetImplicitTypes(BindingKey bindingKey) {
-			var implicitTypes = new SetShim<BindingKey>();
-			var bindingType = bindingKey.BindingType;
 
-			foreach (Type iFace in bindingType.GetInterfaces()) {
-				implicitTypes.Add (BindingKey.Get (iFace));
-			}
-
-			Type wTypeChain = bindingType;
-			while ((wTypeChain = wTypeChain.BaseType) != null && wTypeChain != typeof(object)) {
-				implicitTypes.Add (BindingKey.Get (wTypeChain));
-			}
-
-			return implicitTypes;
-		}
 	}
 }

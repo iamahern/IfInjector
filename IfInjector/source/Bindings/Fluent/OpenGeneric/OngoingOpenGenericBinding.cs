@@ -7,15 +7,15 @@ namespace IfInjector.Bindings.Fluent.OpenGeneric
 	/// <summary>
 	/// Ongoing open generic binding.
 	/// </summary>
-	internal class OngoingOpenGenericBinding : OpenGenericBinding, IOngoingOpenGenericBinding {
+	internal class OngoingOpenGenericBinding : BoundOpenGenericBinding, IOngoingOpenGenericBinding {
 		internal OngoingOpenGenericBinding(Type bindingType) : base(bindingType, bindingType) {}
 
-		public IOpenGenericBinding To(Type concreteType) {
+		public IBoundOpenGenericBinding To(Type concreteType) {
 			ValidateGenericType (concreteType);
 			ValidateLinage (concreteType, concreteType);
 			ValidateCompatibleGenericArgs (concreteType);
 
-			return new OpenGenericBinding (BindingKey.BindingType, concreteType);
+			return new BoundOpenGenericBinding (BindingKey.BindingType, concreteType);
 		}
 
 		private void ValidateLinage(Type nConcreteType, Type originalCheckType) {
