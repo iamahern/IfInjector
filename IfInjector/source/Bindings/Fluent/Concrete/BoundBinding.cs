@@ -20,7 +20,7 @@ namespace IfInjector.Bindings.Fluent
 
 		internal BoundBinding() {
 			BindingConfig = new BindingConfig(typeof(CType));
-			BindingKey = BindingKey<BType>.InstanceKey;
+			BindingKey = BindingKey.Get<BType> ();
 		}
 
 		public IBoundBinding<BType, CType> SetLifestyle (Lifestyle lifestyle) {

@@ -21,7 +21,7 @@ namespace IfInjector
 	/// <summary>
 	/// The actual injector implementation.
 	/// </summary>
-	public class Injector
+	public class Injector : IInjector
 	{	
 		private readonly object syncLock = new object();
 		private bool resolveCalled = false;
@@ -34,28 +34,22 @@ namespace IfInjector
 		private readonly ImplicitBindingResolver implicitBindingResolver;
 		private readonly GenericBindingResolver genericBindingRresolver;
 
-		// no implicits initially
-		private readonly SafeDictionary<BindingKey, IBindingConfig> allGenericResolvers;
-
 		private readonly SafeDictionary<Type, IResolver> instanceResolversCache;
 
 		public Injector() 
 		{
-			// Init type dictionaries
+			// Registration of resolvers
 			allResolvers = new SafeDictionary<BindingKey, IResolver>(syncLock);
 
-			// Init generic dictionaries
-			allGenericResolvers = new SafeDictionary<BindingKey, IBindingConfig> (syncLock);
+			// Registration of binding key resolvers
+			implicitBindingResolver = new ImplicitBindingResolver (syncLock);
+			genericBindingRresolver = new GenericBindingResolver (this, syncLock);
 
 			// Init resolvers cache
 			instanceResolversCache = new SafeDictionary<Type, IResolver>(syncLock);
 
-			// Init binding key helpers
-			implicitBindingResolver = new ImplicitBindingResolver (syncLock);
-			genericBindingRresolver = new GenericBindingResolver (this);
-
 			// Init resolver
-			Expression<Action> tmpExpr = () => CreateResolverInstance<Exception, Exception>(null, null, true);
+			Expression<Action> tmpExpr = () => CreateResolverInstance<Exception, Exception>(null, null);
 			createResolverInstanceGeneric = ((MethodCallExpression)tmpExpr.Body).Method.GetGenericMethodDefinition();
 
 			// Init bindExplicit
@@ -67,13 +61,10 @@ namespace IfInjector
 			var bindingConfig = new BindingConfig(typeof(Injector));
 			bindingConfig.FactoryExpression = injectorFactoryExpr;
 			bindingConfig.Lifestyle = Lifestyle.Singleton;
-			var injectorResolver = BindExplicit<Injector, Injector>(BindingKey<Injector>.InstanceKey, bindingConfig);
+			var injectorResolver = BindExplicit<Injector, Injector>(BindingKey.Get(typeof(Injector)), bindingConfig);
 		}
 
-		/// <summary>
-		/// Bind the specified binding.
-		/// </summary>
-		/// <param name="binding">Binding.</param>
+		/// <inheritdoc/>
 		public void Register(IBinding binding)
 		{
 			lock (syncLock) {
@@ -83,10 +74,7 @@ namespace IfInjector
 			}
 		}
 
-		/// <summary>
-		/// Binds the member injector.
-		/// </summary>
-		/// <param name="membersBinding">Members binding.</param>
+		/// <inheritdoc/>
 		public void Register (IMembersBinding membersBinding)
 		{
 			lock (syncLock) {
@@ -96,34 +84,24 @@ namespace IfInjector
 			}
 		}
 
-		/// <summary>
-		/// Bind the specified binding.
-		/// </summary>
-		/// <param name="binding">Binding.</param>
-		/// <param name="openGenericBinding">Open generic binding.</param>
+		/// <inheritdoc/>
 		public void Register (IOpenGenericBinding openGenericBinding)
 		{
 			lock (syncLock) {
 				IBindingInternal internalBinding = (IBindingInternal) openGenericBinding;
 				ValidateInternalBinding (internalBinding);
-				allGenericResolvers.Add (internalBinding.BindingKey, internalBinding.BindingConfig);
+				genericBindingRresolver.Register (internalBinding);
 			}
 		}
 
-		/// <summary>
-		/// Resolve this instance.
-		/// </summary>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
+		/// <inheritdoc/>
 		public T Resolve<T>()
 			where T : class
 		{
 			return (T)Resolve (typeof(T));
 		}
 
-		/// <summary>
-		/// Resolve the specified type.
-		/// </summary>
-		/// <param name="type">Type.</param>
+		/// <inheritdoc/>
 		public object Resolve(Type type)
 		{
 			IResolver resolver;
@@ -140,23 +118,16 @@ namespace IfInjector
 			return resolver.DoResolve ();
 		}
 
-		/// <summary>
-		/// Injects the properties of an instance.
-		/// </summary>
-		/// <returns>The instance object.</returns>
-		/// <param name="instance">Instance.</param>
-		/// <typeparam name="T">The 1st type parameter.</typeparam>
-		public T InjectProperties<T> (T instance)
+		/// <inheritdoc/>
+		public T InjectMembers<T> (T instance)
 			where T : class
 		{
-			var iResolver = ResolveResolver (BindingKey<T>.MembersKey);
+			var iResolver = ResolveResolver (BindingKey.GetMember(instance.GetType()));
 			iResolver.DoInject (instance);
 			return instance;
 		}
 
-		/// <summary>
-		/// Verify that all bindings all valid.
-		/// </summary>
+		/// <inheritdoc/>
 		public void Verify()
 		{
 			lock (syncLock) {
@@ -178,11 +149,26 @@ namespace IfInjector
 
 			if (allResolvers.UnsyncedTryGetValue (bindingKey, out resolver)) {
 				return resolver;
-			} else if ((implicitKey = implicitBindingResolver.ResolveBinding(bindingKey)) != null) {
+			} else if ((implicitKey = ResolveImplicitKey(bindingKey)) != null) {
 				return ResolveResolver (implicitKey);
-			} 
+			}
 
 			return BindImplicit (bindingKey);
+		}
+
+		/// <summary>
+		/// Resolves the implicit key.
+		/// </summary>
+		/// <returns>The implicit key.</returns>
+		/// <param name="bindingKey">Binding key.</param>
+		private BindingKey ResolveImplicitKey(BindingKey bindingKey) {
+			BindingKey implicitKey = genericBindingRresolver.ResolveBinding (bindingKey);
+			
+			if (implicitKey == null) {
+				implicitKey = implicitBindingResolver.ResolveBinding (bindingKey);
+			}
+
+			return implicitKey;
 		}
 
 		internal void SetResolveCalled() {
@@ -210,11 +196,17 @@ namespace IfInjector
 			lock (syncLock) {
 				IResolver oldResolver;					
 				if (allResolvers.TryGetValue (bindingKey, out oldResolver)) {
+					if (bindingKey.IsImplicit) {
+						// Handle edge case where 2 thread auto-register same implicit 
+						// binding via 'ResolveBinding'. More complex to add guard within 
+						// ResolveBinding() than here.
+						return oldResolver;
+					}
 					allResolvers.Remove (bindingKey);
 				}
 				
 				// Add after create resolver
-				var resolver = CreateResolverInstance<BType, CType> (bindingKey, bindingConfig, false);
+				var resolver = CreateResolverInstance<BType, CType> (bindingKey, bindingConfig);
 
 				// Register Implicits
 				implicitBindingResolver.Register(bindingKey);
@@ -230,98 +222,25 @@ namespace IfInjector
 					return resolver;
 				}
 
-				// Handle explicit generic
-				IBindingConfig bindingConfig = null;
-				Type implType = null;
-				if (bindingKey.BindingType.IsGenericType) {
-					implType = GetIfImplementedByForGeneric (bindingKey, out bindingConfig);
-				} else {
-					implType = GetIfImplementedByForType (bindingKey.BindingType);
-				}
+				Type implType = BindingAttributeUtils.GetImplementedBy (bindingKey.BindingType);
 
-				if (implType != null) {
-					return CreateResolverInstanceGeneric (bindingKey, implType, bindingConfig, true);
-				} else {
-					return CreateResolverInstanceGeneric (bindingKey, bindingKey.BindingType, bindingConfig, true);
-				}
+				return CreateResolverInstanceGeneric (
+					bindingKey.ToImplicit(),  
+					(implType != null) ? implType : bindingKey.BindingType);
 			}
 		}
-
-		private Type GetIfImplementedBy(BindingKey bindingKey) {
-			Type bindingType = bindingKey.BindingType;
-
-			if (bindingType.IsGenericType) {
-				return GetIfImplementedByForGeneric (bindingKey);
-			}
-
-			return GetIfImplementedByForType (bindingType);
-		}
-
-		private Type GetIfImplementedByForType(Type bindingType) {
-			var implTypeAttr = bindingType.GetCustomAttributes(typeof(ImplementedByAttribute), false).FirstOrDefault();
-			if (implTypeAttr != null) {
-				return (implTypeAttr as ImplementedByAttribute).Implementor;
-			}
-
-			return null;
-		}
-
-		private Type GetIfImplementedByForGeneric(BindingKey bindingKey) {
-			IBindingConfig bindingConfig;
-			return GetIfImplementedByForGeneric (bindingKey, out bindingConfig);
-		}
-
-		private Type GetIfImplementedByForGeneric(BindingKey bindingKey, out IBindingConfig bindingConfig) {
-			var bindingType = bindingKey.BindingType;
-			Type genericConcreteType = null;
-
-			if (bindingType.IsGenericTypeDefinition) {
-				throw InjectorErrors.ErrorGenericsCannotResolveOpenType.FormatEx (bindingType);
-			}
-
-			var genericBindingType = bindingType.GetGenericTypeDefinition ();
-			var genericTypeArguments = bindingType.GetGenericArguments ();
-			var genericBindingKey = BindingKey.Get (genericBindingType, bindingKey.Member);
-
-			// Try registrations
-			IBindingConfig genericBindingConfig;
-			if (allGenericResolvers.TryGetValue (genericBindingKey, out genericBindingConfig)) {
-				genericConcreteType = genericBindingConfig.ConcreteType;
-			}
-
-			// Try implicit
-			if (genericConcreteType == null) {
-				genericConcreteType = GetIfImplementedByForType (genericBindingType);
-			}
-
-			// Throw ex if unable to resolve concrete type
-			bindingConfig = null;
-			if (genericConcreteType != null) {
-				OpenGenericBinding.For (genericBindingType).To (genericConcreteType); // validate binding
-				Type concreteType = genericConcreteType.MakeGenericType (genericTypeArguments);
-
-				if (genericBindingConfig != null) {
-					bindingConfig = new BindingConfig (concreteType);
-					bindingConfig.Lifestyle = genericBindingConfig.Lifestyle;
-				}
-
-				return concreteType;
-			}
-
-			return null;
-		}
-
-		private IResolver CreateResolverInstanceGeneric(BindingKey bindingKey, Type implType, IBindingConfig bindingConfig, bool isImplicitBinding) {
+		
+		private IResolver CreateResolverInstanceGeneric(BindingKey bindingKey, Type implType) {
 			try {
 				return (IResolver) createResolverInstanceGeneric
 					.MakeGenericMethod(bindingKey.BindingType, implType)
-						.Invoke(this, new object[]{bindingKey, bindingConfig, isImplicitBinding});
+						.Invoke(this, new object[]{bindingKey, null});
 			} catch (TargetInvocationException ex) {
 				throw ex.InnerException;
 			}
 		}
 
-		private Resolver<CType> CreateResolverInstance<BType, CType>(BindingKey bindingKey, IBindingConfig bindingConfig, bool isImplicitBinding) 
+		private Resolver<CType> CreateResolverInstance<BType, CType>(BindingKey bindingKey, IBindingConfig bindingConfig) 
 			where BType : class
 			where CType : class, BType
 		{
@@ -332,31 +251,20 @@ namespace IfInjector
 			}
 			
 			var resolver = new Resolver<CType> (this, bindingConfig, syncLock);
+			allResolvers.Add (bindingKey, resolver);
 			
-			if (isImplicitBinding) {
-				allResolvers.Add (bindingKey, resolver);
-				if (!allResolvers.ContainsKey (bindingKey)) {
-					allResolvers.Add (bindingKey, resolver);
-				}
-			} else {
-				allResolvers.Add (bindingKey, resolver);
-			}
-
 			return resolver;
 		}
 
-
-		
 		private void ValidateInternalBinding(IBindingInternal internalBinding) {
-			if (typeof(Injector).Equals(internalBinding.BindingKey.BindingType)) {
+			var bindingKey = internalBinding.BindingKey;
+			if (typeof(Injector).Equals(bindingKey.BindingType)) {
 				throw InjectorErrors.ErrorMayNotBindInjector.FormatEx ();
 			}
 
-			if (resolveCalled) {
+			if (resolveCalled && !bindingKey.IsImplicit) {
 				throw InjectorErrors.ErrorBindingRegistrationNotPermitted.FormatEx ();
 			}
 		}
-
-
 	}
 }

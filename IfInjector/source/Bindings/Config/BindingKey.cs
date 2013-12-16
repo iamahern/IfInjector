@@ -24,12 +24,14 @@ namespace IfInjector.Bindings.Config
 		private const int HASHCODE_MULTIPLIER = 33;
 
 		private readonly Type bindingType;
-		private readonly bool member;
+		private readonly bool isMember;
+		private readonly bool isImplicit;
 		private readonly string qualifier;
 
-		protected BindingKey(Type bindingType, bool member, string qualifier) {
+		protected BindingKey(Type bindingType, bool isMember, bool isImplicit, string qualifier) {
 			this.bindingType = bindingType;
-			this.member = member;
+			this.isMember = isMember;
+			this.isImplicit = isImplicit;
 			this.qualifier = (qualifier == null) ? NoQualifierValue : qualifier;
 		}
 
@@ -47,9 +49,19 @@ namespace IfInjector.Bindings.Config
 		/// Gets a value indicating whether this <see cref="IfInjector.IfBinding.BindingKey"/> is a property-only binding.
 		/// </summary>
 		/// <value><c>true</c> if member; otherwise, <c>false</c>.</value>
-		public bool Member {
+		public bool IsMember {
 			get {
-				return member;
+				return isMember;
+			}
+		}
+
+		/// <summary>
+		/// Gets a value indicating whether this instance is implicit. This facet does not affect the key for equals or hashing purposes.
+		/// </summary>
+		/// <value><c>true</c> if this instance is implicit; otherwise, <c>false</c>.</value>
+		public bool IsImplicit {
+			get {
+				return isImplicit;
 			}
 		}
 
@@ -71,7 +83,7 @@ namespace IfInjector.Bindings.Config
 		/// </summary>
 		/// <returns>A hash code for this instance that is suitable for use in hashing algorithms and data structures such as a hash table.</returns>
 		public override int GetHashCode() {
-			return HASHCODE_MULTIPLIER * BindingType.GetHashCode () + Member.GetHashCode () + qualifier.GetHashCode();
+			return HASHCODE_MULTIPLIER * BindingType.GetHashCode () + IsMember.GetHashCode () + qualifier.GetHashCode();
 		}
 
 		/// <summary>
@@ -97,57 +109,72 @@ namespace IfInjector.Bindings.Config
 				return true;
 			} else {
 				return bindingType.Equals (obj.bindingType) &&
-					member == obj.member &&
+					isMember == obj.isMember &&
 					qualifier.Equals(obj.qualifier);
 			}
 		}
 
 		/// <summary>
-		/// Get the instance injector.
+		/// Get the implicit version of the current binding key.
 		/// </summary>
-		/// <param name="keyType">Key type.</param>
-		internal static BindingKey Get(Type keyType) {
-			return Get (keyType, null);
+		/// <returns>The implicit.</returns>
+		internal BindingKey ToImplicit() {
+			if (IsImplicit) {
+				return this;
+			}
+
+			return new BindingKey (
+				bindingType: BindingType,
+				isMember: IsMember,
+				isImplicit: true,
+				qualifier: Qualifier);
 		}
 
 		/// <summary>
 		/// Gets a key.
 		/// </summary>
 		/// <returns>The internal.</returns>
-		/// <param name="keyType">Key type.</param>
+		/// <param name="bindingType">bindingType.</param>
 		/// <param name="isMember">If set to <c>true</c> is member.</param>
-		internal static BindingKey Get(Type keyType, bool isMember) {
-			return new BindingKey (keyType, isMember, null);
+		/// <param name="qualifier">Qualifier.</param>
+		internal static BindingKey Get(Type bindingType, string qualifier = null) {
+			return new BindingKey (
+				bindingType: bindingType, 
+				isMember: false, 
+				isImplicit: false, 
+				qualifier: qualifier);
 		}
 
 		/// <summary>
-		/// Gets the internal.
+		/// Get the specified qualifier.
+		/// </summary>
+		/// <param name="qualifier">Qualifier.</param>
+		/// <typeparam name="BType">The 1st type parameter.</typeparam>
+		internal static BindingKey Get<BType>(string qualifier = null) where BType : class {
+			return Get (typeof(BType), qualifier);
+		}
+
+		/// <summary>
+		/// Gets a key.
 		/// </summary>
 		/// <returns>The internal.</returns>
-		/// <param name="keyType">Key type.</param>
+		/// <param name="concreteType">Concrete type.</param>
 		/// <param name="isMember">If set to <c>true</c> is member.</param>
-		/// <param name="qualifier">Qualifier.</param>
-		internal static BindingKey Get(Type keyType, string qualifier) {
-			return new BindingKey (keyType, false, qualifier);
+		internal static BindingKey GetMember(Type concreteType) {
+			return new BindingKey (
+				bindingType: concreteType, 
+				isMember: true, 
+				isImplicit: false, 
+				qualifier: null);
 		}
-	}
-
-	/// <summary>
-	/// Typed binding key.
-	/// </summary>
-	internal class BindingKey<BType> : BindingKey where BType : class {
-		internal static readonly BindingKey<BType> InstanceKey = new BindingKey<BType> (false, null);
-		internal static readonly BindingKey<BType> MembersKey = new BindingKey<BType> (true, null);
-
-		private BindingKey(bool member, string qualifier) : base(typeof(BType), member, qualifier) { }
 
 		/// <summary>
-		/// Get the instance injector.
+		/// Gets the member key.
 		/// </summary>
-		/// <param name="keyType">Key type.</param>
-		/// <param name="qualifier">Qualifier.</param>
-		internal static BindingKey Get(string qualifier) {
-			return new BindingKey<BType> (false, qualifier);
+		/// <returns>The member.</returns>
+		/// <typeparam name="CType">The 1st type parameter.</typeparam>
+		internal static BindingKey GetMember<CType>() {
+			return GetMember (typeof(CType));
 		}
 	}
 }

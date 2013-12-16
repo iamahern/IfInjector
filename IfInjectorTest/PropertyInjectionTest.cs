@@ -16,7 +16,7 @@ namespace IfInjectorTest
 			var injector = new Injector ();
 			var instance = new MyClass ();
 
-			Assert.AreSame(instance, injector.InjectProperties(instance));
+			Assert.AreSame(instance, injector.InjectMembers(instance));
 
 			// Explicit Binding should not affect test
 			Assert.AreNotEqual (10, instance.Age);
@@ -38,7 +38,7 @@ namespace IfInjectorTest
 
 			var instance = new MyClass ();
 
-			Assert.AreSame(instance, injector.InjectProperties(instance));
+			Assert.AreSame(instance, injector.InjectMembers(instance));
 
 			// Explicit Binding should not affect test
 			Assert.AreEqual (10, instance.Age);
@@ -59,7 +59,7 @@ namespace IfInjectorTest
 			try
 			{
 				var concrete = new ConcretePropertyLoop();
-				injector.InjectProperties(concrete);
+				injector.InjectMembers(concrete);
 			}
 			catch (InjectorException ex)
 			{
@@ -85,7 +85,7 @@ namespace IfInjectorTest
 			Assert.IsTrue (caughtEx);
 
 			var val = new LoopingConstructorOnly ();
-			injector.InjectProperties (val);
+			injector.InjectMembers (val);
 
 			Assert.IsNotNull (val.MCls);
 		}

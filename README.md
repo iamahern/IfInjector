@@ -1,4 +1,4 @@
-# IfInjector v0.8
+# IfInjector v0.8.1
 
 This project is a fork of the https://ffastinjector.codeplex.com/ library by David Walker (https://plus.google.com/109602553530284384616/).
 

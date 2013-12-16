@@ -91,6 +91,7 @@ Distinguishing features are small size, speed and attribute based configuration.
     <Compile Include="source\Resolver\IBindingResolver.cs" />
     <Compile Include="source\Resolver\GenericBindingResolver.cs" />
     <Compile Include="source\Resolver\ImplicitBindingResolver.cs" />
+    <Compile Include="source\Bindings\Config\BindingAttributeUtils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <ItemGroup>

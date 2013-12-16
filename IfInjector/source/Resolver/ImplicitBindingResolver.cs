@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using IfInjector.Bindings.Config;
 using IfInjector.Bindings.Fluent;
@@ -35,7 +34,7 @@ namespace IfInjector.Resolver
 		/// </summary>
 		/// <param name="binding">Binding.</param>
 		internal void Register (BindingKey bindingKey) {
-			if (!bindingKey.Member) {
+			if (!bindingKey.IsMember && !bindingKey.IsImplicit) {
 				implicitTypeLookup.Remove (bindingKey);
 				AddImplicitTypes (bindingKey, GetImplicitTypes (bindingKey));
 			}
@@ -48,7 +47,7 @@ namespace IfInjector.Resolver
 		/// <param name="implicitTypeKeys">Implicit type keys.</param>
 		private void AddImplicitTypes(BindingKey bindingKey, SetShim<BindingKey> implicitTypeKeys) {
 			foreach(BindingKey implicitTypeKey in implicitTypeKeys) {
-				if (GetIfImplementedBy (implicitTypeKey.BindingType) == null) {
+				if (BindingAttributeUtils.GetImplementedBy (implicitTypeKey.BindingType) == null) {
 					SetShim<BindingKey> newSet, oldSet;
 
 					if (implicitTypeLookup.TryGetValue (implicitTypeKey, out oldSet)) {
@@ -61,7 +60,7 @@ namespace IfInjector.Resolver
 					newSet.Add (bindingKey);
 					implicitTypeLookup.Add (implicitTypeKey, newSet);
 				} else {
-					return; // TODO - should skip
+					return; // TODO - should skip rest?
 				}
 			}
 		}
@@ -85,16 +84,6 @@ namespace IfInjector.Resolver
 			}
 
 			return implicitTypes;
-		}
-
-		// TODO - refactor to UTIL?
-		private Type GetIfImplementedBy(Type bindingType) {
-			var implTypeAttr = bindingType.GetCustomAttributes(typeof(ImplementedByAttribute), false).FirstOrDefault();
-			if (implTypeAttr != null) {
-				return (implTypeAttr as ImplementedByAttribute).Implementor;
-			}
-
-			return null;
 		}
 	}
 }

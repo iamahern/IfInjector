@@ -87,6 +87,5 @@
     <Folder Include="comprop\" />
     <Folder Include="Bindings\" />
     <Folder Include="Bindings\Config\" />
-    <Folder Include="Util\" />
   </ItemGroup>
 </Project>

@@ -2,9 +2,6 @@
 	- Need for IDisposable???
 	- Implicit injection rules:
 		- Auto initialize types need error checking
-	- Upcast bindings:
-		- For iFace / concrete bindings - implicit bind concrete type?
-			=> probably not: issue is that it would break 'decorators' feature
 
 - KEY MISSING FEATURES:
 	- Decorators
@@ -17,7 +14,6 @@
 - TESTING:
 	- Add platform tests for Android, iPhone
 	- Need tests for error conditions in implicit bindings
-	- Replace benchmarks with IoCPerformance suite
 
 - WISH LIST:
 	- Extension feature to allow for interceptors
