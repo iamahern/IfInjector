@@ -20,7 +20,7 @@
     <header>
       <div class="inner">
         <h1>IfInjector</h1>
-        <h2>High performance mobile micro-IoC container. </h2>
+        <h2>High performance mobile micro-IoC container.</h2>
         <a href="https://github.com/iamahern/IfInjector" class="button"><small>View project on</small>GitHub</a>
       </div>
     </header>
@@ -45,9 +45,15 @@
 <li>Fast (top performer on <a href="http://www.palmmedia.de/blog/2011/8/30/ioc-container-benchmark-performance-comparison">IoC Container Shootout</a>) </li>
 <li>Small</li>
 </ul><h1>
-<a name="documentations" class="anchor" href="#documentations"><span class="octicon octicon-link"></span></a>Documentations</h1>
+<a name="documentation" class="anchor" href="#documentations"><span class="octicon octicon-link"></span></a>Documentations/h1>
 
-<p><a href="https://github.com/iamahern/IfInjector/wiki">https://github.com/iamahern/IfInjector/wiki</a></p>
+<p><ul>
+  {% for post in site.posts %}
+    <li>
+      <a href="{{ post.url }}">{{ post.title }}</a>
+    </li>
+  {% endfor %}
+</ul></p>
 
 <h1>
 <a name="example-usage-and-quickstart" class="anchor" href="#example-usage-and-quickstart"><span class="octicon octicon-link"></span></a>Example Usage and Quickstart</h1>
