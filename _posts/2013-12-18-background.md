@@ -1,5 +1,7 @@
 ---
-published: false
+published: true
+title: Background
+layout: default
 ---
 
 This page covers the details of why I created this project as well as the architectural differences from fFastInjector.
